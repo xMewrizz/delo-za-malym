@@ -1,0 +1,192 @@
+{
+  "application": {
+    "schema_version": "0.1",
+    "application_id": "demo-001",
+    "application_version": 1,
+    "currency": "RUB",
+    "need": {
+      "purpose": "working_capital",
+      "preferred_product": "working_capital_loan",
+      "requested_amount": "1000000.00",
+      "term_months": 12,
+      "needed_by": "2026-11-01",
+      "recurring": false,
+      "own_funds": "260000.00",
+      "priority": "preserve_amount"
+    },
+    "business": {
+      "inn": "0000000000",
+      "legal_form": "ooo",
+      "registered_at": "2023-01-15",
+      "activity": "Оптовая торговля товарами для дома"
+    },
+    "financials": {
+      "monthly": [
+        {"month": "2026-04", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"},
+        {"month": "2026-05", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"},
+        {"month": "2026-06", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"},
+        {"month": "2026-07", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"},
+        {"month": "2026-08", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"},
+        {"month": "2026-09", "operating_inflow": "1000000.00", "operating_outflow": "800000.00", "taxes": "50000.00"}
+      ],
+      "cash_balance": "300000.00",
+      "existing_loans": [
+        {"loan_id": "existing-001", "outstanding_principal": "700000.00", "monthly_payment": "35000.00", "maturity_date": "2028-09-30"}
+      ],
+      "largest_buyer_share": 0.25
+    },
+    "confirmation": {"application_version": 1, "confirmed_at": "2026-10-20T12:00:00+03:00"}
+  },
+  "assistant_proposal": {
+    "intent": "simulate_alternative",
+    "application_id": "demo-001",
+    "base_application_version": 1,
+    "changes": {"need.requested_amount": "800000.00", "need.term_months": 18},
+    "question": null
+  },
+  "assessment_alternatives": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-001",
+    "application_id": "demo-001",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "alternative_offers",
+    "risk_grade": "low",
+    "reasons": [{"code": "requested_payment_exceeds_capacity", "message": "Платёж по исходному запросу превышает доступные 70 000 ₽ в месяц."}],
+    "required_information": [],
+    "offers": [
+      {
+        "offer_id": "offer-001",
+        "application_id": "demo-001",
+        "application_version": 1,
+        "product_id": "working_capital_loan",
+        "amount": "1000000.00",
+        "term_months": 18,
+        "annual_rate_percent": "24.00",
+        "monthly_payment": "66702.10",
+        "fees_total": "0.00",
+        "total_repayment": "1200637.88",
+        "conditions": [],
+        "valid_until": "2026-10-27T12:01:00+03:00"
+      }
+    ],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "assessment_needs_information": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-002",
+    "application_id": "demo-002",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "needs_information",
+    "risk_grade": null,
+    "reasons": [{"code": "missing_financial_history", "message": "Нужны помесячные показатели бизнеса."}],
+    "required_information": [{"field": "financials.monthly", "code": "missing_monthly_cash_flow", "question": "Предоставьте поступления, расходы и налоги за последние шесть полных месяцев."}],
+    "offers": [],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "assessment_declined": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-003",
+    "application_id": "demo-003",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "declined",
+    "risk_grade": null,
+    "reasons": [{"code": "business_inactive", "message": "По результатам проверки деятельность бизнеса прекращена."}],
+    "required_information": [],
+    "offers": [],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "assessment_out_of_policy": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-004",
+    "application_id": "demo-004",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "out_of_policy",
+    "risk_grade": null,
+    "reasons": [{"code": "insufficient_business_history", "message": "Для бизнеса с такой короткой историей автоматическая оценка пока недоступна."}],
+    "required_information": [],
+    "offers": [],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "assessment_approved": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-005",
+    "application_id": "demo-005",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "approved",
+    "risk_grade": "low",
+    "reasons": [{"code": "requested_terms_eligible", "message": "Запрошенные условия прошли проверки."}],
+    "required_information": [],
+    "offers": [
+      {
+        "offer_id": "offer-005",
+        "application_id": "demo-005",
+        "application_version": 1,
+        "product_id": "working_capital_loan",
+        "amount": "500000.00",
+        "term_months": 12,
+        "annual_rate_percent": "24.00",
+        "monthly_payment": "47279.80",
+        "fees_total": "0.00",
+        "total_repayment": "567357.58",
+        "conditions": [],
+        "valid_until": "2026-10-27T12:01:00+03:00"
+      }
+    ],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "assessment_conditional": {
+    "schema_version": "0.1",
+    "assessment_id": "assessment-006",
+    "application_id": "demo-006",
+    "application_version": 1,
+    "stage": "final",
+    "outcome": "conditional_approval",
+    "risk_grade": "medium",
+    "reasons": [{"code": "guarantor_required", "message": "Предложение требует оформления поручительства."}],
+    "required_information": [],
+    "offers": [
+      {
+        "offer_id": "offer-006",
+        "application_id": "demo-006",
+        "application_version": 1,
+        "product_id": "working_capital_loan",
+        "amount": "500000.00",
+        "term_months": 12,
+        "annual_rate_percent": "24.00",
+        "monthly_payment": "47279.80",
+        "fees_total": "0.00",
+        "total_repayment": "567357.58",
+        "conditions": [{"code": "guarantee_required", "message": "Оформить поручительство перед подписанием кредитного договора.", "fulfilled": false}],
+        "valid_until": "2026-10-27T12:01:00+03:00"
+      }
+    ],
+    "policy_version": "demo-v1",
+    "catalog_version": "demo-v1",
+    "calculated_at": "2026-10-20T12:01:00+03:00"
+  },
+  "application_state": {
+    "application_id": "demo-001",
+    "application_version": 1,
+    "status": "offers_ready",
+    "current_step": "offer_selection",
+    "latest_assessment_id": "assessment-001",
+    "selected_offer_id": null,
+    "next_action": {"type": "select_offer", "label": "Сравните предложения и выберите подходящее"},
+    "updated_at": "2026-10-20T12:01:00+03:00"
+  }
+}
