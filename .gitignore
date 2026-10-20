@@ -2,3 +2,7 @@ tmp/
 __pycache__/
 *.py[cod]
 .venv/
+.env
+.idea/
+*.gguf
+*.log
