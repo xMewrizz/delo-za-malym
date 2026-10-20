@@ -6,6 +6,8 @@ from .scoring import RiskScoreResult, calculate_risk_score
 from .assessment import AssessmentResult, WorkingCapitalPolicy, assess_application
 from .overdraft import OverdraftCalculationResult, OverdraftPolicy, calculate_overdraft
 from .overdraft_assessment import OverdraftAssessmentResult, OverdraftCreditPolicy, assess_overdraft
+from .offers import OfferReadinessResult, check_offer_readiness
+from .selection import FinancingSelectionResult, recommend_financing
 
 __all__ = [
     "FinancialPolicy",
@@ -24,4 +26,8 @@ __all__ = [
     "OverdraftAssessmentResult",
     "OverdraftCreditPolicy",
     "assess_overdraft",
+    "OfferReadinessResult",
+    "check_offer_readiness",
+    "FinancingSelectionResult",
+    "recommend_financing",
 ]

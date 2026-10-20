@@ -1,0 +1,13 @@
+*
+!Dockerfile
+!requirements.txt
+!backend/
+!backend/**
+!credit_engine/
+!credit_engine/**
+!scripts/
+!scripts/**
+!contracts/
+!contracts/**
+**/__pycache__
+**/*.pyc
