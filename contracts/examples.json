@@ -12,7 +12,8 @@
       "needed_by": "2026-11-01",
       "recurring": false,
       "own_funds": "260000.00",
-      "priority": "preserve_amount"
+      "priority": "preserve_amount",
+      "minimum_acceptable_amount": null
     },
     "business": {
       "inn": "0000000000",
@@ -36,6 +37,17 @@
       "largest_buyer_share": 0.25
     },
     "confirmation": {"application_version": 1, "confirmed_at": "2026-10-20T12:00:00+03:00"}
+  },
+  "checks": {
+    "schema_version": "0.1",
+    "application_id": "demo-001",
+    "application_version": 1,
+    "business_inn": "0000000000",
+    "checked_at": "2026-10-20T12:00:30+03:00",
+    "registration": {"status": "completed", "active": true, "registered_at": "2023-01-15", "legal_form": "ooo"},
+    "restrictions": {"status": "completed", "financing_prohibited": false},
+    "credit_history": {"status": "completed", "category": "good"},
+    "obligations": {"status": "completed", "matches_application": true}
   },
   "assistant_proposal": {
     "intent": "simulate_alternative",

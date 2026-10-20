@@ -2,6 +2,8 @@
 
 from .financials import FinancialPolicy, FinancialMetricsResult, calculate_financial_metrics
 from .loans import LoanCalculationResult, calculate_loan
+from .scoring import RiskScoreResult, calculate_risk_score
+from .assessment import AssessmentResult, WorkingCapitalPolicy, assess_application
 
 __all__ = [
     "FinancialPolicy",
@@ -9,4 +11,9 @@ __all__ = [
     "LoanCalculationResult",
     "calculate_financial_metrics",
     "calculate_loan",
+    "RiskScoreResult",
+    "calculate_risk_score",
+    "AssessmentResult",
+    "WorkingCapitalPolicy",
+    "assess_application",
 ]
