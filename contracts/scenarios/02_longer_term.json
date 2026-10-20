@@ -1,0 +1,221 @@
+{
+  "scenario_id": "02_longer_term",
+  "title": "Предложен другой срок",
+  "description": "Миллион на 12 месяцев не проходит по платежу; сохраняем сумму и предлагаем 18 месяцев.",
+  "input": {
+    "application": {
+      "schema_version": "0.1",
+      "application_id": "demo-02_longer_term",
+      "application_version": 1,
+      "currency": "RUB",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "working_capital_loan",
+        "requested_amount": "1000000.00",
+        "term_months": 12,
+        "needed_by": "2026-11-01",
+        "recurring": false,
+        "own_funds": "260000.00",
+        "priority": "preserve_amount",
+        "minimum_acceptable_amount": null
+      },
+      "business": {
+        "inn": "0000000000",
+        "legal_form": "ooo",
+        "registered_at": "2023-01-15",
+        "activity": "Оптовая торговля товарами для дома"
+      },
+      "financials": {
+        "monthly": [
+          {
+            "month": "2026-04",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-05",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-06",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-07",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-08",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-09",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          }
+        ],
+        "cash_balance": "300000.00",
+        "existing_loans": [
+          {
+            "loan_id": "existing-001",
+            "outstanding_principal": "700000.00",
+            "monthly_payment": "35000.00",
+            "maturity_date": "2028-09-30"
+          }
+        ],
+        "largest_buyer_share": 0.25
+      },
+      "confirmation": {
+        "application_version": 1,
+        "confirmed_at": "2026-10-20T12:00:00+03:00"
+      }
+    },
+    "checks": {
+      "schema_version": "0.1",
+      "application_id": "demo-02_longer_term",
+      "application_version": 1,
+      "business_inn": "0000000000",
+      "checked_at": "2026-10-20T12:00:30+03:00",
+      "registration": {
+        "status": "completed",
+        "active": true,
+        "registered_at": "2023-01-15",
+        "legal_form": "ooo"
+      },
+      "restrictions": {
+        "status": "completed",
+        "financing_prohibited": false
+      },
+      "credit_history": {
+        "status": "completed",
+        "category": "good"
+      },
+      "obligations": {
+        "status": "completed",
+        "matches_application": true
+      }
+    },
+    "calculated_at": "2026-10-20T12:01:00+03:00",
+    "stage": "final",
+    "assessment_id": "assessment-02_longer_term"
+  },
+  "expected": {
+    "status": "assessed",
+    "assessment": {
+      "schema_version": "0.1",
+      "assessment_id": "assessment-02_longer_term",
+      "application_id": "demo-02_longer_term",
+      "application_version": 1,
+      "stage": "final",
+      "outcome": "alternative_offers",
+      "risk_grade": "low",
+      "reasons": [
+        {
+          "code": "requested_payment_exceeds_capacity",
+          "message": "Максимальный платёж исходного запроса 94559.60 ₽ превышает доступные 70000.00 ₽ в месяц."
+        }
+      ],
+      "required_information": [],
+      "offers": [
+        {
+          "offer_id": "assessment-02_longer_term-offer-1",
+          "application_id": "demo-02_longer_term",
+          "application_version": 1,
+          "product_id": "working_capital_loan",
+          "amount": "1000000.00",
+          "term_months": 18,
+          "annual_rate_percent": "24.00",
+          "monthly_payment": "66702.10",
+          "fees_total": "0.00",
+          "total_repayment": "1200637.88",
+          "conditions": [],
+          "valid_until": "2026-10-27T12:01:00+03:00"
+        }
+      ],
+      "policy_version": "demo-v1",
+      "catalog_version": "demo-v1",
+      "calculated_at": "2026-10-20T12:01:00+03:00"
+    },
+    "issues": [],
+    "financial_metrics": {
+      "monthly_cash_flow": [
+        {
+          "month": "2026-04",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-05",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-06",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-07",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-08",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-09",
+          "cash_flow": "150000.00"
+        }
+      ],
+      "average_monthly_inflow": "1000000.00",
+      "average_monthly_outflow": "800000.00",
+      "average_monthly_taxes": "50000.00",
+      "average_monthly_cash_flow": "150000.00",
+      "minimum_monthly_cash_flow": "150000.00",
+      "underwriting_cash_flow": "150000.00",
+      "existing_monthly_debt_service": "35000.00",
+      "cash_flow_after_existing_debt": "115000.00",
+      "operating_reserve": "45000.00",
+      "total_debt_service_limit": "105000.00",
+      "available_monthly_payment": "70000.00",
+      "cash_flow_margin": "0.15",
+      "inflow_cv": "0E+2",
+      "largest_buyer_share": "0.25",
+      "nonpositive_cash_flow_months": 0
+    },
+    "scoring": {
+      "status": "calculated",
+      "score": 100,
+      "risk_grade": "low",
+      "components": [
+        {
+          "code": "credit_history",
+          "points": 50,
+          "max_points": 50,
+          "message": "Категория кредитной истории: good."
+        },
+        {
+          "code": "inflow_stability",
+          "points": 30,
+          "max_points": 30,
+          "message": "Коэффициент колебаний поступлений: 0.0000."
+        },
+        {
+          "code": "buyer_concentration",
+          "points": 20,
+          "max_points": 20,
+          "message": "Доля крупнейшего покупателя: 25.00%."
+        }
+      ],
+      "issues": [],
+      "policy_version": "demo-v1"
+    }
+  }
+}
