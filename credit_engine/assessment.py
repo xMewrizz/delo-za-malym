@@ -9,7 +9,8 @@ from uuid import uuid4
 
 from .financials import CalculationIssue, FinancialMetrics, FinancialPolicy, MONEY_PATTERN, calculate_financial_metrics
 from .loans import LoanCalculation, calculate_loan
-from .scoring import CREDIT_HISTORY_POINTS, RiskScoreResult, calculate_risk_score
+from .scoring import RiskScoreResult, calculate_risk_score
+from .checks import parse_timestamp, validate_external_checks
 
 
 @dataclass(frozen=True)
@@ -61,70 +62,6 @@ class AssessmentResult:
         return serialize(asdict(self))
 
 
-def _timestamp(value: Any) -> datetime | None:
-    try:
-        parsed = value if isinstance(value, datetime) else datetime.fromisoformat(value)
-        return parsed if parsed.utcoffset() is not None else None
-    except (TypeError, ValueError):
-        return None
-
-
-def _checks_issues(
-    checks: Any, application: Mapping, now: datetime, policy: WorkingCapitalPolicy,
-) -> tuple[str | None, tuple[CalculationIssue, ...]]:
-    if checks is None:
-        return "needs_checks", (CalculationIssue("checks", "missing_checks", "Нужны результаты внешних проверок."),)
-    if not isinstance(checks, Mapping):
-        return "invalid_data", (CalculationIssue("checks", "invalid_checks", "Проверки должны быть объектом."),)
-    if checks.get("schema_version") != "0.1":
-        return "invalid_data", (CalculationIssue("checks.schema_version", "unsupported_schema", "Нужен формат проверок 0.1."),)
-    for field, expected in (("application_id", application["application_id"]),
-                            ("application_version", application["application_version"]),
-                            ("business_inn", application["business"]["inn"])):
-        if checks.get(field) != expected or type(checks.get(field)) is not type(expected):
-            return "needs_checks", (CalculationIssue(f"checks.{field}", "checks_binding_mismatch",
-                                                       "Проверки должны относиться к этому бизнесу и версии заявки."),)
-    checked_at = _timestamp(checks.get("checked_at"))
-    if checked_at is None:
-        return "invalid_data", (CalculationIssue("checks.checked_at", "invalid_timestamp", "Нужно время проверки с часовым поясом."),)
-    if checked_at > now:
-        return "invalid_data", (CalculationIssue("checks.checked_at", "future_checks", "Время проверки находится в будущем."),)
-    if now - checked_at > timedelta(hours=policy.checks_valid_hours):
-        return "needs_checks", (CalculationIssue("checks.checked_at", "stale_checks", "Нужно обновить внешние проверки."),)
-    issues = []
-    status = None
-    for section, key in (("registration", "active"), ("restrictions", "financing_prohibited"),
-                         ("credit_history", "category"), ("obligations", "matches_application")):
-        result = checks.get(section)
-        field = f"checks.{section}"
-        if result is None:
-            issues.append(CalculationIssue(field, "missing_check", "Нет результата проверки."))
-            status = status or "needs_checks"
-        elif not isinstance(result, Mapping) or result.get("status") not in ("completed", "pending", "error"):
-            return "invalid_data", (CalculationIssue(field, "invalid_check", "Некорректный результат проверки."),)
-        elif result["status"] == "error":
-            issues.append(CalculationIssue(field, "check_service_error", "Проверка завершилась технической ошибкой."))
-            status = "check_retry_pending"
-        elif result["status"] == "pending" or result.get(key) is None:
-            issues.append(CalculationIssue(field, "incomplete_check", "Проверка ещё не завершена."))
-            status = status or "needs_checks"
-        elif section == "credit_history":
-            category = result[key]
-            if not isinstance(category, str) or category not in CREDIT_HISTORY_POINTS:
-                return "invalid_data", (CalculationIssue(f"{field}.{key}", "invalid_credit_history", "Неизвестная категория истории."),)
-        elif type(result[key]) is not bool:
-            return "invalid_data", (CalculationIssue(f"{field}.{key}", "invalid_check_value", "Ожидается логическое значение."),)
-    registration = checks.get("registration")
-    if isinstance(registration, Mapping) and registration.get("status") == "completed" and registration.get("active") is True:
-        for field in ("registered_at", "legal_form"):
-            if registration.get(field) is None:
-                issues.append(CalculationIssue(f"checks.registration.{field}", "incomplete_check", "Нужны регистрационные сведения из проверки."))
-                status = status or "needs_checks"
-            elif not isinstance(registration[field], str):
-                return "invalid_data", (CalculationIssue(f"checks.registration.{field}", "invalid_check_value", "Нужна строка из регистрационных сведений."),)
-    return status, tuple(issues)
-
-
 def _loan(amount: Decimal, term: int, policy: WorkingCapitalPolicy) -> LoanCalculation:
     return calculate_loan(f"{amount:.2f}", term, policy.annual_rate_percent).calculation
 
@@ -170,7 +107,7 @@ def _assess_application(
     policy: WorkingCapitalPolicy = WorkingCapitalPolicy(), financial_policy: FinancialPolicy = FinancialPolicy(),
 ) -> AssessmentResult:
     """Вернуть assessment по контракту 0.1 либо ошибку данных/состояние проверок."""
-    now = _timestamp(calculated_at)
+    now = parse_timestamp(calculated_at)
     if now is None:
         return AssessmentResult("invalid_data", issues=(CalculationIssue(
             "calculated_at", "invalid_timestamp", "Нужно время расчёта с часовым поясом.",
@@ -255,7 +192,7 @@ def _assess_application(
         return AssessmentResult("invalid_data", issues=(CalculationIssue("business.registered_at", "invalid_date", "Нужна дата регистрации не позднее даты оценки."),))
     if stage == "final":
         confirmation = application.get("confirmation")
-        confirmed_at = _timestamp(confirmation.get("confirmed_at")) if isinstance(confirmation, Mapping) else None
+        confirmed_at = parse_timestamp(confirmation.get("confirmed_at")) if isinstance(confirmation, Mapping) else None
         if (not isinstance(confirmation, Mapping) or type(confirmation.get("application_version")) is not int
                 or confirmation["application_version"] != application["application_version"]
                 or confirmed_at is None or confirmed_at > now):
@@ -271,7 +208,7 @@ def _assess_application(
         return AssessmentResult("invalid_data", issues=financials.issues)
     if financials.status == "needs_information":
         return finish("needs_information", "incomplete_financial_data", "Уточните финансовые данные.", fields=financials.issues)
-    check_status, issues = _checks_issues(checks, application, now, policy)
+    check_status, issues = validate_external_checks(checks, application, now, max_age_hours=policy.checks_valid_hours)
     if check_status:
         return AssessmentResult(check_status, issues=issues, financial_metrics=metrics)
     if not checks["registration"]["active"]:

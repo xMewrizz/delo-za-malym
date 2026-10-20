@@ -6,28 +6,36 @@ import json
 from pathlib import Path
 import sys
 
-from credit_engine import assess_application
+from credit_engine import assess_application, assess_overdraft
 
 
 SCENARIOS_DIR = Path(__file__).resolve().parents[1] / "contracts" / "scenarios"
+OVERDRAFT_SCENARIOS_DIR = SCENARIOS_DIR.parent / "overdraft" / "scenarios"
 
 
-def load_scenarios(scenario_id: str | None = None) -> list[dict]:
+def load_scenarios(scenario_id: str | None = None, *, product: str = "working_capital_loan") -> list[dict]:
+    if product not in ("working_capital_loan", "overdraft"):
+        raise ValueError(f"Неизвестный продукт: {product}")
+    directory = OVERDRAFT_SCENARIOS_DIR if product == "overdraft" else SCENARIOS_DIR
     scenarios = []
-    for path in sorted(SCENARIOS_DIR.glob("*.json")):
+    for path in sorted(directory.glob("*.json")):
         scenario = json.loads(path.read_text(encoding="utf-8"))
         if scenario["scenario_id"] != path.stem:
             raise ValueError(f"Идентификатор сценария не совпадает с именем файла: {path.name}")
         if scenario_id is None or scenario["scenario_id"] == scenario_id:
             scenarios.append(scenario)
     if not scenarios:
-        raise ValueError(f"Сценарии не найдены: {scenario_id or SCENARIOS_DIR}")
+        raise ValueError(f"Сценарии не найдены: {scenario_id or directory}")
     return scenarios
 
 
 def run_scenario(scenario: dict) -> dict:
     inputs = scenario["input"]
-    return assess_application(
+    product = scenario.get("product_id", "working_capital_loan")
+    if product not in ("working_capital_loan", "overdraft"):
+        raise ValueError(f"Неизвестный продукт: {product}")
+    assess = assess_overdraft if product == "overdraft" else assess_application
+    return assess(
         inputs["application"],
         inputs["checks"],
         calculated_at=inputs["calculated_at"],
@@ -42,6 +50,8 @@ def json_text(value: object) -> str:
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument("--product", choices=("working_capital_loan", "overdraft"), default="working_capital_loan",
+                        help="Продукт для проверки; по умолчанию разовый кредит")
     parser.add_argument("--scenario", help="Идентификатор сценария, например 01_approved")
     parser.add_argument("--list", action="store_true", help="Показать список сценариев без расчёта")
     parser.add_argument("--json", action="store_true", help="Вывести рассчитанный ответ выбранного сценария")
@@ -49,7 +59,7 @@ def main(argv: list[str] | None = None) -> int:
     if args.json and (args.scenario is None or args.list):
         parser.error("--json используется вместе с --scenario и без --list")
     try:
-        scenarios = load_scenarios(args.scenario)
+        scenarios = load_scenarios(args.scenario, product=args.product)
     except (OSError, ValueError, KeyError) as exc:
         print(f"Не удалось прочитать сценарии: {exc}", file=sys.stderr)
         return 1

@@ -1,0 +1,193 @@
+{
+  "scenario_id": "07_overdraft_check_unavailable",
+  "product_id": "overdraft",
+  "title": "Внешняя проверка недоступна",
+  "description": "Ошибка кредитной истории означает ожидание повтора, а не отказ.",
+  "input": {
+    "application": {
+      "schema_version": "0.1",
+      "application_id": "demo-07_overdraft_check_unavailable",
+      "application_version": 1,
+      "currency": "RUB",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "overdraft",
+        "requested_amount": "200000.00",
+        "term_months": null,
+        "needed_by": "2026-11-01",
+        "recurring": false,
+        "own_funds": "260000.00",
+        "priority": "preserve_amount",
+        "minimum_acceptable_amount": null
+      },
+      "business": {
+        "inn": "0000000000",
+        "legal_form": "ooo",
+        "registered_at": "2023-01-15",
+        "activity": "Оптовая торговля товарами для дома"
+      },
+      "financials": {
+        "monthly": [
+          {
+            "month": "2026-04",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-05",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-06",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-07",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-08",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          },
+          {
+            "month": "2026-09",
+            "operating_inflow": "1000000.00",
+            "operating_outflow": "800000.00",
+            "taxes": "50000.00"
+          }
+        ],
+        "cash_balance": "300000.00",
+        "existing_loans": [
+          {
+            "loan_id": "existing-001",
+            "outstanding_principal": "700000.00",
+            "monthly_payment": "35000.00",
+            "maturity_date": "2028-09-30"
+          }
+        ],
+        "largest_buyer_share": 0.25
+      },
+      "confirmation": {
+        "application_version": 1,
+        "confirmed_at": "2026-10-20T12:00:00+03:00"
+      },
+      "product_details": {
+        "overdraft": {
+          "start_date": "2026-11-01",
+          "end_date": "2026-11-11",
+          "opening_cash_balance": "100000.00",
+          "cash_reserve": "0.00",
+          "transactions": [
+            {
+              "transaction_id": "purchase-001",
+              "date": "2026-11-01",
+              "direction": "outflow",
+              "amount": "250000.00"
+            },
+            {
+              "transaction_id": "customer-001",
+              "date": "2026-11-11",
+              "direction": "inflow",
+              "amount": "200000.00"
+            }
+          ],
+          "existing_debt_payments": []
+        }
+      }
+    },
+    "checks": {
+      "schema_version": "0.1",
+      "application_id": "demo-07_overdraft_check_unavailable",
+      "application_version": 1,
+      "business_inn": "0000000000",
+      "checked_at": "2026-10-20T12:00:30+03:00",
+      "registration": {
+        "status": "completed",
+        "active": true,
+        "registered_at": "2023-01-15",
+        "legal_form": "ooo"
+      },
+      "restrictions": {
+        "status": "completed",
+        "financing_prohibited": false
+      },
+      "credit_history": {
+        "status": "error",
+        "category": null
+      },
+      "obligations": {
+        "status": "completed",
+        "matches_application": true
+      }
+    },
+    "calculated_at": "2026-10-20T12:01:00+03:00",
+    "stage": "final",
+    "assessment_id": "assessment-07_overdraft_check_unavailable"
+  },
+  "expected": {
+    "status": "check_retry_pending",
+    "assessment": null,
+    "issues": [
+      {
+        "field": "checks.credit_history",
+        "code": "check_service_error",
+        "message": "Проверка завершилась технической ошибкой."
+      }
+    ],
+    "financial_metrics": {
+      "monthly_cash_flow": [
+        {
+          "month": "2026-04",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-05",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-06",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-07",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-08",
+          "cash_flow": "150000.00"
+        },
+        {
+          "month": "2026-09",
+          "cash_flow": "150000.00"
+        }
+      ],
+      "average_monthly_inflow": "1000000.00",
+      "average_monthly_outflow": "800000.00",
+      "average_monthly_taxes": "50000.00",
+      "average_monthly_cash_flow": "150000.00",
+      "minimum_monthly_cash_flow": "150000.00",
+      "underwriting_cash_flow": "150000.00",
+      "existing_monthly_debt_service": "35000.00",
+      "cash_flow_after_existing_debt": "115000.00",
+      "operating_reserve": "45000.00",
+      "total_debt_service_limit": "105000.00",
+      "available_monthly_payment": "70000.00",
+      "cash_flow_margin": "0.15",
+      "inflow_cv": "0E+2",
+      "largest_buyer_share": "0.25",
+      "nonpositive_cash_flow_months": 0
+    },
+    "scoring": null,
+    "limit_calculation": null,
+    "overdraft_calculation": null
+  }
+}
