@@ -1,0 +1,295 @@
+{
+  "recorded_at": "2026-10-20T19:40:03.129775+03:00",
+  "purpose": "Read-only metadata capture. No model inference or weight downloads. HF revisions were observed during report preparation; they are not proof of the revision used for earlier downloads. Ollama digests identify manifests, not GGUF SHA-256.",
+  "local_environment": {
+    "ollama": {
+      "version": "0.33.1"
+    },
+    "os": "macOS-26.6.2-arm64-arm-64bit-Mach-O",
+    "cpu": "Apple M4 Pro",
+    "memory_bytes": 25769803776
+  },
+  "ollama_tags_before_cleanup": [
+    {
+      "name": "hf.co/bartowski/Human-Like-Mistral-Nemo-Instruct-2407-GGUF:Q6_K_L",
+      "model": "hf.co/bartowski/Human-Like-Mistral-Nemo-Instruct-2407-GGUF:Q6_K_L",
+      "modified_at": "2026-10-20T19:30:28.873274849+03:00",
+      "size": 10381269448,
+      "digest": "b899286c684a8b0f6de350c522281e9667e15c4638603adbce203ce797cc4f11",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "llama",
+        "families": [
+          "llama"
+        ],
+        "parameter_size": "12.2B",
+        "quantization_level": "Q6_K",
+        "context_length": 1024000,
+        "embedding_length": 5120
+      },
+      "capabilities": [
+        "completion"
+      ]
+    },
+    {
+      "name": "hf.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF:Q6_K",
+      "model": "hf.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF:Q6_K",
+      "modified_at": "2026-10-20T18:35:01.7212422+03:00",
+      "size": 9786021150,
+      "digest": "f87405c6d8addd666b3e5c494756d6f21fd14a8eca653e32bd4b29718cd19fef",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "gemma4",
+        "families": [
+          "gemma4"
+        ],
+        "parameter_size": "11.9B",
+        "quantization_level": "unknown",
+        "context_length": 262144,
+        "embedding_length": 3840
+      },
+      "capabilities": [
+        "completion"
+      ]
+    },
+    {
+      "name": "gpt-oss:120b-cloud",
+      "model": "gpt-oss:120b-cloud",
+      "remote_model": "gpt-oss:120b",
+      "remote_host": "https://ollama.com:443",
+      "modified_at": "2026-03-16T14:36:13.996404334+03:00",
+      "size": 384,
+      "digest": "569662207105c69bb0eca2f79a3fdf8691ad6301def477a5ec66f8e8bae237e3",
+      "details": {
+        "parent_model": "",
+        "format": "",
+        "family": "gptoss",
+        "families": [
+          "gptoss"
+        ],
+        "parameter_size": "116.8B",
+        "quantization_level": "MXFP4",
+        "context_length": 131072,
+        "embedding_length": 2880
+      },
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ]
+    },
+    {
+      "name": "qwen3:4b",
+      "model": "qwen3:4b",
+      "modified_at": "2025-11-03T18:03:03.245644855+03:00",
+      "size": 2497293931,
+      "digest": "359d7dd4bcdab3d86b87d73ac27966f4dbb9f5efdfcc75d34a8764a09474fae7",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "qwen3",
+        "families": [
+          "qwen3"
+        ],
+        "parameter_size": "4.0B",
+        "quantization_level": "Q4_K_M",
+        "context_length": 262144,
+        "embedding_length": 2560
+      },
+      "capabilities": [
+        "completion",
+        "tools",
+        "thinking"
+      ]
+    }
+  ],
+  "hf": {
+    "gemma_agentic": {
+      "repo": "yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF",
+      "url": "https://huggingface.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF",
+      "revision_observed_at_report_time": "190a31365a6b80a692349be34ccdac730cad4fe4",
+      "downloads_last_month_at_report_time": 418603,
+      "likes_at_report_time": 1705,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": "google/gemma-4-12B-it",
+      "files": [
+        {
+          "rfilename": "gemma4-v2-Q6_K.gguf",
+          "size": 9786020384,
+          "lfs": {
+            "sha256": "edb98c934c50c8a5a32074b27f9ccf6e22552619e70245c0f83ccfbea9b1fe61",
+            "size": 9786020384,
+            "pointerSize": 135
+          }
+        }
+      ]
+    },
+    "human_like_mistral": {
+      "repo": "bartowski/Human-Like-Mistral-Nemo-Instruct-2407-GGUF",
+      "url": "https://huggingface.co/bartowski/Human-Like-Mistral-Nemo-Instruct-2407-GGUF",
+      "revision_observed_at_report_time": "9f3ae7e74a909de5cb63ba81ca1a3f18877d6751",
+      "downloads_last_month_at_report_time": 1961,
+      "likes_at_report_time": 7,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": "HumanLLMs/Humanish-Mistral-Nemo-Instruct-2407",
+      "files": [
+        {
+          "rfilename": "Humanish-Mistral-Nemo-Instruct-2407-Q6_K_L.gguf",
+          "size": 10381268800,
+          "lfs": {
+            "sha256": "f3e7c3afc556c366391b3a9b1b6c6c0bf0038a39435cece00e9c177b97083fe0",
+            "size": 10381268800,
+            "pointerSize": 136
+          }
+        }
+      ]
+    },
+    "mistral_original": {
+      "repo": "HumanLLMs/Human-Like-Mistral-Nemo-Instruct-2407",
+      "url": "https://huggingface.co/HumanLLMs/Human-Like-Mistral-Nemo-Instruct-2407",
+      "revision_observed_at_report_time": "0ff937a2beb31b15dc07a2255ddb067300fc15a1",
+      "downloads_last_month_at_report_time": 125,
+      "likes_at_report_time": 30,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": "mistralai/Mistral-Nemo-Instruct-2407",
+      "files": []
+    },
+    "hermes": {
+      "repo": "NousResearch/Hermes-3-Llama-3.1-8B",
+      "url": "https://huggingface.co/NousResearch/Hermes-3-Llama-3.1-8B",
+      "revision_observed_at_report_time": "896ea440e5a9e6070e3d8a2774daf2b481ab425b",
+      "downloads_last_month_at_report_time": 481324,
+      "likes_at_report_time": 519,
+      "license_declared_in_metadata": "llama3",
+      "base_model_declared": "meta-llama/Meta-Llama-3.1-8B",
+      "files": []
+    },
+    "hermes_gguf": {
+      "repo": "bartowski/Hermes-3-Llama-3.1-8B-GGUF",
+      "url": "https://huggingface.co/bartowski/Hermes-3-Llama-3.1-8B-GGUF",
+      "revision_observed_at_report_time": "223c8e24dec0f863b6abe4c89bf20f6941b805e2",
+      "downloads_last_month_at_report_time": 12076,
+      "likes_at_report_time": 22,
+      "license_declared_in_metadata": "llama3",
+      "base_model_declared": "NousResearch/Hermes-3-Llama-3.1-8B",
+      "files": [
+        {
+          "rfilename": "Hermes-3-Llama-3.1-8B-Q5_K_M.gguf",
+          "size": 5732987808,
+          "lfs": {
+            "sha256": "e6f1fa6cc5c57fcf1f122104b687e44573f22fb9f52e15617d0397e31a87323f",
+            "size": 5732987808,
+            "pointerSize": 135
+          }
+        }
+      ]
+    },
+    "humanizer": {
+      "repo": "jialinyyzz/humanizer-GGUF",
+      "url": "https://huggingface.co/jialinyyzz/humanizer-GGUF",
+      "revision_observed_at_report_time": "d9c6be435fe29e6e96dc42f4c3cc185e06ae3eac",
+      "downloads_last_month_at_report_time": 18830,
+      "likes_at_report_time": 52,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": "jialinyyzz/humanizer",
+      "files": [
+        {
+          "rfilename": "humanizer-12b-Q4_K_M.gguf",
+          "size": 7625160864,
+          "lfs": {
+            "sha256": "2229574dec5178629575ee4a153dfee7d9e924ab997d0ad9d2ac622b67e44834",
+            "size": 7625160864,
+            "pointerSize": 135
+          }
+        }
+      ]
+    },
+    "humanflow": {
+      "repo": "randhir302/HumanFlow",
+      "url": "https://huggingface.co/randhir302/HumanFlow",
+      "revision_observed_at_report_time": "d9b781eae68ea8b703b822812a8d6e919e1ce9a0",
+      "downloads_last_month_at_report_time": 104,
+      "likes_at_report_time": 4,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": "unsloth/llama-3-8b-Instruct-bnb-4bit",
+      "files": []
+    },
+    "gemma_official": {
+      "repo": "google/gemma-4-12B-it",
+      "url": "https://huggingface.co/google/gemma-4-12B-it",
+      "revision_observed_at_report_time": "707f0a3b8a3c7ad586ed01e27eafbad8a27dd0f7",
+      "downloads_last_month_at_report_time": 1692786,
+      "likes_at_report_time": 1675,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": [
+        "google/gemma-4-12B"
+      ],
+      "files": []
+    },
+    "qwen3_4b": {
+      "repo": "Qwen/Qwen3-4B",
+      "url": "https://huggingface.co/Qwen/Qwen3-4B",
+      "revision_observed_at_report_time": "1cfa9a7208912126459214e8b04321603b3df60c",
+      "downloads_last_month_at_report_time": 11730390,
+      "likes_at_report_time": 766,
+      "license_declared_in_metadata": "apache-2.0",
+      "base_model_declared": [
+        "Qwen/Qwen3-4B-Base"
+      ],
+      "files": []
+    },
+    "gemma_e4b": {
+      "repo": "google/gemma-4-E4B-it",
+      "url": "https://huggingface.co/google/gemma-4-E4B-it",
+      "revision_observed_at_report_time": "ee0ef6023621cff504d758262d4e04895a5af4a2",
+      "downloads_last_month_at_report_time": 4106524,
+      "license_declared_in_metadata": "apache-2.0",
+      "files": []
+    },
+    "gemma_e4b_gguf": {
+      "repo": "unsloth/gemma-4-E4B-it-GGUF",
+      "url": "https://huggingface.co/unsloth/gemma-4-E4B-it-GGUF",
+      "revision_observed_at_report_time": "bfc15c382204943c3a8fff0c750b94ae2364d7a3",
+      "downloads_last_month_at_report_time": 610632,
+      "license_declared_in_metadata": "apache-2.0",
+      "files": [
+        {
+          "rfilename": "gemma-4-E4B-it-Q4_K_M.gguf",
+          "size": 4977171584,
+          "lfs": {
+            "sha256": "85a896a047553e842f25297ee5b031d64ff30147d9c4af17b1e4b394cd1fab87",
+            "size": 4977171584,
+            "pointerSize": 135
+          }
+        }
+      ]
+    }
+  },
+  "ollama_tags_after_cleanup": [
+    {
+      "name": "hf.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF:Q6_K",
+      "model": "hf.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF:Q6_K",
+      "modified_at": "2026-10-20T18:35:01.7212422+03:00",
+      "size": 9786021150,
+      "digest": "f87405c6d8addd666b3e5c494756d6f21fd14a8eca653e32bd4b29718cd19fef",
+      "details": {
+        "parent_model": "",
+        "format": "gguf",
+        "family": "gemma4",
+        "families": [
+          "gemma4"
+        ],
+        "parameter_size": "11.9B",
+        "quantization_level": "unknown",
+        "context_length": 262144,
+        "embedding_length": 3840
+      },
+      "capabilities": [
+        "completion"
+      ]
+    }
+  ],
+  "loaded_models_after_cleanup": []
+}

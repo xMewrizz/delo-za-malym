@@ -1,1 +1,9 @@
 tmp/
+
+
+.env
+__pycache__/
+.venv/
+.idea/
+*.gguf
+*.log
