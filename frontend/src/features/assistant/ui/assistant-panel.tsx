@@ -1,39 +1,57 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useRef, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, MessageCircle, Plus, RefreshCw } from "lucide-react";
-import { applicationKeys, type ApplicationView } from "@/features/applications";
+import {
+  applicationKeys,
+  ExplorationPanel,
+  FinancialSupplement,
+  type ApplicationActions,
+  type ApplicationView,
+} from "@/features/applications";
 import { ApiError, getErrorMessage } from "@/shared/api/client";
+import { useSavedDraft } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
-import { ConfirmAction } from "@/shared/ui/confirm-action";
 import { Textarea } from "@/shared/ui/textarea";
 import {
+  answerClarification,
   createChat,
+  editProposal,
+  previewProposal,
   resolveProposal,
   sendMessage,
   type ChatView,
 } from "../api/chat";
 import { chatKeys, chatQueries } from "../model/queries";
-
-const fieldNames: Record<string, string> = {
-  "need.requested_amount": "Сумма",
-  "need.term_months": "Срок",
-  "need.purpose": "Цель",
-  "need.financing_pattern": "Порядок возврата",
-  "need.preferred_product": "Продукт",
-};
+import { pendingProposal, projectApplication } from "../model/projection";
+import { ClarificationCard } from "./clarification-card";
+import { CollectedData } from "./collected-data";
 
 export function AssistantPanel({
   applicationId,
+  record,
+  actions,
   onRecordUpdated,
 }: {
   applicationId: string;
+  record: ApplicationView;
+  actions: ApplicationActions;
   onRecordUpdated: (view: ApplicationView) => void;
 }) {
   const queryClient = useQueryClient();
-  const [activeChatId, setActiveChatId] = useState<string | null>(null);
-  const [message, setMessage] = useState("");
-  const [requestId, setRequestId] = useState<string | null>(null);
+  const [activeChatId, setActiveChatId] = useSavedDraft<string | null>(
+    `delo-chat:${applicationId}`,
+    null,
+  );
+  const [message, setMessage] = useSavedDraft(
+    `delo-message:${applicationId}`,
+    "",
+  );
+  const messageBox = useRef<HTMLTextAreaElement>(null),
+    log = useRef<HTMLDivElement>(null);
+  const initialized = useRef(false),
+    sendIdentity = useRef({ text: "", id: "" }),
+    answerIdentity = useRef({ text: "", id: "" });
   const list = useQuery(chatQueries.list(applicationId));
   const chatId = activeChatId || list.data?.[0]?.chat_id || null;
   const chat = useQuery({
@@ -43,35 +61,47 @@ export function AssistantPanel({
 
   function accept(view: ChatView) {
     queryClient.setQueryData(chatKeys.detail(view.chat.chat_id), view);
-    queryClient.invalidateQueries({ queryKey: chatKeys.list(applicationId) });
+    void queryClient.invalidateQueries({
+      queryKey: chatKeys.list(applicationId),
+    });
     onRecordUpdated(view.record);
     setActiveChatId(view.chat.chat_id);
   }
-
   function recover(error: unknown) {
     if (error instanceof ApiError && error.status === 409) {
       void queryClient.invalidateQueries({
         queryKey: applicationKeys.detail(applicationId),
       });
-      void queryClient.invalidateQueries({
-        queryKey: chatKeys.list(applicationId),
-      });
+      if (chatId)
+        void queryClient.invalidateQueries({
+          queryKey: chatKeys.detail(chatId),
+        });
     }
-    if (chatId)
-      void queryClient.invalidateQueries({ queryKey: chatKeys.detail(chatId) });
   }
-
   const create = useMutation({
     mutationFn: () => createChat(applicationId),
     onSuccess: accept,
   });
+  useEffect(() => {
+    if (list.data && !chatId && !initialized.current) {
+      initialized.current = true;
+      create.mutate();
+    }
+  }, [list.data, chatId, create]);
+  useEffect(() => {
+    if (
+      chat.data &&
+      chat.data.record.application.application_version <
+        record.application.application_version
+    )
+      void queryClient.invalidateQueries({
+        queryKey: chatKeys.detail(chat.data.chat.chat_id),
+      });
+  }, [record.application.application_version, chat.data, queryClient]);
   const send = useMutation({
     mutationFn: async ({ text, id }: { text: string; id: string }) => {
-      let current = chat.data;
-      if (!current) {
-        current = await createChat(applicationId);
-        accept(current);
-      }
+      const current = chat.data || (await createChat(applicationId));
+      if (!chat.data) accept(current);
       return sendMessage(
         current.chat.chat_id,
         current.chat.chat_version,
@@ -79,255 +109,321 @@ export function AssistantPanel({
         text,
       );
     },
-    onSuccess: (view) => {
+    onSuccess: (view, sent) => {
       accept(view);
-      setMessage("");
-      setRequestId(null);
+      setMessage((current) => (current.trim() === sent.text ? "" : current));
+      sendIdentity.current = { text: "", id: "" };
     },
     onError: recover,
   });
   const resolve = useMutation({
-    mutationFn: ({
-      proposalId,
-      confirm,
-    }: {
-      proposalId: string;
-      confirm: boolean;
-    }) => {
+    mutationFn: ({ id, confirm }: { id: string; confirm: boolean }) => {
       if (!chat.data) throw new Error("Диалог не загружен.");
       return resolveProposal(
         chat.data.chat.chat_id,
         chat.data.chat.chat_version,
-        proposalId,
+        id,
         confirm,
       );
     },
     onSuccess: accept,
     onError: recover,
   });
-
-  const busy = create.isPending || send.isPending || resolve.isPending;
+  const answer = useMutation({
+    mutationFn: (value: { choice_id: string } | { value: string }) => {
+      if (!chat.data?.clarification) throw new Error("Обновите вопрос.");
+      const identity = JSON.stringify([
+        chat.data.clarification.question_id,
+        value,
+      ]);
+      if (answerIdentity.current.text !== identity)
+        answerIdentity.current = { text: identity, id: crypto.randomUUID() };
+      return answerClarification(
+        chat.data,
+        chat.data.clarification.question_id,
+        answerIdentity.current.id,
+        value,
+      );
+    },
+    onSuccess: (view) => {
+      accept(view);
+      answerIdentity.current = { text: "", id: "" };
+    },
+    onError: recover,
+  });
+  const pending = pendingProposal(chat.data);
+  const edit = useMutation({
+    mutationFn: ({
+      changes,
+      plan,
+    }: {
+      changes: Record<string, unknown>;
+      plan?: Record<string, unknown>;
+    }) => {
+      if (!chat.data || !pending) throw new Error("Черновик не загружен.");
+      const fields = { ...pending.changes, ...changes };
+      delete fields["product_details.overdraft"];
+      return editProposal(chat.data, pending.proposal_id, fields, plan);
+    },
+    onSuccess: accept,
+    onError: recover,
+  });
+  const preview = useQuery({
+    queryKey: [
+      "proposal-preview",
+      chatId,
+      pending?.proposal_id,
+      chat.data?.chat.chat_version,
+      record.application.application_version,
+    ],
+    queryFn: ({ signal }) =>
+      previewProposal(
+        chatId!,
+        chat.data!.chat.chat_version,
+        pending!.proposal_id,
+        signal,
+      ),
+    enabled: Boolean(chatId && pending && !pending.conflicts?.length),
+  });
+  const busy =
+    create.isPending ||
+    send.isPending ||
+    resolve.isPending ||
+    answer.isPending ||
+    edit.isPending;
+  const editable = !["cancelled", "disbursed", "limit_opened"].includes(
+    record.state.status,
+  );
   const error =
-    create.error || send.error || resolve.error || chat.error || list.error;
-
-  function submit(event: FormEvent<HTMLFormElement>) {
+    create.error ||
+    send.error ||
+    resolve.error ||
+    answer.error ||
+    edit.error ||
+    chat.error ||
+    list.error;
+  const projected = projectApplication(record, pending);
+  const userTurns =
+    chat.data?.chat.messages.filter((item) => item.role === "user").length || 0;
+  const limit = chat.data?.assistant.max_turns || 40;
+  useEffect(() => {
+    if (log.current) log.current.scrollTop = log.current.scrollHeight;
+  }, [chat.data?.chat.chat_version, send.isPending]);
+  function submit(event: FormEvent) {
     event.preventDefault();
     const text = message.trim();
-    if (!text || busy) return;
-    const id = requestId || crypto.randomUUID();
-    setRequestId(id);
-    send.mutate({ text, id });
+    if (!text || busy || !editable || userTurns >= limit) return;
+    if (sendIdentity.current.text !== text)
+      sendIdentity.current = { text, id: crypto.randomUUID() };
+    send.mutate({ text, id: sendIdentity.current.id });
   }
-
   return (
-    <Card className="gap-0 border border-border bg-background lg:sticky lg:top-5">
-      <CardHeader className="pb-4">
-        <div className="flex items-start justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-              <MessageCircle className="size-5" />
-            </span>
-            <div>
-              <p className="text-xs font-bold uppercase tracking-widest text-primary">
-                Помощник
-              </p>
-              <h3 className="text-xl font-extrabold tracking-tight">
-                Ассистент
-              </h3>
-            </div>
+    <div className="assistant-layout">
+      <Card className="assistant-conversation gap-0">
+        <CardHeader className="pb-4">
+          <div className="flex items-center justify-between gap-3">
+            <h2 className="flex items-center gap-2 text-xl font-extrabold">
+              <MessageCircle className="text-primary" /> Ассистент
+            </h2>
+            <Button
+              variant="outline"
+              size="icon"
+              title="Новый диалог"
+              aria-label="Новый диалог"
+              disabled={busy || !editable}
+              onClick={() => create.mutate()}
+            >
+              <Plus />
+            </Button>
           </div>
-          <Button
-            variant="outline"
-            size="icon"
-            aria-label="Новый диалог"
-            title="Новый диалог"
-            disabled={busy}
-            onClick={() => create.mutate()}
-          >
-            <Plus aria-hidden="true" />
-          </Button>
-        </div>
-        <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Предложенные изменения появятся здесь и попадут в заявку только после
-          подтверждения.
-        </p>
-      </CardHeader>
-      <CardContent className="space-y-4">
-        {chat.data && (
-          <p className="rounded-xl bg-secondary px-3 py-2 text-xs font-semibold text-secondary-foreground">
-            {chat.data.assistant.mode === "demo"
-              ? "Демонстрационный режим"
-              : "Подключена модель"}
+          <p className="text-xs text-muted-foreground">
+            Рассказывайте о задаче — кабинет собирает данные рядом.
           </p>
-        )}
-        {list.data && list.data.length > 1 && (
-          <select
-            aria-label="История диалогов"
-            value={chatId || ""}
-            onChange={(event) => setActiveChatId(event.target.value)}
-            className="h-10 w-full rounded-xl border border-input bg-background px-3 text-xs"
-          >
-            <option value="">Выберите диалог</option>
-            {list.data.map((item, index) => (
-              <option key={item.chat_id} value={item.chat_id}>
-                Диалог {list.data.length - index} ·{" "}
-                {new Date(item.created_at).toLocaleDateString("ru-RU")}
-              </option>
-            ))}
-          </select>
-        )}
-        {error && (
+        </CardHeader>
+        <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
+          {error && (
+            <div
+              role="alert"
+              className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+            >
+              {getErrorMessage(error)}
+              <Button
+                size="sm"
+                variant="ghost"
+                onClick={() => {
+                  void chat.refetch();
+                  void list.refetch();
+                  create.reset();
+                  send.reset();
+                  answer.reset();
+                  edit.reset();
+                  resolve.reset();
+                }}
+              >
+                <RefreshCw />
+                Обновить
+              </Button>
+            </div>
+          )}
+          {chat.data?.assistant.mode === "demo" && (
+            <p className="text-xs text-muted-foreground">
+              Демонстрационный диалог
+            </p>
+          )}
+          {list.data && list.data.length > 1 && (
+            <select
+              aria-label="История диалогов"
+              className="rounded-xl border border-border bg-background p-2 text-xs"
+              disabled={busy}
+              value={chatId || ""}
+              onChange={(event) => setActiveChatId(event.target.value)}
+            >
+              {list.data.map((item) => (
+                <option value={item.chat_id} key={item.chat_id}>
+                  {new Date(item.created_at).toLocaleString("ru-RU")}
+                </option>
+              ))}
+            </select>
+          )}
           <div
-            role="alert"
-            className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive"
+            ref={log}
+            className="assistant-messages"
+            role="log"
+            aria-label="Переписка"
+            aria-live="polite"
           >
-            <p>{getErrorMessage(error)}</p>
+            {chat.isFetching && (
+              <p className="text-xs text-muted-foreground">Загружаем диалог…</p>
+            )}
+            {!chat.data?.chat.messages.length && (
+              <p className="m-auto max-w-64 text-center text-sm text-muted-foreground">
+                Например: «Завтра нужно заплатить поставщику 450 тысяч. Через
+                неделю покупатель перечислит 500 тысяч».
+              </p>
+            )}
+            {chat.data?.chat.messages.map((item) => (
+              <div
+                className={`assistant-message ${item.role === "user" ? "assistant-message-user" : ""}`}
+                key={item.message_id}
+              >
+                <p className="mb-1 text-xs font-bold opacity-60">
+                  {item.role === "user" ? "Вы" : "Ассистент"}
+                </p>
+                <p className="whitespace-pre-wrap">{item.text}</p>
+              </div>
+            ))}
+            {send.isPending && (
+              <p role="status" className="text-sm text-primary">
+                Собираем данные и готовим ответ…
+              </p>
+            )}
+          </div>
+          {chat.data?.clarification && editable && (
+            <ClarificationCard
+              key={chat.data.clarification.question_id}
+              card={chat.data.clarification}
+              busy={busy || userTurns >= limit}
+              onAnswer={(value) => answer.mutate(value)}
+              onFreeText={() => messageBox.current?.focus()}
+            />
+          )}
+          {userTurns >= limit && (
+            <p className="text-sm text-muted-foreground">
+              Достигнут лимит сообщений. Начните новый диалог — подтверждённые
+              данные сохранятся.
+            </p>
+          )}
+          <form onSubmit={submit} className="flex items-end gap-2">
+            <Textarea
+              ref={messageBox}
+              aria-label="Сообщение ассистенту"
+              value={message}
+              onChange={(event) => setMessage(event.target.value)}
+              maxLength={8000}
+              placeholder="Расскажите о задаче…"
+              className="min-h-20 resize-none"
+              disabled={!editable}
+            />
+            <Button
+              type="submit"
+              size="icon"
+              aria-label="Отправить сообщение"
+              disabled={
+                busy || !message.trim() || !editable || userTurns >= limit
+              }
+            >
+              <ArrowUp />
+            </Button>
+          </form>
+        </CardContent>
+      </Card>
+      <div className="assistant-working-area space-y-5">
+        <CollectedData
+          view={projected}
+          proposal={pending}
+          preview={preview.data}
+          busy={busy || !editable}
+          loading={preview.isFetching}
+          onEdit={(changes, plan) => edit.mutate({ changes, plan })}
+        />
+        {preview.error && (
+          <p role="alert" className="text-sm text-destructive">
+            {getErrorMessage(preview.error)}{" "}
             <Button
               variant="ghost"
               size="sm"
-              className="mt-2"
-              onClick={() => {
-                void chat.refetch();
-                void list.refetch();
-              }}
+              onClick={() => void preview.refetch()}
             >
-              <RefreshCw aria-hidden="true" />
-              Обновить
+              Обновить расчёт
             </Button>
-          </div>
+          </p>
         )}
-        <div
-          className="flex max-h-[430px] min-h-52 flex-col gap-4 overflow-y-auto rounded-[20px] bg-card/70 p-4"
-          role="log"
-          aria-label="Переписка"
-          aria-live="polite"
-        >
-          {chat.isPending && chatId && (
-            <p className="text-xs text-muted-foreground">Загружаем историю…</p>
-          )}
-          {(!chat.data || chat.data.chat.messages.length === 0) && (
-            <div className="m-auto max-w-56 text-center text-xs leading-relaxed text-muted-foreground">
-              <MessageCircle className="mx-auto mb-3 size-7 text-primary" />
-              Расскажите, для чего нужны деньги, или начните с примера.
-            </div>
-          )}
-          {chat.data?.chat.messages.map((item) => (
-            <div
-              key={item.message_id}
-              className={
-                item.role === "user"
-                  ? "ml-7 rounded-2xl rounded-br-sm bg-foreground px-4 py-3 text-xs leading-relaxed text-background"
-                  : "mr-4 rounded-2xl rounded-bl-sm bg-background px-4 py-3 text-xs leading-relaxed text-foreground shadow-sm"
+        {pending && (
+          <div className="flex flex-wrap gap-3">
+            <Button
+              disabled={
+                busy ||
+                !editable ||
+                Boolean(chat.data?.clarification) ||
+                Boolean(pending.conflicts?.length) ||
+                Boolean(pending.plan_issues?.length)
+              }
+              onClick={() =>
+                resolve.mutate({ id: pending.proposal_id, confirm: true })
               }
             >
-              <p className="mb-1 text-[10px] font-bold opacity-60">
-                {item.role === "user" ? "Вы" : "Ассистент"}
-              </p>
-              <p className="whitespace-pre-wrap">{item.text}</p>
-              {item.proposal && item.proposal.status === "pending" && (
-                <div className="mt-4 rounded-xl border border-primary/20 bg-primary/5 p-3 text-foreground">
-                  <p className="font-bold">Предложено изменить заявку</p>
-                  <ul className="mt-2 space-y-1 text-xs">
-                    {Object.entries(item.proposal.changes).map(
-                      ([field, value]) => (
-                        <li key={field}>
-                          <span className="text-muted-foreground">
-                            {fieldNames[field] || field}:
-                          </span>{" "}
-                          {String(value)}
-                        </li>
-                      ),
-                    )}
-                  </ul>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <ConfirmAction
-                      label="Применить"
-                      title="Применить изменения?"
-                      description="Подтверждённые поля будут сохранены в новой версии заявки. Проверьте значения в карточке перед продолжением."
-                      confirmLabel="Применить"
-                      disabled={busy}
-                      onConfirm={() =>
-                        resolve.mutate({
-                          proposalId: item.proposal!.proposal_id,
-                          confirm: true,
-                        })
-                      }
-                    />
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      disabled={busy}
-                      onClick={() =>
-                        resolve.mutate({
-                          proposalId: item.proposal!.proposal_id,
-                          confirm: false,
-                        })
-                      }
-                    >
-                      Не применять
-                    </Button>
-                  </div>
-                </div>
-              )}
-            </div>
-          ))}
-          {send.isPending && (
-            <p role="status" className="text-xs text-muted-foreground">
-              Ассистент готовит ответ…
-            </p>
-          )}
-        </div>
-        {chat.data?.assistant.mode === "demo" && (
-          <div className="flex flex-wrap gap-2">
-            <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy}
-              onClick={() => {
-                setMessage("Нужно 500 000 ₽ на закупку на 12 месяцев");
-                setRequestId(null);
-              }}
-            >
-              500 тысяч на закупку
+              Подтвердить данные и подобрать
             </Button>
             <Button
-              variant="secondary"
-              size="sm"
-              disabled={busy}
-              onClick={() => {
-                setMessage("Лучше на 18 месяцев");
-                setRequestId(null);
-              }}
+              variant="outline"
+              disabled={busy || !editable}
+              onClick={() =>
+                resolve.mutate({ id: pending.proposal_id, confirm: false })
+              }
             >
-              Изменить срок
+              Отклонить изменения
             </Button>
           </div>
         )}
-        <form onSubmit={submit} className="space-y-3">
-          <label htmlFor="assistant-message" className="sr-only">
-            Сообщение ассистенту
-          </label>
-          <Textarea
-            id="assistant-message"
-            value={message}
-            onChange={(event) => {
-              setMessage(event.target.value);
-              setRequestId(null);
-            }}
-            maxLength={8000}
-            placeholder="Расскажите, на что нужны деньги…"
-            className="min-h-24 rounded-2xl bg-background"
+        {!pending && record.explorations.length > 0 && (
+          <FinancialSupplement
+            key={`${applicationId}:${record.application.application_version}`}
+            view={record}
+            busy={busy || !editable}
+            onSave={actions.save}
           />
-          <Button
-            type="submit"
-            disabled={busy || !message.trim()}
-            className="w-full"
-          >
-            Отправить
-            <ArrowUp aria-hidden="true" />
-          </Button>
-        </form>
-      </CardContent>
-    </Card>
+        )}
+        {!pending && record.explorations.length > 0 && (
+          <ExplorationPanel
+            key={record.application.application_id}
+            compact
+            view={record}
+            busy={busy || !editable}
+            onExplore={actions.explore}
+            onApply={actions.apply}
+          />
+        )}
+      </div>
+    </div>
   );
 }

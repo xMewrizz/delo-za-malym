@@ -1,14 +1,8 @@
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import {
-  ArrowRight,
-  FilePlus2,
-  FolderOpen,
-  Plus,
-  RefreshCw,
-  Sparkles,
-} from "lucide-react";
-import { useSearchParams } from "react-router";
-import { AssistantPanel } from "@/features/assistant";
+import { FolderOpen, Plus, RefreshCw, Sparkles } from "lucide-react";
+import { useLocation, useSearchParams } from "react-router";
+import { AssistantPanel, chatKeys, getChat } from "@/features/assistant";
 import {
   applicationKeys,
   applicationQueries,
@@ -16,7 +10,6 @@ import {
   applyExploration,
   completeCondition,
   createApplication,
-  createScenario,
   exploreApplication,
   patchApplication,
   selectOffer,
@@ -27,363 +20,448 @@ import {
   type ApplicationView,
 } from "@/features/applications";
 import { ApiError, getErrorMessage } from "@/shared/api/client";
+import { formatMoney } from "@/shared/lib/format";
+import { readSaved } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
 import "./cabinet-page.css";
 
-function labelFor(item: {
-  need: { requested_amount?: string | null; purpose?: string | null };
-  application_id: string;
-}) {
-  const purpose =
-    item.need.purpose === "working_capital"
-      ? "Оборотные расходы"
-      : item.need.purpose === "investment"
-        ? "Развитие бизнеса"
-        : item.need.purpose === "contract_execution"
-          ? "Исполнение контракта"
-          : "Новая заявка";
-  return item.need.requested_amount
-    ? `${purpose} · ${Number(item.need.requested_amount).toLocaleString("ru-RU")} ₽`
-    : `${purpose} · ${item.application_id.slice(0, 8)}`;
+type Mode = "manual" | "assistant" | "applications";
+type Contexts = { manual: string | null; assistant: string | null };
+const modeNames: Record<Mode, string> = {
+  manual: "Подобрать продукт",
+  assistant: "С ИИ-ассистентом",
+  applications: "Заявки",
+};
+function savedContexts(): Contexts {
+  const value = readSaved<Partial<Contexts>>("delo-react-contexts", {});
+  return {
+    manual: typeof value.manual === "string" ? value.manual : null,
+    assistant:
+      typeof value.assistant === "string" && value.assistant !== value.manual
+        ? value.assistant
+        : null,
+  };
 }
 
 export function CabinetPage() {
-  const queryClient = useQueryClient();
-  const [search, setSearch] = useSearchParams();
-  const list = useQuery(applicationQueries.list());
-  const profile = useQuery(applicationQueries.profile());
-  const scenarios = useQuery(applicationQueries.scenarios());
+  const queryClient = useQueryClient(),
+    [search, setSearch] = useSearchParams();
+  const location = useLocation();
+  const requestedMode =
+    search.get("mode") ||
+    (search.has("application")
+      ? "applications"
+      : location.hash.slice(1) || "manual");
+  const mode: Mode = Object.hasOwn(modeNames, requestedMode)
+    ? (requestedMode as Mode)
+    : "manual";
+  const activeMode = useRef<Mode>(mode);
+  useEffect(() => {
+    activeMode.current = mode;
+  }, [mode]);
+  const [storedContexts, setContexts] = useState<Contexts>(savedContexts);
+  const legacy = useQuery({
+    queryKey: ["legacy-workspaces"],
+    enabled: !storedContexts.manual || !storedContexts.assistant,
+    queryFn: async () => {
+      const saved = readSaved<
+        Partial<Record<"manual" | "assistant", { chat_id?: string }>>
+      >("delo-workspace-contexts", {});
+      const restored = await Promise.allSettled(
+        (["manual", "assistant"] as const).map(async (source) => {
+          const chatId = saved[source]?.chat_id;
+          return typeof chatId === "string"
+            ? { source, view: await getChat(chatId) }
+            : null;
+        }),
+      );
+      return restored.flatMap((item) =>
+        item.status === "fulfilled" && item.value ? [item.value] : [],
+      );
+    },
+  });
+  const contexts = useMemo(() => {
+    const next = { ...storedContexts };
+    for (const item of legacy.data || [])
+      if (
+        !next[item.source] &&
+        next[item.source === "manual" ? "assistant" : "manual"] !==
+          item.view.record.application.application_id
+      )
+        next[item.source] = item.view.record.application.application_id;
+    return next;
+  }, [storedContexts, legacy.data]);
+  const activeContexts = useRef(contexts);
+  useEffect(() => {
+    activeContexts.current = contexts;
+    try {
+      localStorage.setItem("delo-react-contexts", JSON.stringify(contexts));
+    } catch {
+      /* Optional local persistence. */
+    }
+  }, [contexts]);
+  useEffect(() => {
+    if (!legacy.data?.length) return;
+    for (const item of legacy.data) {
+      queryClient.setQueryData(
+        applicationKeys.detail(item.view.record.application.application_id),
+        item.view.record,
+      );
+      queryClient.setQueryData(
+        chatKeys.detail(item.view.chat.chat_id),
+        item.view,
+      );
+      try {
+        const key = `delo-chat:${item.view.record.application.application_id}`;
+        if (!localStorage.getItem(key))
+          localStorage.setItem(key, JSON.stringify(item.view.chat.chat_id));
+      } catch {
+        /* Optional local persistence. */
+      }
+    }
+  }, [legacy.data, queryClient]);
+  const list = useQuery(applicationQueries.list()),
+    profile = useQuery(applicationQueries.profile());
+  const applications =
+    list.data?.filter(
+      (item) => item.ready_for_application || item.state.status !== "draft",
+    ) || [];
   const selectedId =
-    search.get("application") || list.data?.[0]?.application_id || null;
+    search.get("application") || applications[0]?.application_id || null;
+  const manual = useQuery({
+    ...applicationQueries.detail(contexts.manual || ""),
+    enabled: Boolean(contexts.manual),
+  });
+  const assistant = useQuery({
+    ...applicationQueries.detail(contexts.assistant || ""),
+    enabled: Boolean(contexts.assistant),
+  });
   const detail = useQuery({
     ...applicationQueries.detail(selectedId || ""),
-    enabled: Boolean(selectedId),
+    enabled: mode === "applications" && Boolean(selectedId),
   });
-
-  function select(id: string) {
-    setSearch({ application: id });
-  }
   function update(view: ApplicationView) {
-    queryClient.setQueryData(
-      applicationKeys.detail(view.application.application_id),
-      view,
+    const id = view.application.application_id;
+    queryClient.setQueryData<ApplicationView>(
+      applicationKeys.detail(id),
+      (current) =>
+        current &&
+        (current.application.application_version >
+          view.application.application_version ||
+          (current.application.application_version ===
+            view.application.application_version &&
+            current.events.length > view.events.length))
+          ? current
+          : view,
     );
     void queryClient.invalidateQueries({ queryKey: applicationKeys.list });
   }
-  function failed(error: unknown) {
-    if (error instanceof ApiError && error.status === 409 && selectedId) {
-      void queryClient.invalidateQueries({
-        queryKey: applicationKeys.detail(selectedId),
-      });
-      void queryClient.invalidateQueries({ queryKey: applicationKeys.list });
-    }
+  function navigate(next: Mode, id?: string) {
+    activeMode.current = next;
+    setSearch({ mode: next, ...(id ? { application: id } : {}) });
   }
   const create = useMutation({
-    mutationFn: createApplication,
-    onSuccess: (view) => {
+    mutationFn: (_source: "manual" | "assistant") => createApplication(),
+    onSuccess: (view, source) => {
       update(view);
-      select(view.application.application_id);
-    },
-  });
-  const demo = useMutation({
-    mutationFn: ({
-      product,
-      scenario,
-    }: {
-      product: string;
-      scenario: string;
-    }) => createScenario(product, scenario),
-    onSuccess: (view) => {
-      update(view);
-      select(view.application.application_id);
+      setContexts((current) => {
+        const next = { ...current, [source]: view.application.application_id };
+        try {
+          localStorage.setItem("delo-react-contexts", JSON.stringify(next));
+        } catch {
+          /* Optional local persistence. */
+        }
+        return next;
+      });
     },
   });
   const action = useMutation({
-    mutationFn: async (run: () => Promise<ApplicationView>) => run(),
-    onSuccess: update,
-    onError: failed,
+    mutationFn: (task: {
+      run: () => Promise<ApplicationView>;
+      source: Mode;
+      applied?: boolean;
+      onSaved?: () => void;
+      id: string;
+    }) => task.run(),
+    onSuccess: (view, task) => {
+      update(view);
+      task.onSaved?.();
+      if (
+        task.applied &&
+        activeMode.current === task.source &&
+        (task.source === "applications" ||
+          activeContexts.current[task.source] === task.id)
+      )
+        navigate("applications", view.application.application_id);
+    },
+    onError: (error, task) => {
+      if (error instanceof ApiError && error.status === 409) {
+        void queryClient.invalidateQueries({
+          queryKey: applicationKeys.detail(task.id),
+        });
+        void queryClient.invalidateQueries({ queryKey: applicationKeys.list });
+      }
+    },
   });
-  const view = detail.data;
-  const id = view?.application.application_id || "";
-  const version = view?.application.application_version || 0;
-  const actions: ApplicationActions = {
-    save: (changes) =>
-      action.mutate(() => patchApplication(id, version, changes)),
-    version: (name) => action.mutate(() => versionAction(id, version, name)),
-    explore: (product, preferences) =>
-      action.mutate(() =>
-        exploreApplication(id, version, product, preferences),
-      ),
-    apply: (explorationId, optionId) =>
-      action.mutate(() =>
-        applyExploration(id, version, explorationId, optionId),
-      ),
-    select: (assessmentId, offerId) =>
-      action.mutate(() => selectOffer(id, version, assessmentId, offerId)),
-    complete: (code, offerId) =>
-      action.mutate(() => completeCondition(id, version, code, offerId)),
-    sign: (offerId) => action.mutate(() => signOffer(id, version, offerId)),
-  };
-  const error = create.error || demo.error || action.error;
-  const busy = create.isPending || demo.isPending || action.isPending;
-
+  function actionsFor(view: ApplicationView, source: Mode): ApplicationActions {
+    const id = view.application.application_id,
+      version = view.application.application_version;
+    const run = (request: () => Promise<ApplicationView>, extra = {}) =>
+      action.mutate({ run: request, source, id, ...extra });
+    return {
+      save: (changes, onSaved) =>
+        run(() => patchApplication(id, version, changes), { onSaved }),
+      version: (name) => run(() => versionAction(id, version, name)),
+      explore: (product, preferences, delay) =>
+        run(() => exploreApplication(id, version, product, preferences, delay)),
+      apply: (explorationId, optionId) =>
+        run(() => applyExploration(id, version, explorationId, optionId), {
+          applied: true,
+        }),
+      select: (assessmentId, offerId) =>
+        run(() => selectOffer(id, version, assessmentId, offerId)),
+      complete: (code, offerId) =>
+        run(() => completeCondition(id, version, code, offerId)),
+      sign: (offerId) => run(() => signOffer(id, version, offerId)),
+    };
+  }
+  const error = action.error || create.error;
+  const activeDetail =
+    mode === "manual" ? manual : mode === "assistant" ? assistant : detail;
+  const copy = {
+    manual: [
+      "Финансирование под вашу задачу",
+      "Выберите цель, проверьте параметры и сравните условия по данным бизнеса.",
+    ],
+    assistant: [
+      "Расскажите о своём деле",
+      "Обсуждайте задачу — суммы, даты и варианты будут появляться рядом.",
+    ],
+    applications: [
+      "Ваши заявки",
+      "Выбранные условия, отправка и ход рассмотрения.",
+    ],
+  }[mode];
   return (
     <section className="cabinet-page" aria-labelledby="cabinet-title">
       <div className="cabinet-heading">
         <div>
           <p className="cabinet-eyebrow">
-            <Sparkles className="size-4" aria-hidden="true" /> Личный кабинет
+            <Sparkles className="size-4" />
+            Личный кабинет
           </p>
-          <h1 id="cabinet-title">
-            Планы бизнеса <span>начинаются здесь.</span>
-          </h1>
-          <p>
-            Создайте заявку, посмотрите предварительный расчёт и пройдите
-            оформление. Все результаты и статусы обновляются после ваших
-            действий.
-          </p>
-        </div>
-        <div className="cabinet-heading-mark" aria-hidden="true">
-          <span>Дело за малым.</span>
-          <ArrowRight />
+          <h1 id="cabinet-title">{copy[0]}</h1>
+          <p>{copy[1]}</p>
         </div>
       </div>
-
-      <div className="cabinet-grid">
-        <aside className="cabinet-sidebar" aria-label="Заявки и примеры">
-          <Card className="gap-0 border-border bg-card/80">
-            <CardContent className="space-y-5 pt-6">
-              <div className="flex items-center justify-between gap-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-widest text-primary">
-                    Ваши заявки
+      <nav className="cabinet-modes" aria-label="Способ подбора и заявки">
+        {(Object.keys(modeNames) as Mode[]).map((name) => (
+          <Button
+            key={name}
+            variant={name === mode ? "default" : "outline"}
+            aria-current={name === mode ? "page" : undefined}
+            onClick={() => navigate(name)}
+          >
+            {modeNames[name]}
+          </Button>
+        ))}
+        {mode !== "applications" && (
+          <Button
+            className="ml-auto"
+            variant="ghost"
+            disabled={create.isPending}
+            onClick={() => create.mutate(mode)}
+          >
+            <Plus />
+            Новый подбор
+          </Button>
+        )}
+      </nav>
+      {error && (
+        <div
+          role="alert"
+          className="mb-5 rounded-2xl bg-destructive/10 p-4 text-sm text-destructive"
+        >
+          {getErrorMessage(error)}{" "}
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => {
+              void activeDetail.refetch();
+              action.reset();
+              create.reset();
+            }}
+          >
+            <RefreshCw />
+            Обновить
+          </Button>
+        </div>
+      )}
+      {activeDetail.isFetching && <Skeleton className="mb-4 h-8 rounded-xl" />}
+      {activeDetail.error && (
+        <p role="alert" className="mb-4 text-sm text-destructive">
+          {getErrorMessage(activeDetail.error)}{" "}
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => void activeDetail.refetch()}
+          >
+            Повторить
+          </Button>
+        </p>
+      )}
+      <div hidden={mode !== "manual"}>
+        {mode === "manual" &&
+          (manual.data ? (
+            <ApplicationWorkspace
+              key={manual.data.application.application_id}
+              mode="selection"
+              view={manual.data}
+              profile={profile.data}
+              busy={action.isPending}
+              actions={actionsFor(manual.data, "manual")}
+            />
+          ) : (
+            !manual.isFetching && (
+              <StartCard
+                title="Начнём с вашей задачи"
+                text="Заполните потребность. Профиль компании и данные банка уже подставлены."
+                busy={create.isPending}
+                onStart={() => create.mutate("manual")}
+              />
+            )
+          ))}
+      </div>
+      <div hidden={mode !== "assistant"}>
+        {assistant.data ? (
+          <AssistantPanel
+            key={assistant.data.application.application_id}
+            applicationId={assistant.data.application.application_id}
+            record={assistant.data}
+            onRecordUpdated={update}
+            actions={actionsFor(assistant.data, "assistant")}
+          />
+        ) : (
+          !assistant.isFetching && (
+            <StartCard
+              title="Подберём финансирование в разговоре"
+              text="Расскажите о задаче обычными словами. Ассистент уточнит детали и соберёт отдельный вариант."
+              busy={create.isPending}
+              onStart={() => create.mutate("assistant")}
+            />
+          )
+        )}
+      </div>
+      {mode === "applications" && (
+        <div className="cabinet-grid">
+          <aside className="cabinet-sidebar">
+            <Card>
+              <CardContent className="space-y-4 pt-6">
+                <h2 className="flex items-center gap-2 text-lg font-bold">
+                  <FolderOpen className="text-primary" />
+                  Заявки
+                </h2>
+                {list.isFetching && <Skeleton className="h-20 rounded-xl" />}
+                {list.error && (
+                  <p role="alert" className="text-xs text-destructive">
+                    {getErrorMessage(list.error)}{" "}
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => void list.refetch()}
+                    >
+                      Повторить
+                    </Button>
                   </p>
-                  <h2 className="mt-1 text-xl font-extrabold">
-                    Рабочее пространство
-                  </h2>
-                </div>
-                <FolderOpen
-                  className="size-5 text-primary"
-                  aria-hidden="true"
-                />
-              </div>
-              <Button
-                className="w-full"
-                disabled={busy}
-                onClick={() => create.mutate()}
-              >
-                <Plus aria-hidden="true" />
-                Новая заявка
-              </Button>
-              {list.isPending && (
-                <div className="space-y-2">
-                  <Skeleton className="h-20 rounded-2xl" />
-                  <Skeleton className="h-20 rounded-2xl" />
-                </div>
-              )}
-              {list.error && (
-                <div
-                  role="alert"
-                  className="rounded-xl bg-destructive/10 p-3 text-xs text-destructive"
-                >
-                  {getErrorMessage(list.error)}{" "}
-                  <Button
-                    variant="ghost"
-                    size="sm"
-                    onClick={() => void list.refetch()}
-                  >
-                    Повторить
-                  </Button>
-                </div>
-              )}
-              {list.data?.length === 0 && (
-                <p className="rounded-2xl border border-dashed border-border p-4 text-sm text-muted-foreground">
-                  У вас пока нет заявок. Создайте черновик или начните с
-                  примера.
-                </p>
-              )}
-              {list.data && list.data.length > 0 && (
+                )}
                 <div className="cabinet-application-list">
-                  {list.data.map((item) => (
+                  {applications.map((item) => (
                     <button
+                      className="cabinet-application-item"
                       key={item.application_id}
                       type="button"
-                      onClick={() => select(item.application_id)}
                       aria-current={
                         selectedId === item.application_id ? "page" : undefined
                       }
-                      className="cabinet-application-item"
+                      onClick={() =>
+                        navigate("applications", item.application_id)
+                      }
                     >
-                      <span className="font-bold">{labelFor(item)}</span>
+                      <strong>
+                        {item.need.preferred_product === "overdraft"
+                          ? "Овердрафт"
+                          : "Кредит"}
+                        {item.need.requested_amount
+                          ? ` · ${formatMoney(item.need.requested_amount)}`
+                          : ""}
+                      </strong>
                       <span className="mt-1 text-xs text-muted-foreground">
-                        {stateName(item.state.status)} ·{" "}
-                        {item.state.updated_at
-                          ? new Date(item.state.updated_at).toLocaleDateString(
-                              "ru-RU",
-                            )
-                          : "Без даты"}
+                        {stateName(item.state.status)}
                       </span>
                     </button>
                   ))}
                 </div>
-              )}
-            </CardContent>
-          </Card>
-          <Card className="gap-0 border-border bg-background">
-            <CardContent className="pt-6">
-              <details className="group">
-                <summary className="flex cursor-pointer list-none items-center justify-between gap-3 text-primary">
-                  <span className="flex items-center gap-2">
-                    <FilePlus2 className="size-5" aria-hidden="true" />
-                    <span className="text-xs font-bold uppercase tracking-widest">
-                      Примеры для знакомства
-                    </span>
-                  </span>
-                  <Plus
-                    className="size-4 transition-transform group-open:rotate-45"
-                    aria-hidden="true"
-                  />
-                </summary>
-                <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-                  Демонстрационные заявки с заполненными данными. Можно пройти
-                  расчёт и оформление.
-                </p>
-                {scenarios.isPending && (
-                  <Skeleton className="mt-4 h-24 rounded-xl" />
-                )}
-                {scenarios.error && (
-                  <p role="alert" className="mt-3 text-xs text-destructive">
-                    {getErrorMessage(scenarios.error)}
+                {!applications.length && !list.isFetching && (
+                  <p className="text-sm text-muted-foreground">
+                    Выберите условия в подборе — заявка появится здесь.
                   </p>
                 )}
-                {scenarios.data && (
-                  <div className="mt-4 space-y-2">
-                    {scenarios.data.map((item) => (
-                      <Button
-                        key={item.product_id + item.scenario_id}
-                        variant="outline"
-                        className="h-auto w-full justify-between whitespace-normal py-3 text-left text-xs"
-                        title={item.description}
-                        disabled={busy}
-                        onClick={() =>
-                          demo.mutate({
-                            product: item.product_id,
-                            scenario: item.scenario_id,
-                          })
-                        }
-                      >
-                        <span>
-                          {item.title}
-                          <small className="mt-1 block font-normal text-muted-foreground">
-                            {item.product_id === "overdraft"
-                              ? "Овердрафт"
-                              : "Кредит"}
-                          </small>
-                        </span>
-                        <ArrowRight className="shrink-0" aria-hidden="true" />
-                      </Button>
-                    ))}
-                  </div>
-                )}
-              </details>
-            </CardContent>
-          </Card>
-        </aside>
-
-        <div className="cabinet-content">
-          {Boolean(error) && (
-            <div
-              role="alert"
-              className="mb-5 flex flex-wrap items-center justify-between gap-3 rounded-2xl border border-destructive/30 bg-destructive/10 p-4 text-sm text-destructive"
-            >
-              <span>{getErrorMessage(error)}</span>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  if (selectedId) void detail.refetch();
-                  action.reset();
-                  create.reset();
-                  demo.reset();
-                }}
-              >
-                <RefreshCw aria-hidden="true" />
-                Обновить
-              </Button>
-            </div>
-          )}
-          {detail.isPending && selectedId && (
-            <div className="space-y-4">
-              <Skeleton className="h-24 rounded-[24px]" />
-              <Skeleton className="h-52 rounded-[24px]" />
-              <Skeleton className="h-96 rounded-[24px]" />
-            </div>
-          )}
-          {detail.error && (
-            <Card>
-              <CardContent className="pt-6">
-                <p role="alert" className="text-sm text-destructive">
-                  {getErrorMessage(detail.error)}
-                </p>
-                <Button
-                  className="mt-4"
-                  variant="outline"
-                  onClick={() => void detail.refetch()}
-                >
-                  Повторить загрузку
-                </Button>
               </CardContent>
             </Card>
-          )}
-          {!selectedId && !list.isPending && (
-            <Card className="border-dashed border-primary/25 bg-card">
-              <CardContent className="flex min-h-80 flex-col items-center justify-center pt-6 text-center">
-                <FilePlus2
-                  className="size-12 text-primary"
-                  aria-hidden="true"
-                />
-                <h2 className="mt-5 text-2xl font-extrabold">
-                  Начнём с вашей задачи
-                </h2>
-                <p className="mt-2 max-w-md text-sm text-muted-foreground">
-                  Создайте заявку и расскажите, для чего бизнесу нужны деньги.
-                  Сведения компании уже будут подставлены.
-                </p>
-                <Button
-                  className="mt-6"
-                  disabled={busy}
-                  onClick={() => create.mutate()}
-                >
-                  Создать заявку
-                  <ArrowRight aria-hidden="true" />
-                </Button>
-              </CardContent>
-            </Card>
-          )}
-          {view && (
-            <div className="cabinet-workspace-grid">
+          </aside>
+          <div className="min-w-0">
+            {detail.data ? (
               <ApplicationWorkspace
-                view={view}
+                key={detail.data.application.application_id}
+                view={detail.data}
                 profile={profile.data}
-                busy={busy}
-                actions={actions}
+                busy={action.isPending}
+                actions={actionsFor(detail.data, "applications")}
               />
-              <AssistantPanel
-                key={id}
-                applicationId={id}
-                onRecordUpdated={update}
-              />
-            </div>
-          )}
-          {profile.error && (
-            <p role="alert" className="mt-4 text-xs text-destructive">
-              Профиль не загрузился: {getErrorMessage(profile.error)}
-            </p>
-          )}
+            ) : (
+              !selectedId && (
+                <StartCard
+                  title="Сначала выберите финансирование"
+                  text="Готовый вариант попадёт сюда после вашего подтверждения."
+                  onStart={() => navigate("manual")}
+                  busy={false}
+                />
+              )
+            )}
+          </div>
         </div>
-      </div>
+      )}
+      {profile.error && (
+        <p className="mt-4 text-xs text-destructive" role="alert">
+          {getErrorMessage(profile.error)}
+        </p>
+      )}
     </section>
+  );
+}
+
+function StartCard({
+  title,
+  text,
+  busy,
+  onStart,
+}: {
+  title: string;
+  text: string;
+  busy: boolean;
+  onStart: () => void;
+}) {
+  return (
+    <Card>
+      <CardContent className="flex min-h-64 flex-col items-center justify-center gap-4 pt-6 text-center">
+        <h2 className="text-2xl font-extrabold">{title}</h2>
+        <p className="max-w-lg text-sm text-muted-foreground">{text}</p>
+        <Button disabled={busy} onClick={onStart}>
+          Начать подбор
+        </Button>
+      </CardContent>
+    </Card>
   );
 }

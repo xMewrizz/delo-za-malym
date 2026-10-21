@@ -3,6 +3,8 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
+import { useSavedDraft } from "@/shared/lib/saved-draft";
+import { formatMoney } from "@/shared/lib/format";
 import type { ApplicationView } from "../api/applications";
 import {
   buildOverdraftPlan,
@@ -19,8 +21,15 @@ export function OverdraftPlanForm({
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
 }) {
-  const [draft, setDraft] = useState(() =>
-    draftFromPlan(view.application.product_details),
+  const bankCash =
+    view.client_data.bank_financials?.cash_balance ??
+    view.application.financials.cash_balance;
+  const [draft, setDraft] = useSavedDraft(
+    `delo-plan:${view.application.application_id}:${view.application.application_version}`,
+    {
+      ...draftFromPlan(view.application.product_details),
+      openingCash: bankCash || "0.00",
+    },
   );
   const [error, setError] = useState("");
   const loans = view.application.financials.existing_loans || [];
@@ -59,7 +68,7 @@ export function OverdraftPlanForm({
     event.preventDefault();
     try {
       const plan = buildOverdraftPlan(
-        draft,
+        { ...draft, openingCash: bankCash || "0.00" },
         loans.map((loan) => loan.loan_id),
       );
       onSave({
@@ -89,7 +98,7 @@ export function OverdraftPlanForm({
           План поступлений и расходов
         </h3>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Укажите, когда деньги уйдут и вернутся на счёт. Backend рассчитает
+          Укажите, когда деньги уйдут и вернутся на счёт. Рассчитаем
           использованный лимит, проценты и погашение по дням.
         </p>
       </CardHeader>
@@ -106,6 +115,7 @@ export function OverdraftPlanForm({
                   setDraft((current) => ({
                     ...current,
                     start: event.target.value,
+                    debtConfirmed: false,
                   }))
                 }
               />
@@ -118,21 +128,16 @@ export function OverdraftPlanForm({
                   setDraft((current) => ({
                     ...current,
                     end: event.target.value,
+                    debtConfirmed: false,
                   }))
                 }
               />
-              <FormField
-                id="plan-cash"
-                label="Остаток собственных денег, ₽"
-                inputMode="decimal"
-                value={draft.openingCash}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    openingCash: event.target.value,
-                  }))
-                }
-              />
+              <p className="self-center text-sm text-muted-foreground">
+                Остаток из данных банка:{" "}
+                <strong className="text-foreground">
+                  {formatMoney(bankCash || "0")}
+                </strong>
+              </p>
               <FormField
                 id="plan-reserve"
                 label="Неприкосновенный резерв, ₽"

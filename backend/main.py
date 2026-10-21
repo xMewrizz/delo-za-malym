@@ -27,7 +27,7 @@ from .store import Store
 from .workspace import ProductWorkspace
 
 
-def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None) -> FastAPI:
+def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None, frontend_directory=None) -> FastAPI:
     store = Store(database_path or os.getenv("DATABASE_PATH", "data/cabinet.sqlite3"))
     clock = clock or (lambda: datetime.now(timezone.utc))
     process = CreditProcess(store, clock)
@@ -42,7 +42,12 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
                   description="Кредитный процесс существующего демонстрационного клиента: разовый кредит и овердрафт.")
     app.state.process = process
     assets = Path(__file__).with_name("static")
+    frontend = Path(frontend_directory or os.getenv("FRONTEND_DIST", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
+    frontend_index = frontend / "index.html"
     app.mount("/chat-assets", StaticFiles(directory=assets), name="chat-assets")
+    for folder in ("assets", "fonts", "images"):
+        if (frontend / folder).is_dir():
+            app.mount("/" + folder, StaticFiles(directory=frontend / folder), name="frontend-" + folder)
 
     @app.get("/chat", include_in_schema=False)
     def chat_page():
@@ -50,7 +55,13 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     @app.get("/cabinet", include_in_schema=False)
     def cabinet_page():
-        return FileResponse(assets / "chat.html", headers={"Cache-Control": "no-store"})
+        return FileResponse(frontend_index if frontend_index.is_file() else assets / "chat.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/cabinet/{page:path}", include_in_schema=False)
+    def cabinet_route(page: str):
+        if not frontend_index.is_file():
+            raise ProcessError("page_not_found", "Страница не найдена.", 404)
+        return FileResponse(frontend_index, headers={"Cache-Control": "no-store"})
     origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type"])
 
@@ -64,6 +75,8 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     @app.get("/", include_in_schema=False)
     def index():
+        if frontend_index.is_file():
+            return FileResponse(frontend_index, headers={"Cache-Control": "no-store"})
         return RedirectResponse("/cabinet")
 
     @app.get("/health", tags=["Состояние сервиса"])

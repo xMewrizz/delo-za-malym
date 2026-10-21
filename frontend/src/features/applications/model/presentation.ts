@@ -13,6 +13,9 @@ const stateNames: Record<string, string> = {
   declined: "Отказ",
   out_of_policy: "Нужен отдельный разбор",
   offer_expired: "Срок предложения истёк",
+  cancelled: "Заявка отменена",
+  submitted: "Заявка отправлена",
+  under_review: "На рассмотрении",
 };
 
 export const stateName = (status: string) => stateNames[status] || status;
@@ -27,6 +30,9 @@ const outcomeNames: Record<string, string> = {
   check_retry_pending: "Проверка временно недоступна",
   options_ready: "Варианты готовы",
   no_matching_options: "Подходящих вариантов нет",
+  not_eligible: "Условия продукта не подходят",
+  needs_checks: "Нужны внешние проверки",
+  invalid_data: "Нужно исправить данные",
 };
 
 export const outcomeName = (value: string) =>

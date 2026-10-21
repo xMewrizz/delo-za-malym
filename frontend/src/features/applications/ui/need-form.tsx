@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { ArrowRight, Save } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
+import { useSavedDraft } from "@/shared/lib/saved-draft";
 import type { ApplicationView } from "../api/applications";
 import {
   buildNeedChanges,
@@ -26,7 +27,8 @@ export function NeedForm({
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
 }) {
-  const [draft, setDraft] = useState<NeedDraft>(() =>
+  const [draft, setDraft] = useSavedDraft<NeedDraft>(
+    `delo-need:${view.application.application_id}:${view.application.application_version}`,
     draftFromApplication(view),
   );
   const [error, setError] = useState("");
@@ -156,30 +158,37 @@ export function NeedForm({
               { value: "true", label: "Регулярная потребность" },
             ]}
           />
-          <FormField
-            id="need-minimum"
-            label="Минимальная достаточная сумма, ₽"
-            value={draft.minimumAmount}
-            onChange={(event) => set("minimumAmount", event.target.value)}
-            inputMode="decimal"
-            placeholder="Если подойдёт сумма меньше"
-          />
-          <FormField
-            id="need-own"
-            label="Собственные средства, ₽"
-            value={draft.ownFunds}
-            onChange={(event) => set("ownFunds", event.target.value)}
-            inputMode="decimal"
-            placeholder="Можно указать 0"
-          />
-          <FormField
-            id="need-date"
-            label="Когда нужны деньги"
-            type="date"
-            value={draft.neededBy}
-            onChange={(event) => set("neededBy", event.target.value)}
-          />
         </div>
+        <details className="rounded-xl border border-border p-4">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Дополнительно: сроки, собственные средства и сумма поменьше
+          </summary>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            <FormField
+              id="need-minimum"
+              label="Минимальная достаточная сумма, ₽"
+              value={draft.minimumAmount}
+              onChange={(event) => set("minimumAmount", event.target.value)}
+              inputMode="decimal"
+              placeholder="Если подойдёт сумма меньше"
+            />
+            <FormField
+              id="need-own"
+              label="Собственные средства, ₽"
+              value={draft.ownFunds}
+              onChange={(event) => set("ownFunds", event.target.value)}
+              inputMode="decimal"
+              placeholder="Можно указать 0"
+            />
+            <FormField
+              id="need-date"
+              label="Когда нужны деньги"
+              type="date"
+              value={draft.neededBy}
+              onChange={(event) => set("neededBy", event.target.value)}
+            />
+          </div>
+        </details>
         {error && (
           <p
             role="alert"

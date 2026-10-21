@@ -11,12 +11,14 @@ function OfferCard({
   final,
   selected,
   busy,
+  canSelect,
   onSelect,
 }: {
   offer: Offer;
   final: boolean;
   selected: boolean;
   busy: boolean;
+  canSelect: boolean;
   onSelect: () => void;
 }) {
   return (
@@ -69,7 +71,13 @@ function OfferCard({
           </strong>
         </p>
       )}
-      {final && !selected && (
+      <p className="mt-3 text-xs text-muted-foreground">
+        Комиссии: {formatMoney(offer.fees_total || "0")}.{" "}
+        {offer.conditions?.length
+          ? "Требуется поручительство."
+          : "Без поручительства и залога."}
+      </p>
+      {final && canSelect && !selected && (
         <Button className="mt-5" disabled={busy} onClick={onSelect}>
           Выбрать предложение
         </Button>
@@ -129,10 +137,33 @@ export function OfferResults({
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
+        {view.result && (
+          <p className="text-xs text-muted-foreground">
+            {(
+              {
+                calculated: "Расчёт выполнен",
+                needs_checks: "Ожидаются внешние проверки",
+                check_retry_pending: "Внешняя проверка временно недоступна",
+                invalid_data: "Нужно исправить данные",
+                needs_information: "Нужны дополнительные сведения",
+              } as Record<string, string>
+            )[view.result.status] || "Результат обработки получен"}
+          </p>
+        )}
+        {(view.result?.issues || []).map((issue, index) => (
+          <p
+            key={`technical-${index}`}
+            role="alert"
+            className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
+          >
+            {describeIssue(issue)}
+          </p>
+        ))}
         {!assessment && !view.completion && (
           <div className="rounded-2xl border border-dashed border-border bg-background px-5 py-8 text-sm text-muted-foreground">
-            После расчёта здесь появятся предложения, причины решения и
-            доступные действия.
+            {view.result
+              ? "Завершите указанные проверки или дополните сведения, чтобы получить предложения."
+              : "После расчёта здесь появятся предложения, причины решения и доступные действия."}
           </div>
         )}
         {assessment && (
@@ -151,14 +182,6 @@ export function OfferResults({
                 className="rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground"
               >
                 {reason.message}
-              </p>
-            ))}
-            {(view.result?.issues || []).map((issue, index) => (
-              <p
-                key={index}
-                className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
-              >
-                {describeIssue(issue)}
               </p>
             ))}
             {(assessment.required_information || []).map((issue, index) => (
@@ -183,6 +206,11 @@ export function OfferResults({
                   final={final}
                   selected={offer.offer_id === selectedId}
                   busy={busy}
+                  canSelect={[
+                    "offers_ready",
+                    "conditions_pending",
+                    "ready_to_sign",
+                  ].includes(view.state.status)}
                   onSelect={() =>
                     onSelect(assessment.assessment_id, offer.offer_id)
                   }

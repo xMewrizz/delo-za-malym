@@ -32,6 +32,8 @@ React, React DOM, React Router, TanStack Query, Zod, Radix UI, Tailwind CSS и V
 распространяются по MIT; иконки lucide-react — по ISC. Компоненты Button, Card и
 Skeleton, Select, Input, Label и Textarea в `frontend/src/shared/ui` получены через shadcn/ui (preset radix-nova)
 и адаптированы к локальным утилитам. [Текст MIT-лицензии shadcn/ui](frontend/licenses/shadcn-ui.txt).
+Для тестов используются Vitest и jsdom (MIT); версии закреплены в том же lock-файле. Node.js нужен на этапе сборки, готовые файлы раздаёт FastAPI.
+
 CLI shadcn используется через npx; для этих компонентов отдельный пакет
 `shadcn` и его дополнительные CSS-варианты не требуются.
 

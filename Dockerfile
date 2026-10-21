@@ -1,3 +1,10 @@
+FROM node:24-alpine AS frontend-build
+WORKDIR /frontend
+COPY frontend/package.json frontend/package-lock.json ./
+RUN npm ci --no-fund --no-audit
+COPY frontend ./
+RUN npm run build
+
 FROM python:3.13-slim
 
 ENV PYTHONDONTWRITEBYTECODE=1 \
@@ -15,6 +22,7 @@ COPY credit_engine ./credit_engine
 COPY scripts ./scripts
 COPY contracts ./contracts
 COPY scr ./scr
+COPY --from=frontend-build /frontend/dist ./frontend/dist
 
 USER cabinet
 EXPOSE 8000

@@ -1,6 +1,8 @@
 **
 !Dockerfile
 !requirements.txt
+!frontend/
+!frontend/**
 !backend/
 !backend/**
 !credit_engine/
@@ -27,3 +29,6 @@
 **/.env
 **/weights/**
 **/.venv/**
+**/node_modules/**
+**/dist/**
+**/.env.*

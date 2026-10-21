@@ -2,10 +2,17 @@ import { z } from "zod";
 import { apiRequest } from "@/shared/api/client";
 
 const money = z.string();
+export const flowDaysSchema = z.array(
+  z.object({
+    date: z.string(),
+    closing_cash: money,
+    cash_without_financing: money.optional(),
+  }),
+);
 const reason = z
   .object({ code: z.string().optional(), message: z.string() })
   .passthrough();
-const offer = z
+export const offerSchema = z
   .object({
     offer_id: z.string(),
     product_id: z.string(),
@@ -45,20 +52,21 @@ const financials = z
         z
           .object({
             month: z.string(),
-            operating_inflow: money,
-            operating_outflow: money,
-            taxes: money,
+            operating_inflow: money.nullable().optional(),
+            operating_outflow: money.nullable().optional(),
+            taxes: money.nullable().optional(),
           })
           .passthrough(),
       )
+      .nullable()
       .optional(),
     existing_loans: z
       .array(
         z
           .object({
             loan_id: z.string(),
-            monthly_payment: money,
-            outstanding_principal: money,
+            monthly_payment: money.nullable().optional(),
+            outstanding_principal: money.nullable().optional(),
           })
           .passthrough(),
       )
@@ -93,7 +101,7 @@ const assessment = z
     assessment_id: z.string(),
     stage: z.string(),
     outcome: z.string(),
-    offers: z.array(offer),
+    offers: z.array(offerSchema),
     reasons: z.array(reason).optional(),
     required_information: z.array(z.unknown()).optional(),
   })
@@ -128,6 +136,8 @@ export const applicationViewSchema = z
       .object({
         status: z.string(),
         recommended_product_id: z.string().nullable().optional(),
+        reasons: z.array(reason).optional(),
+        required_information: z.array(z.unknown()).optional(),
         candidates: z
           .array(
             z
@@ -169,7 +179,7 @@ export const applicationViewSchema = z
           result: z
             .object({
               status: z.string(),
-              options: z.array(offer).optional(),
+              options: z.array(offerSchema).optional(),
               reasons: z.array(reason).optional(),
               required_information: z.array(z.unknown()).optional(),
               calculation: z
@@ -220,6 +230,7 @@ export const applicationListSchema = z.array(
       need,
       state,
       completion: z.record(z.string(), z.unknown()).nullable().optional(),
+      ready_for_application: z.boolean().optional(),
     })
     .passthrough(),
 );
@@ -249,7 +260,7 @@ export const scenariosSchema = z.array(
 
 export type ApplicationView = z.infer<typeof applicationViewSchema>;
 export type ApplicationSummary = z.infer<typeof applicationListSchema>[number];
-export type Offer = z.infer<typeof offer>;
+export type Offer = z.infer<typeof offerSchema>;
 export type Profile = z.infer<typeof profileSchema>;
 
 const path = (id: string, suffix = ""): `/${string}` =>
@@ -297,11 +308,13 @@ export const exploreApplication = (
   version: number,
   productId: "working_capital_loan" | "overdraft",
   preferences: Record<string, unknown> = {},
+  delay?: { transaction_id: string; days: number },
 ) =>
   post(path(id, "/explorations"), {
     base_application_version: version,
     product_id: productId,
     ...(productId === "working_capital_loan" ? { preferences } : {}),
+    ...(delay ? { delay } : {}),
   });
 export const applyExploration = (
   id: string,
