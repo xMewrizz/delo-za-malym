@@ -1,0 +1,69 @@
+/* Banking visual direction: strong typography, violet accents and soft surfaces.
+   Shared visual decisions live here; feature components use semantic roles. */
+:root {
+  --app-font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
+  --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --layout-max-width: 83rem;
+  --layout-gutter: 3.5rem;
+  --layout-header-height: 6.5rem;
+  --control-height: 3rem;
+  --motion-duration: 180ms;
+  --card-padding: 2rem;
+  --background: #ffffff;
+  --foreground: #25242b;
+  --card: #f7f6fa;
+  --card-foreground: var(--foreground);
+  --popover: var(--background);
+  --popover-foreground: var(--foreground);
+  --primary: #6b49d0;
+  --primary-hover: #5937bd;
+  --primary-foreground: #ffffff;
+  --secondary: #f2f0f8;
+  --secondary-foreground: var(--foreground);
+  --muted: var(--secondary);
+  --muted-foreground: #75717e;
+  --accent: #eee8fb;
+  --accent-foreground: #5430b2;
+  --destructive: #bf405d;
+  --success: #4e9a80;
+  --border: #e9e6f0;
+  --input: #cbc6d7;
+  --ring: var(--primary);
+  --stage: #dce0e5;
+  --shell-glow-start: #8164deae;
+  --shell-glow-end: #9278e1a1;
+  --shell-shadow: #3e40561b;
+  --utility-foreground: #9893a3;
+  --header-action: #242329;
+  --header-action-hover: #4f399c;
+  --hero: #ffffff;
+  --hero-foreground: var(--foreground);
+  --hero-muted: #726e7b;
+  --hero-line: #9382d526;
+  --hero-accent: var(--primary);
+  --hero-glow: #b8a5f05c;
+  --radius: 1.5rem;
+  --chart-1: var(--primary);
+  --chart-2: var(--success);
+  --chart-3: #b68b40;
+  --chart-4: var(--muted-foreground);
+  --chart-5: var(--destructive);
+  --sidebar: var(--card);
+  --sidebar-foreground: var(--foreground);
+  --sidebar-primary: var(--primary);
+  --sidebar-primary-foreground: var(--primary-foreground);
+  --sidebar-accent: var(--secondary);
+  --sidebar-accent-foreground: var(--primary);
+  --sidebar-border: var(--border);
+  --sidebar-ring: var(--ring);
+}
+@media (max-width: 1000px) {
+  :root { --layout-gutter: 1.75rem; }
+}
+@media (max-width: 639px) {
+  :root {
+    --layout-gutter: 1.25rem;
+    --layout-header-height: 5rem;
+    --card-padding: 1.5rem;
+  }
+}

@@ -25,6 +25,21 @@
 
 Среда выполнения — Python 3.13+ и SQLite из стандартной библиотеки Python. Docker-образ основан на `python:3.13-slim`. Для управления зависимостями при разработке используется uv. Интерактивная страница `/docs` использует Swagger UI, подключаемый FastAPI.
 
+## Новый фронтенд
+
+Версии JavaScript-зависимостей закреплены в [frontend/package-lock.json](frontend/package-lock.json).
+React, React DOM, React Router, TanStack Query, Zod, Radix UI, Tailwind CSS и Vite
+распространяются по MIT; иконки lucide-react — по ISC. Компоненты Button, Card и
+Skeleton, Select, Input, Label и Textarea в `frontend/src/shared/ui` получены через shadcn/ui (preset radix-nova)
+и адаптированы к локальным утилитам. [Текст MIT-лицензии shadcn/ui](frontend/licenses/shadcn-ui.txt).
+CLI shadcn используется через npx; для этих компонентов отдельный пакет
+`shadcn` и его дополнительные CSS-варианты не требуются.
+
+В `frontend/public/fonts` включены Manrope и JetBrains Mono из локальной
+дизайн-системы AkarmainOS. Шрифты распространяются по SIL Open Font License 1.1:
+[Manrope](frontend/licenses/Manrope-OFL.txt),
+[JetBrains Mono](frontend/licenses/JetBrainsMono-OFL.txt).
+
 ## Модели и данные
 
 Материалы экспериментов LLM используют `yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF`; имя файла, SHA-256 и источник проверки записаны в [источнике модели](scr/delo_za_malyn/Models/Llm/weights/source.json). Ревизия репозитория указывается только после подтверждения. Модель подключается отдельно от HTTP-процесса; условия распространения определяются её [карточкой](https://huggingface.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF).
