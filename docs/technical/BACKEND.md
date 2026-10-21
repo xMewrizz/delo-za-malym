@@ -5,19 +5,19 @@ FastAPI связывает формы с кредитным модулем и с
 ## Запуск
 
 ```shell
-docker compose up --build -d
+docker compose --env-file scr/delo_za_malyn/settings/.env up --build -d
 ```
 
-Интерактивный API: **http://localhost:8000/docs**. Состояние сервиса: **http://localhost:8000/health**. Данные сохраняются в Docker-томе `cabinet_data` при перезапуске контейнера. Остановка: `docker compose down`.
+Интерактивный API: **http://localhost:8000/docs**. Состояние сервиса: **http://localhost:8000/health**. Данные сохраняются в Docker-томе `cabinet_data` при перезапуске контейнера. Остановка: `docker compose --env-file scr/delo_za_malyn/settings/.env down`.
 
 Для разработки с Python 3.13+ и uv:
 
 ```shell
 uv sync --frozen
-uv run --frozen uvicorn backend.main:app --reload
+uv run --env-file scr/delo_za_malyn/settings/.env --frozen uvicorn backend.main:app --reload
 ```
 
-По умолчанию база находится в `data/cabinet.sqlite3`. Путь меняется через `DATABASE_PATH`, разрешённые адреса фронтенда — через `CORS_ORIGINS` (адреса через запятую). Docker-порт задаётся переменной `API_PORT`; по умолчанию 8000. Фронтенд на `localhost:5173` и `localhost:3000` уже разрешён. Compose также читает параметры из корневого `.env`; образец — [.env.example](../../.env.example). Если 8000 занят, укажите другой `API_PORT` и используйте его в URL API и аргументе `--base-url` проверки сценариев.
+По умолчанию база находится в `data/cabinet.sqlite3`. Путь меняется через `DATABASE_PATH`, разрешённые адреса фронтенда — через `CORS_ORIGINS` (адреса через запятую). Docker-порт задаётся переменной `APP_PORT`; по умолчанию 8000. Фронтенд на `localhost:5173` и `localhost:3000` уже разрешён. Единственный файл настроек — `scr/delo_za_malyn/settings/.env`; образец — [settings/.env.example](../../scr/delo_za_malyn/settings/.env.example). Compose читает его через `--env-file` в команде запуска. Если 8000 занят, укажите другой `APP_PORT` и используйте его в URL API и аргументе `--base-url` проверки сценариев.
 
 ## Методы для фронтенда
 

@@ -25,7 +25,7 @@
 
 ## Модели и данные
 
-Материалы экспериментов LLM используют `yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF`; точные revision, имя файла и SHA-256 записаны в [источнике модели](scr/delo-za-malyn/Models/Llm/weights/source.json). Модель подключается отдельно от HTTP-процесса; условия распространения определяются её [карточкой](https://huggingface.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF).
+Материалы экспериментов LLM используют `yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF`; имя файла, SHA-256 и источник проверки записаны в [источнике модели](scr/delo_za_malyn/Models/Llm/weights/source.json). Ревизия репозитория указывается только после подтверждения. Модель подключается отдельно от HTTP-процесса; условия распространения определяются её [карточкой](https://huggingface.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF).
 
 Данные компаний, финансовые показатели, заявки и планы операций в `contracts` — синтетические примеры проекта.
 

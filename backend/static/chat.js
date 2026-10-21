@@ -53,7 +53,7 @@ function render() {
   for(const [id,key] of [["purpose","purpose"],["amount","requested_amount"],["term","term_months"],["product","preferred_product"],["pattern","financing_pattern"]]) $(id).value = need[key] ?? "";
   $("context").textContent = JSON.stringify({application:record.application,state:record.state,result:record.result,recommendation:record.recommendation},null,2);
   const last = [...chat.messages].reverse().find(m=>m.role === "assistant");
-  $("reply-json").textContent = last ? JSON.stringify({intent:last.intent,text:last.text,question:last.question,proposal:last.proposal},null,2) : "Пока нет ответа";
+  $("reply-json").textContent = last ? JSON.stringify({intent:last.intent,text:last.text,question:last.question,proposal:last.proposal,tools:last.tools || []},null,2) : "Пока нет ответа";
   $("messages").replaceChildren();
   if(!chat.messages.length) {
     const empty = el("div",undefined,"empty"); empty.append(el("div","✳","empty-icon"), el("p","Расскажите, для какой задачи вам нужно финансирование. Или начните с примера ниже.")); $("messages").append(empty);
@@ -61,7 +61,45 @@ function render() {
   for(const message of chat.messages) {
     const item = el("article",undefined,"message " + message.role);
     item.append(el("div",message.role === "user" ? "Вы" : "Ассистент" + (message.mode === "demo" ? " · демо" : ""),"message-label"),el("div",message.text,"bubble"));
-    if(message.question && !message.text.includes(message.question)) item.append(el("p",message.question,"muted"));
+    const question = typeof message.question === "string" ? message.question.trim() : "";
+    if(question && question.toLowerCase() !== "null" && !message.text.includes(question)) item.append(el("p",question,"muted"));
+    if(message.tools?.length) {
+      const labels = {calculate_loan:"Расчёт платежа",assess_credit:"Предварительный расчёт",recommend_financing:"Подбор продукта",simulate_alternative:"Отдельный вариант",web_search:"Веб-поиск"};
+      for(const tool of message.tools) {
+        const status = tool.ok ? "выполнено" : tool.error?.message || "не выполнено";
+        item.append(el("p",(labels[tool.name] || "Инструмент") + " · " + status,"muted"));
+      }
+      for(const tool of message.tools) for(const source of tool.sources || []) {
+        if(!/^https?:\/\//i.test(source.url)) continue;
+        const link = el("a",source.title || source.url); link.href = source.url; link.target = "_blank"; link.rel = "noopener noreferrer";
+        const paragraph = el("p"); paragraph.append(link); item.append(paragraph);
+      }
+      for(const tool of message.tools.filter(tool=>tool.name === "calculate_loan" && tool.ok)) {
+        const calculation = tool.result.calculation, preview = el("div",undefined,"proposal");
+        preview.append(el("strong","Расчёт платежа"),el("p","По заданным параметрам · одобрение не оценивалось","muted"));
+        preview.append(el("p","Сумма: " + money(calculation.amount) + " · срок: " + calculation.term_months + " мес."));
+        preview.append(el("p","Ставка: " + calculation.annual_rate_percent + "% годовых"));
+        preview.append(el("p","Ежемесячный платёж: " + money(calculation.monthly_payment)));
+        preview.append(el("p","Максимальный платёж с учётом округления: " + money(calculation.maximum_payment)));
+        preview.append(el("p","Проценты за весь срок: " + money(calculation.total_interest)));
+        preview.append(el("p","Всего выплат: " + money(calculation.total_repayment)));
+        preview.append(el("p","Без комиссий и страхования. Заявка не изменена.","muted"));
+        item.append(preview);
+      }
+      const calculation = message.tools.find(tool=>tool.ok && ["assess_credit","simulate_alternative"].includes(tool.name));
+      if(calculation) {
+        const preview = el("div",undefined,"proposal"), result = calculation.result;
+        preview.append(el("strong",calculation.name === "simulate_alternative" ? "Отдельный вариант" : "Предварительный расчёт"));
+        preview.append(el("p","Демонстрационные правила · заявка не изменена","muted"));
+        questions(preview,result.issues);
+        if(result.assessment) {
+          preview.append(el("p",outcomes[result.assessment.outcome] || result.assessment.outcome));
+          questions(preview,result.assessment.reasons);questions(preview,result.assessment.required_information);
+          for(const offer of (result.assessment.offers || []).slice(0,3)) renderOffer(preview,offer);
+        }
+        item.append(preview);
+      }
+    }
     if(message.proposal) item.append(proposalCard(message.proposal));
     $("messages").append(item);
   }
@@ -154,7 +192,8 @@ for(const [id,action] of [["recommend","recommendations"],["preview","preview"]]
   accept(await api("/api/chats/" + data.chat.chat_id,undefined,"GET"));show("notice","Расчёт обновлён. Он доступен ассистенту в следующем сообщении.");
 }));
 run(async()=>{
-  const chatId = stored();
+  const requested = new URLSearchParams(location.search).get("chat");
+  const chatId = requested && /^[0-9a-f-]{36}$/i.test(requested) ? requested : stored();
   if(chatId) { try {accept(await api("/api/chats/" + encodeURIComponent(chatId),undefined,"GET"));return;} catch {} }
   accept(await api("/api/chats",{}));
 });

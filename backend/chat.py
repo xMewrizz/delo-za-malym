@@ -1,10 +1,14 @@
 """Сохраняемый диалог и атомарное подтверждение предложений ассистента."""
 
 from copy import deepcopy
+import logging
 from uuid import uuid4
 
-from .assistant import AssistantReply, build_messages
+from .assistant import AssistantReply, AssistantResponseError, build_messages
 from .service import ProcessError
+from scr.delo_za_malyn.Models.Llm.client import LLMContextLimit, LLMOutputLimit, LLMProtocolError
+
+logger = logging.getLogger(__name__)
 
 
 class ChatService:
@@ -62,10 +66,32 @@ class ChatService:
         except ValueError as exc:
             raise ProcessError("context_limit", str(exc), 422) from None
         try:
-            reply = AssistantReply.model_validate(self.assistant.reply(messages))
-        except (ValueError, RuntimeError, ConnectionError, TimeoutError):
+            tools = ()
+            if hasattr(self.assistant, "reply_with_tools"):
+                turn = self.assistant.reply_with_tools(messages, process=self.process,
+                                                       record=record, now=self.clock())
+                reply, tools = turn.reply, turn.tools
+            else:
+                reply = self.assistant.reply(messages)
+            reply = AssistantReply.model_validate(reply)
+        except LLMProtocolError as exc:
+            logger.warning("Assistant protocol failed: reason=%s", exc.reason)
+            raise ProcessError("assistant_" + exc.reason, str(exc), 502) from None
+        except (LLMContextLimit, LLMOutputLimit) as exc:
+            code = "context_limit" if isinstance(exc, LLMContextLimit) else "assistant_output_limit"
+            logger.warning("Assistant request rejected: code=%s", code)
+            raise ProcessError(code, str(exc), 422) from None
+        except (ValueError, RuntimeError, ConnectionError, TimeoutError) as exc:
             # Не сохраняем неполную пару сообщений и не возвращаем секреты провайдера.
-            raise ProcessError("assistant_unavailable", "Не удалось получить корректный ответ модели. Повторите сообщение или заполните потребность вручную.", 503) from None
+            invalid = isinstance(exc, (AssistantResponseError, ValueError))
+            code = "assistant_invalid_response" if invalid else "assistant_unavailable"
+            logger.warning("Assistant request failed: code=%s error_type=%s", code, type(exc).__name__)
+            message = (
+                "Модель ответила в неверном формате. Сообщение не сохранено; попробуйте отправить его ещё раз."
+                if invalid else
+                "Не удалось получить ответ сервера модели. Сообщение не сохранено; повторите попытку."
+            )
+            raise ProcessError(code, message, 503) from None
         now = self.clock().isoformat()
         proposal = None
         if reply.changes:
@@ -76,7 +102,8 @@ class ChatService:
         answer = {"message_id": str(uuid4()), "role": "assistant", "text": reply.text,
                   "intent": reply.intent, "question": reply.question, "proposal": proposal,
                   "model_content": reply.model_dump_json(), "created_at": now,
-                  "mode": self.assistant.mode, "model": self.assistant.model}
+                  "mode": self.assistant.mode, "model": self.assistant.model,
+                  "tools": list(tools)}
         # Не держим блокировку SQLite, пока модель генерирует ответ.
         with self.store.connect(write=True) as connection:
             current = self._load(connection, chat_id)
