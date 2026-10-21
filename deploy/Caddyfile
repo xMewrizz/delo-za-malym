@@ -1,0 +1,17 @@
+{$STAND_SITE:http://localhost} {
+    encode gzip
+    request_body {
+        max_size 1MB
+    }
+    header {
+        X-Content-Type-Options nosniff
+        Referrer-Policy same-origin
+        -Server
+    }
+    reverse_proxy api:8000 {
+        transport http {
+            dial_timeout 5s
+            response_header_timeout 190s
+        }
+    }
+}

@@ -353,6 +353,440 @@
         }
       }
     },
+    "/api/chats/{chat_id}/proposals/{proposal_id}/edit": {
+      "post": {
+        "tags": [
+          "Диалог"
+        ],
+        "summary": "Edit Proposal",
+        "operationId": "edit_proposal_api_chats__chat_id__proposals__proposal_id__edit_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditChatProposal"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Edit Proposal Api Chats  Chat Id  Proposals  Proposal Id  Edit Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/chats": {
+      "get": {
+        "tags": [
+          "Диалог"
+        ],
+        "summary": "Application Chats",
+        "operationId": "application_chats_api_applications__application_id__chats_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "array",
+                  "items": {},
+                  "title": "Response Application Chats Api Applications  Application Id  Chats Get"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/explorations": {
+      "post": {
+        "tags": [
+          "Сравнение и сценарии"
+        ],
+        "summary": "Explore",
+        "operationId": "explore_api_applications__application_id__explorations_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ExploreOptions"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/explorations/{exploration_id}/apply": {
+      "post": {
+        "tags": [
+          "Сравнение и сценарии"
+        ],
+        "summary": "Apply Option",
+        "operationId": "apply_option_api_applications__application_id__explorations__exploration_id__apply_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "exploration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Exploration Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ApplyOption"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/imports": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Import Csv",
+        "operationId": "import_csv_api_applications__application_id__imports_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ImportCSV"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/imports/{import_id}/confirm": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Confirm Import",
+        "operationId": "confirm_import_api_applications__application_id__imports__import_id__confirm_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/imports/{import_id}/edit": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Edit Import",
+        "operationId": "edit_import_api_applications__application_id__imports__import_id__edit_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "import_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Import Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EditImport"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/financials.csv": {
+      "get": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Export Financials",
+        "operationId": "export_financials_api_applications__application_id__financials_csv_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/demo/scenarios": {
       "get": {
         "tags": [
@@ -1008,6 +1442,11 @@
             "type": "object",
             "title": "Application"
           },
+          "client_data": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Client Data"
+          },
           "state": {
             "additionalProperties": true,
             "type": "object",
@@ -1100,6 +1539,22 @@
             },
             "type": "array",
             "title": "Submitted Versions"
+          },
+          "explorations": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Explorations"
+          },
+          "imports": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Imports"
           }
         },
         "type": "object",
@@ -1115,6 +1570,32 @@
           "submitted_versions"
         ],
         "title": "ApplicationView"
+      },
+      "ApplyOption": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "option_id": {
+            "type": "string",
+            "minLength": 1,
+            "title": "Option Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "confirmed",
+          "option_id"
+        ],
+        "title": "ApplyOption"
       },
       "ChatMessage": {
         "properties": {
@@ -1178,6 +1659,32 @@
           "confirmed"
         ],
         "title": "ConfirmChatProposal"
+      },
+      "ConfirmImport": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "base_import_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Import Revision"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "confirmed",
+          "base_import_revision"
+        ],
+        "title": "ConfirmImport"
       },
       "ConfirmedAction": {
         "properties": {
@@ -1255,6 +1762,101 @@
         "type": "object",
         "title": "CreateChat"
       },
+      "EditChatProposal": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "base_chat_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Chat Version"
+          },
+          "changes": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Changes"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "base_chat_version",
+          "changes"
+        ],
+        "title": "EditChatProposal"
+      },
+      "EditImport": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "base_import_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Import Revision"
+          },
+          "monthly": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "maxItems": 120,
+            "title": "Monthly"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "base_import_revision",
+          "monthly"
+        ],
+        "title": "EditImport"
+      },
+      "ExploreOptions": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "product_id": {
+            "type": "string",
+            "enum": [
+              "working_capital_loan",
+              "overdraft"
+            ],
+            "title": "Product Id"
+          },
+          "preferences": {
+            "$ref": "#/components/schemas/LoanPreferences"
+          },
+          "delay": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/InflowDelay"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "product_id"
+        ],
+        "title": "ExploreOptions"
+      },
       "HTTPValidationError": {
         "properties": {
           "detail": {
@@ -1267,6 +1869,122 @@
         },
         "type": "object",
         "title": "HTTPValidationError"
+      },
+      "ImportCSV": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "filename": {
+            "type": "string",
+            "maxLength": 120,
+            "minLength": 1,
+            "title": "Filename"
+          },
+          "content": {
+            "type": "string",
+            "maxLength": 150000,
+            "minLength": 1,
+            "title": "Content"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "filename",
+          "content"
+        ],
+        "title": "ImportCSV"
+      },
+      "InflowDelay": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Transaction Id"
+          },
+          "days": {
+            "type": "integer",
+            "maximum": 30.0,
+            "minimum": 1.0,
+            "title": "Days"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "transaction_id",
+          "days"
+        ],
+        "title": "InflowDelay"
+      },
+      "LoanPreferences": {
+        "properties": {
+          "requested_amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Requested Amount"
+          },
+          "maximum_monthly_payment": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Maximum Monthly Payment"
+          },
+          "minimum_term": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Minimum Term",
+            "default": 6
+          },
+          "maximum_term": {
+            "type": "integer",
+            "maximum": 120.0,
+            "minimum": 1.0,
+            "title": "Maximum Term",
+            "default": 36
+          },
+          "preserve_amount": {
+            "type": "boolean",
+            "title": "Preserve Amount",
+            "default": true
+          },
+          "priority": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "lowest_payment",
+                  "lowest_total_cost",
+                  "preserve_amount"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Priority"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "LoanPreferences"
       },
       "OfferAction": {
         "properties": {

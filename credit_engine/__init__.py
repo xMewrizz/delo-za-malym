@@ -8,6 +8,7 @@ from .overdraft import OverdraftCalculationResult, OverdraftPolicy, calculate_ov
 from .overdraft_assessment import OverdraftAssessmentResult, OverdraftCreditPolicy, assess_overdraft
 from .offers import OfferReadinessResult, check_offer_readiness
 from .selection import FinancingSelectionResult, recommend_financing
+from .options import loan_options, overdraft_options
 
 __all__ = [
     "FinancialPolicy",
@@ -30,4 +31,6 @@ __all__ = [
     "check_offer_readiness",
     "FinancingSelectionResult",
     "recommend_financing",
+    "loan_options",
+    "overdraft_options",
 ]

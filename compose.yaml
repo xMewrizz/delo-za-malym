@@ -1,17 +1,33 @@
 services:
   api:
     build: .
+    restart: unless-stopped
+    init: true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
     ports:
-      - "127.0.0.1:${API_PORT:-8000}:8000"
+      - "127.0.0.1:${API_PORT:-${APP_PORT:-8000}}:8000"
     environment:
       DATABASE_PATH: /app/data/cabinet.sqlite3
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       CHAT_MODE: ${CHAT_MODE:-demo}
-      LLM_API_BASE_URL: ${LLM_API_BASE_URL:-http://host.docker.internal:8080/v1}
+      LLM_API_BASE_URL: ${LLM_DOCKER_API_BASE_URL:-${LLM_API_BASE_URL:-http://host.docker.internal:11434/v1}}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}
       HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-60}
+      LLM_RESPONSE_FORMAT: ${LLM_RESPONSE_FORMAT:-json_schema}
+      CHAT_MAX_CONCURRENT_GENERATIONS: ${CHAT_MAX_CONCURRENT_GENERATIONS:-2}
       LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
+      LLM_TEMPERATURE: ${LLM_TEMPERATURE:-0.1}
+      LLM_TOP_P: ${LLM_TOP_P:-0.9}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-2048}
+      LLM_CONTEXT_SIZE: ${LLM_CONTEXT_SIZE:-8192}
+      AGENT_TOOLS_ENABLED: ${AGENT_TOOLS_ENABLED:-true}
+      AGENT_MAX_TOOL_CALLS: ${AGENT_MAX_TOOL_CALLS:-3}
+      TAVILY_API_KEY: ${TAVILY_API_KEY:-}
+      TAVILY_TIMEOUT_SECONDS: ${TAVILY_TIMEOUT_SECONDS:-20}
+      TAVILY_MAX_RESULTS: ${TAVILY_MAX_RESULTS:-3}
+      TAVILY_SNIPPET_CHARS: ${TAVILY_SNIPPET_CHARS:-1000}
     volumes:
       - cabinet_data:/app/data
 

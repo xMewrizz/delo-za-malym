@@ -1,0 +1,29 @@
+# Использовать вместе с compose.yaml. Публичный адрес задаётся явно в .env.
+services:
+  api:
+    read_only: true
+    tmpfs:
+      - /tmp:size=64m
+    mem_limit: 1g
+    cpus: 1.5
+    cap_drop: [ALL]
+    security_opt: [no-new-privileges:true]
+  gateway:
+    image: caddy:2-alpine@sha256:d8542f48d34a9cf4e4c11a478865229840e87e4c96ea3f439101f31a5d35f75f
+    restart: unless-stopped
+    mem_limit: 256m
+    environment:
+      STAND_SITE: ${STAND_SITE:-http://localhost}
+    ports:
+      - "${STAND_BIND_ADDRESS:-127.0.0.1}:${STAND_HTTP_PORT:-80}:80"
+      - "${STAND_BIND_ADDRESS:-127.0.0.1}:${STAND_HTTPS_PORT:-443}:443"
+    volumes:
+      - ./deploy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - gateway_data:/data
+      - gateway_config:/config
+    depends_on:
+      api:
+        condition: service_healthy
+volumes:
+  gateway_data:
+  gateway_config:

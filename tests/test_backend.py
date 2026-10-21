@@ -56,6 +56,59 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(schema.status_code, 200)
         self.assertIn("/api/applications/{application_id}/sign", schema.json()["paths"])
 
+    def test_new_application_uses_bank_data_without_financial_questionnaire(self):
+        record = self.client.post("/api/applications", json={"need": {
+            "purpose": "working_capital", "preferred_product": "working_capital_loan",
+            "requested_amount": "500000.00", "term_months": 12,
+        }}).json()
+        known = record["client_data"]
+        self.assertEqual(known["bank_financials"], record["application"]["financials"])
+        self.assertEqual(known["credit_history"]["category"], "good")
+        self.assertEqual(known["source"], "bank_profile")
+        self.assertIsNone(record["checks"])
+        final = self.submit(record)
+        self.assertEqual(final["result"]["assessment"]["outcome"], "approved")
+        self.assertTrue(any(item["code"] == "credit_history" for item in final["result"]["scoring"]["components"]))
+        self.assertEqual(final["client_data"], known)
+
+    def test_bank_financials_cannot_be_replaced_by_client_fields_or_full_section(self):
+        record = self.create_case()
+        path = f"/api/applications/{record['application']['application_id']}"
+        months = deepcopy(record["application"]["financials"]["monthly"])
+        months[0]["operating_inflow"] = "9999999.00"
+        for changes in ({"financials.cash_balance": "9999999.00"},
+                        {"financials.existing_loans": []}, {"financials.monthly": months},
+                        {"financials": {}}, {"financials.largest_buyer_share": 0.0}):
+            with self.subTest(changes=changes):
+                response = self.client.patch(path, json={"base_application_version": 1,
+                    "changes": {"need.term_months": 18, **changes}})
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertEqual(response.json()["detail"]["code"], "bank_data_read_only")
+                self.assertEqual(self.client.get(path).json(), record)
+        response = self.client.post("/api/applications", json={"financials": {"cash_balance": "9999999.00"}})
+        self.assertEqual(response.status_code, 422)
+        self.assertEqual(len(self.client.get("/api/applications").json()), 1)
+
+    def test_missing_value_is_supplemented_without_replacing_bank_snapshot(self):
+        record = self.create_case("04_needs_information")
+        known = deepcopy(record["client_data"]["bank_financials"])
+        path = f"/api/applications/{record['application']['application_id']}"
+        updated = self.client.patch(path, json={"base_application_version": 1,
+            "changes": {"financials.largest_buyer_share": 0.25}}).json()
+        self.assertIsNone(known["largest_buyer_share"])
+        self.assertEqual(updated["application"]["financials"]["largest_buyer_share"], 0.25)
+        self.assertEqual(updated["client_data"]["bank_financials"], known)
+        self.assertEqual(self.submit(updated)["result"]["assessment"]["outcome"], "approved")
+
+    def test_failed_credit_history_is_retried_instead_of_requested_from_client(self):
+        record = self.create_case("07_check_unavailable")
+        self.assertEqual(record["client_data"]["credit_history"]["status"], "error")
+        self.assertIsNone(record["client_data"]["credit_history"]["category"])
+        record = self.submit(record)
+        record = self.post(record, "retry").json()
+        self.assertEqual(record["client_data"]["credit_history"]["status"], "completed")
+        self.assertEqual(record["client_data"]["credit_history"]["category"], "good")
+
     def test_complete_real_credit_process_for_both_products(self):
         for product, scenario, final in (("working_capital_loan", "01_approved", "disbursed"),
                                          ("overdraft", "01_overdraft_approved", "limit_opened")):

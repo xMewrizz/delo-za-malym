@@ -5,10 +5,13 @@ from datetime import datetime, timezone
 import os
 from pathlib import Path
 import sqlite3
+import csv
+import json
+from io import StringIO
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 from credit_engine import OverdraftCreditPolicy, WorkingCapitalPolicy
@@ -17,15 +20,18 @@ from . import demo
 from .assistant import configured_assistant
 from .chat import ChatService
 from .models import (ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
-                     ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction)
+                     ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction,
+                     EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport)
 from .service import CreditProcess, ProcessError
 from .store import Store
+from .workspace import ProductWorkspace
 
 
 def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None) -> FastAPI:
     store = Store(database_path or os.getenv("DATABASE_PATH", "data/cabinet.sqlite3"))
     clock = clock or (lambda: datetime.now(timezone.utc))
     process = CreditProcess(store, clock)
+    workspace = ProductWorkspace(process)
 
     @asynccontextmanager
     async def lifespan(app):
@@ -41,6 +47,10 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @app.get("/chat", include_in_schema=False)
     def chat_page():
         return FileResponse(assets / "chat.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/cabinet", include_in_schema=False)
+    def cabinet_page():
+        return FileResponse(assets / "chat.html", headers={"Cache-Control": "no-store"})
     origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type"])
 
@@ -54,7 +64,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     @app.get("/", include_in_schema=False)
     def index():
-        return RedirectResponse("/docs")
+        return RedirectResponse("/cabinet")
 
     @app.get("/health", tags=["Состояние сервиса"])
     def health():
@@ -72,14 +82,18 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         return [
             {"product_id": "working_capital_loan", "name": "Разовый кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
-             "annual_rate_percent": loan.annual_rate_percent, "terms": list(loan.terms)},
+             "annual_rate_percent": loan.annual_rate_percent, "terms": list(loan.terms),
+             "minimum_business_months": loan.minimum_business_months, "history_months": 6,
+             "purpose": "working_capital", "conditions": "При среднем классе риска требуется поручительство; высокая оценка риска не проходит автоматические правила."},
             {"product_id": "overdraft", "name": "Овердрафт", "policy_version": overdraft.version,
              "minimum_amount": str(overdraft.minimum_limit), "maximum_amount": str(overdraft.maximum_limit),
              "annual_rate_percent": overdraft.annual_rate_percent, "agreement_months": overdraft.agreement_months,
-             "max_debt_days": overdraft.max_debt_days},
+             "max_debt_days": overdraft.max_debt_days, "minimum_business_months": overdraft.minimum_business_months,
+             "history_months": 6, "purpose": "working_capital", "plan_required": True,
+             "conditions": "Проверяются оборот, доступная нагрузка и погашение по плану; при среднем классе риска требуется поручительство."},
         ]
 
-    chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products)
+    chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products, workspace=workspace)
     app.state.chats = chats
 
     @app.get("/api/chat/config", tags=["Диалог"])
@@ -105,6 +119,49 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/reject", tags=["Диалог"])
     def reject_proposal(chat_id: str, proposal_id: str, body: ChatVersion) -> dict:
         return chats.resolve(chat_id, proposal_id, body.base_chat_version, apply=False)
+
+    @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/edit", tags=["Диалог"])
+    def edit_proposal(chat_id: str, proposal_id: str, body: EditChatProposal) -> dict:
+        return chats.edit(chat_id, proposal_id, body.base_chat_version, body.base_application_version, body.changes)
+
+    @app.get("/api/applications/{application_id}/chats", tags=["Диалог"])
+    def application_chats(application_id: str) -> list:
+        process.get(application_id)
+        with store.connect() as connection:
+            rows = [json.loads(row[0]) for row in connection.execute("SELECT payload FROM chats")]
+        return [{"chat_id": item["chat_id"], "created_at": item["created_at"]} for item in
+                sorted(rows, key=lambda item: item["created_at"], reverse=True) if item["application_id"] == application_id]
+
+    @app.post("/api/applications/{application_id}/explorations", response_model=ApplicationView, tags=["Сравнение и сценарии"])
+    def explore(application_id: str, body: ExploreOptions):
+        return workspace.explore(application_id, body.base_application_version, body.product_id,
+            preferences=body.preferences.model_dump(exclude_none=True), delay=body.delay.model_dump() if body.delay else None)
+
+    @app.post("/api/applications/{application_id}/explorations/{exploration_id}/apply", response_model=ApplicationView, tags=["Сравнение и сценарии"])
+    def apply_option(application_id: str, exploration_id: str, body: ApplyOption):
+        return workspace.apply(application_id, body.base_application_version, exploration_id, body.option_id)
+
+    @app.post("/api/applications/{application_id}/imports", response_model=ApplicationView, tags=["Документы"])
+    def import_csv(application_id: str, body: ImportCSV):
+        return workspace.import_csv(application_id, body.base_application_version, body.filename, body.content)
+
+    @app.post("/api/applications/{application_id}/imports/{import_id}/confirm", response_model=ApplicationView, tags=["Документы"])
+    def confirm_import(application_id: str, import_id: str, body: ConfirmImport):
+        return workspace.confirm_import(application_id, body.base_application_version, import_id, body.base_import_revision)
+
+    @app.post("/api/applications/{application_id}/imports/{import_id}/edit", response_model=ApplicationView, tags=["Документы"])
+    def edit_import(application_id: str, import_id: str, body: EditImport):
+        return workspace.edit_import(application_id, body.base_application_version, import_id, body.base_import_revision, body.monthly)
+
+    @app.get("/api/applications/{application_id}/financials.csv", tags=["Документы"])
+    def export_financials(application_id: str):
+        record = process.get(application_id)
+        output = StringIO()
+        writer = csv.DictWriter(output, fieldnames=["month", "operating_inflow", "operating_outflow", "taxes"])
+        writer.writeheader()
+        for row in record["application"].get("financials", {}).get("monthly") or []:
+            writer.writerow({field: row.get(field, "") for field in writer.fieldnames})
+        return Response(output.getvalue(), media_type="text/csv; charset=utf-8", headers={"Content-Disposition": 'attachment; filename="financials.csv"'})
 
     @app.get("/api/demo/scenarios", tags=["Демонстрационные сценарии"])
     def list_scenarios():

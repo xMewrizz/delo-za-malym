@@ -12,8 +12,9 @@ from uuid import uuid4
 
 from fastapi.testclient import TestClient
 
-from backend.assistant import AssistantReply, DemoAssistant, ModelAssistant
+from backend.assistant import AssistantReply, AssistantResponseError, DemoAssistant, ModelAssistant, assistant_response_schema
 from backend.main import create_app
+from scr.delo_za_malyn.Models.Llm.client import LLMContextLimit, LLMOutputLimit, LLMProtocolError
 
 
 class RecordingAssistant:
@@ -84,6 +85,25 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(context["application"]["need"]["requested_amount"], "500000.00")
         self.assertEqual(context["previous_proposals"][0]["status"], "applied")
 
+    def test_context_and_output_limits_are_actionable_not_server_unavailable(self):
+        for exception, code in ((LLMContextLimit("Контекст заполнен. Начните новый диалог."), "context_limit"),
+                                (LLMOutputLimit("Модель не завершила ответ."), "assistant_output_limit")):
+            with self.subTest(code=code):
+                self.assistant.error = exception
+                response = self.send()
+                self.assertEqual(response.status_code, 422, response.text)
+                self.assertIn(code, response.text)
+                self.assertIn(str(exception), response.text)
+                self.assertEqual(self.client.get("/api/chats/" + self.view["chat"]["chat_id"]).json()["chat"]["messages"], [])
+
+    def test_model_protocol_failure_has_specific_error_without_saving_history(self):
+        self.assistant.error = LLMProtocolError("empty_response")
+        response = self.send()
+        self.assertEqual(response.status_code, 502)
+        self.assertEqual(response.json()["detail"]["code"], "assistant_empty_response")
+        self.assertNotIn("Не удалось получить ответ сервера", response.text)
+        self.assertEqual(self.client.get("/api/chats/" + self.view["chat"]["chat_id"]).json()["chat"]["messages"], [])
+
     def test_reject_does_not_change_application(self):
         original = self.view["record"]["application"]
         self.view = self.send().json()
@@ -102,7 +122,7 @@ class ChatTests(unittest.TestCase):
         self.view = self.send().json()
         application = self.view["record"]["application"]
         response = self.client.patch("/api/applications/" + application["application_id"],
-            json={"base_application_version": 1, "changes": {"need.term_months": 18}})
+            json={"base_application_version": 1, "changes": {"need.requested_amount": "600000.00"}})
         self.assertEqual(response.status_code, 200)
         self.assertEqual(self.resolve().json()["detail"]["code"], "version_conflict")
         self.assertEqual(self.resolve("reject").status_code, 200)
@@ -126,6 +146,17 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.client.get(self.path).json()["chat"]["messages"], [])
         self.assistant.error = None
         self.assertEqual(self.send(request_id=request_id).status_code, 200)
+
+    def test_invalid_reply_is_distinguished_and_logged_without_contents(self):
+        self.assistant.error = AssistantResponseError("secret-api-key and private client data")
+        with self.assertLogs("backend.chat", level="WARNING") as captured:
+            response = self.send()
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json()["detail"]["code"], "assistant_invalid_response")
+        self.assertIn("AssistantResponseError", captured.output[0])
+        self.assertNotIn("secret-api-key", response.text + str(captured.output))
+        self.assertNotIn("private client data", response.text + str(captured.output))
+        self.assertEqual(self.client.get(self.path).json()["chat"]["messages"], [])
 
     def test_invalid_model_output_cannot_change_protected_fields(self):
         for changes in ({"state.status": "disbursed"}, {"need.requested_amount": 500000},
@@ -205,6 +236,29 @@ class ChatTests(unittest.TestCase):
 
 
 class ModelAdapterTests(unittest.TestCase):
+    def test_reasoning_prefix_is_never_returned_and_json_stays_strict(self):
+        from scr.delo_za_malyn.Models.Llm.client import Reply
+        body = '{"text":"Готово","intent":"answer_question","changes":{}}'
+        original = Reply('<think>private-reasoning</think>\n'+body, "stop")
+        reply = ModelAssistant.parse_reply(original)
+        self.assertEqual(reply.text, "Готово")
+        self.assertNotIn("private-reasoning", reply.model_dump_json())
+        self.assertIn("private-reasoning", original.as_message()["content"])
+        for invalid in ('<think>private-reasoning', '<think>x</think>',
+                        '<think>x</think>'+body+'extra',
+                        '<think>x</think><think>y</think>'+body,
+                        '<think>x</think>{"text":"Да","intent":"propose_changes","changes":{"state.status":"disbursed"}}'):
+            with self.subTest(content=invalid), self.assertRaises(AssistantResponseError):
+                ModelAssistant.parse_reply(Reply(invalid, "stop"), log_errors=False)
+
+    def test_null_question_is_absent_and_real_question_is_preserved(self):
+        for value in (None, "null", " NULL ", "", "  "):
+            with self.subTest(value=value):
+                reply = AssistantReply(text="Ответ", intent="answer_question", question=value)
+                self.assertIsNone(reply.model_dump()["question"])
+        reply = AssistantReply(text="Ответ", intent="ask_clarification", question=" Какой срок? ")
+        self.assertEqual(reply.question, "Какой срок?")
+
     def test_existing_client_sends_history_and_parses_structured_response(self):
         captured = []
         class Handler(BaseHTTPRequestHandler):
@@ -225,8 +279,27 @@ class ModelAdapterTests(unittest.TestCase):
             self.assertEqual(captured[0][0],"/v1/chat/completions")
             self.assertEqual(captured[0][1]["messages"],messages)
             self.assertEqual(captured[0][1]["model"],"test")
+            response_format = captured[0][1]["response_format"]
+            self.assertEqual(response_format["type"], "json_schema")
+            self.assertTrue(response_format["json_schema"]["strict"])
+            self.assertEqual(response_format["json_schema"]["schema"], assistant_response_schema())
+            self.assertNotIn("maxLength", json.dumps(response_format))
+            self.assertEqual(AssistantReply.model_json_schema()["properties"]["text"]["maxLength"], 12000)
         finally:
             server.shutdown();thread.join();server.server_close()
+
+    def test_malformed_json_or_unsafe_changes_are_never_repaired_or_applied(self):
+        with patch.dict(os.environ, {"LLM_MODEL": "test"}):
+            model = ModelAssistant()
+        for content in (
+            '{"text":"Здравствуйте",""intent":"answer_question","changes":{}}',
+            '{"text":"Одобрено","intent":"propose_changes","changes":{"state.status":"disbursed"}}',
+        ):
+            with self.subTest(content=content), patch.object(model.client, "_request", return_value={
+                "choices": [{"message": {"content": content}, "finish_reason": "stop"}],
+            }):
+                with self.assertRaises(AssistantResponseError):
+                    model.reply([{"role": "user", "content": "Здравствуйте"}])
 
 
 if __name__ == "__main__":

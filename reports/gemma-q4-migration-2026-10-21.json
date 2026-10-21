@@ -1,0 +1,41 @@
+{
+  "recorded_on": "2026-10-21",
+  "purpose": "Switch active artifact from Q6_K to Q4_K_M. No inference or benchmark performed.",
+  "artifact": {
+    "repository": "yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF",
+    "revision": null,
+    "quantization": "Q4_K_M",
+    "ollama_model": "hf.co/yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF:Q4_K_M",
+    "file": {
+      "rfilename": "gemma4-v2-Q4_K_M.gguf",
+      "size": 7381381664,
+      "sha256": "0b9506cab36f7f818e34f9c0f5a3d6568d0b37100f3a3e1092e2eec3c4c96791"
+    },
+    "verification": {
+      "source": "local Ollama manifest and full-file SHA-256",
+      "gguf_version": 3,
+      "checked_on": "2026-10-21",
+      "note": "Hugging Face repository revision for this downloaded artifact has not been verified."
+    }
+  },
+  "ollama": {
+    "details": {
+      "parent_model": "",
+      "format": "gguf",
+      "family": "gemma4",
+      "families": [
+        "gemma4"
+      ],
+      "parameter_size": "11.9B",
+      "quantization_level": "Q4_K_M"
+    },
+    "capabilities": [
+      "tools",
+      "completion"
+    ],
+    "parameters": "stop                           \"<bos>\"\nstop                           \"<|turn>\"\nstop                           \"<turn|>\"\nstop                           \"<|turn>user\""
+  },
+  "previous_artifact_metadata": "archive/q6/gemma4-v2-Q6_K.source.json",
+  "quality": "Not evaluated for Q4_K_M; historical Q6 results are unchanged.",
+  "response_time": "Not measured for Q4_K_M. User observation of 7–13 seconds applies to the preceding Q6 run."
+}

@@ -36,6 +36,8 @@ def scenario_data(product: str, scenario_id: str, now: datetime):
     return application, {
         "checks": checks,
         "known_loans": deepcopy(application["financials"].get("existing_loans")),
+        "bank_financials": deepcopy(application["financials"]),
+        "profile_loaded_at": now.isoformat(),
         "attempts": 0,
     }
 

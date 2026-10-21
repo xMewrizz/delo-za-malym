@@ -6,6 +6,7 @@ from uuid import uuid4
 from credit_engine import assess_application, assess_overdraft, calculate_loan, check_offer_readiness, recommend_financing
 
 from . import demo
+from .client_data import bank_financials, client_data, preserves_bank_values
 from .store import Store
 
 
@@ -39,7 +40,9 @@ class CreditProcess:
     @staticmethod
     def public(record):
         return deepcopy({key: record.get(key) for key in
-                         ("application", "state", "checks", "result", "readiness", "recommendation", "signature", "completion", "events", "submitted_versions")})
+                         ("application", "state", "checks", "result", "readiness", "recommendation", "signature", "completion", "events", "submitted_versions")} |
+                        {key: record.get(key, []) for key in ("explorations", "imports")} |
+                        {"client_data": client_data(record)})
 
     def get(self, application_id):
         with self.store.connect() as connection:
@@ -71,6 +74,7 @@ class CreditProcess:
                 application["need"].update(deepcopy(need))
             if product_details is not None:
                 application["product_details"] = deepcopy(product_details)
+            self._check_bank_financials(simulator["bank_financials"], application["financials"])
         application.update(application_id=str(uuid4()), application_version=1, confirmation=None)
         state = {"application_id": application["application_id"], "application_version": 1,
                  "latest_assessment_id": None, "selected_offer_id": None}
@@ -111,6 +115,7 @@ class CreditProcess:
             raise ProcessError("editing_not_allowed", "На текущем этапе изменение заявки недоступно.")
         if not changes:
             raise ProcessError("empty_changes", "Нет изменений для сохранения.", 422)
+        known = deepcopy(bank_financials(record))
         # Используется и формой, и подтверждёнными предложениями ассистента.
         for path, value in changes.items():
             if path in ("need", "financials", "product_details"):
@@ -123,6 +128,8 @@ class CreditProcess:
                 if len(parts) != 2 or parts[1] not in allowed:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
+        self._check_bank_financials(known, record["application"].get("financials"))
+        record["simulator"].setdefault("bank_financials", known)
         record["application"]["application_version"] += 1
         record["application"]["confirmation"] = None
         record["state"].update(application_version=record["application"]["application_version"],
@@ -130,6 +137,12 @@ class CreditProcess:
         record.update(checks=None, result=None, readiness=None, recommendation=None, fulfilled_conditions={})
         set_state(record, "draft", "data_collection", "complete_profile", "Подтвердите обновлённые сведения", now)
         event(record, "application_updated", now, fields=list(changes))
+
+    @staticmethod
+    def _check_bank_financials(known, proposed):
+        if not preserves_bank_values(known, proposed):
+            raise ProcessError("bank_data_read_only",
+                               "Сведения, полученные из банка, нельзя заменить данными анкеты. Дополните только отсутствующие показатели.", 422)
 
     def recommend(self, application_id, version):
         def select_mechanism(record, now):

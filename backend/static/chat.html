@@ -4,7 +4,10 @@
   <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
   <title>Дело за малым · Диалог</title>
   <link rel="stylesheet" href="/chat-assets/chat.css">
+  <link rel="stylesheet" href="/chat-assets/cabinet.css">
   <script defer src="/chat-assets/chat.js"></script>
+  <script defer src="/chat-assets/overdraft-plan.js"></script>
+  <script defer src="/chat-assets/cabinet.js"></script>
 </head>
 <body>
 <header class="header">
@@ -15,12 +18,14 @@
   <div class="intro"><div><p class="eyebrow">ОТ ЗАДАЧИ — К ФИНАНСИРОВАНИЮ</p><h1>Давайте обсудим ваше дело</h1><p>Разговор помогает заполнить заявку. Каждое изменение остаётся за вами.</p></div><span id="mode" class="badge">Подключаемся…</span></div>
   <div id="notice" class="notice" role="status" hidden></div>
   <div id="error" class="error" role="alert" hidden></div>
+  <div class="applications-bar"><label>Мои заявки<select data-lock id="saved-applications"><option value="">Выберите заявку</option></select></label><button data-lock id="open-application">Продолжить</button><button data-lock id="refresh-application" class="quiet">Обновить</button></div>
   <div class="workspace">
     <section class="panel conversation" aria-label="Диалог с ассистентом">
       <div class="panel-heading"><div><h2>Ассистент</h2><span id="chat-info" class="muted">История сохраняется</span></div><button data-lock id="new-chat" class="quiet">Новый диалог</button></div>
       <div id="demo-note" class="demo-note" hidden>Демонстрационный режим: примеры проверяют интерфейс. Для свободного разговора подключите модель.</div>
       <div id="messages" class="messages" role="log" aria-label="Переписка" aria-live="polite"></div>
       <div id="waiting" class="waiting" role="status" hidden><span class="dot"></span>Ассистент готовит ответ…</div>
+      <div id="pending-draft" class="pending-draft"></div>
       <div id="examples" class="examples" hidden><span class="muted">Попробовать пример</span><button data-lock data-example="Нужно 500 000 ₽ на закупку на 12 месяцев">500 тысяч на закупку</button><button data-lock data-example="Лучше на 18 месяцев">Изменить срок</button></div>
       <form id="message-form" class="composer"><label class="sr-only" for="message">Сообщение</label><textarea data-lock id="message" rows="2" maxlength="8000" placeholder="Расскажите, на что нужны деньги…" required></textarea><button data-lock id="send" class="primary" type="submit">Отправить ↑</button></form>
       <div class="composer-hint">Enter — отправить · Shift + Enter — новая строка</div>
@@ -28,24 +33,70 @@
     <aside class="panel application">
       <div class="panel-heading"><div><h2>Ваша заявка</h2><span id="application-info" class="muted">Данные демонстрационного клиента</span></div><span class="small-mark">₽</span></div>
       <div class="application-body">
-        <div class="scenario-row"><label for="scenario">Данные для проверки</label><select data-lock id="scenario"><option value="">Новая потребность</option><option value="working_capital_loan/01_approved">Разовый кредит · готовый пример</option><option value="overdraft/01_overdraft_approved">Овердрафт · готовый пример</option></select><button data-lock id="load-scenario" class="quiet">Открыть новую заявку</button></div>
+        <div class="scenario-row"><label id="scenario-label" for="scenario" hidden>Данные для проверки</label><select data-lock id="scenario" hidden><option value="">Новая потребность</option><option value="working_capital_loan/01_approved">Разовый кредит · готовый пример</option><option value="overdraft/01_overdraft_approved">Овердрафт · готовый пример</option></select><button data-lock id="load-scenario" class="quiet">Новая заявка</button></div>
         <div class="company"><span id="company">ООО «Север»</span><span id="state" class="badge">Черновик</span></div>
-        <form id="need-form">
+        <section class="bank-summary" aria-label="Сведения клиента из банка"><h3>Уже известно банку</h3><p id="bank-source" class="muted"></p><div id="bank-facts" class="bank-facts"></div><p id="company-details" class="muted"></p></section>
+        <details open id="need-section"><summary>Потребность и выбранные параметры</summary><form id="need-form">
           <fieldset data-lock id="need-fields"><legend class="sr-only">Потребность в финансировании</legend>
+            <div class="task-start"><span class="muted">Начните с задачи или выберите знакомый продукт</span><button type="button" id="task-purchase" class="quiet">Закупить товар</button><button type="button" id="task-gap" class="quiet">Заплатить до поступления денег</button><button type="button" id="known-product" class="quiet">Я знаю продукт</button></div>
             <label>Цель<select id="purpose"><option value="">Пока неизвестна</option><option value="working_capital">Оборотные расходы</option><option value="investment">Развитие и оборудование</option><option value="contract_execution">Исполнение контракта</option><option value="refinancing">Рефинансирование</option><option value="other">Другая</option></select></label>
             <div class="field-row"><label>Сумма, ₽<input id="amount" inputmode="decimal" type="number" min="0.01" max="999999999999" step="0.01" placeholder="500 000"></label><label>Срок, месяцев<input id="term" type="number" min="1" max="120" step="1" placeholder="12"></label></div>
             <label>Как планируете возвращать?<select id="pattern"><option value="">Нужно уточнить</option><option value="gradual_repayment">Постепенно из выручки</option><option value="cash_gap">После конкретного поступления</option></select></label>
             <label>Продукт<select id="product"><option value="">Ещё не выбран</option><option value="working_capital_loan">Разовый кредит</option><option value="overdraft">Овердрафт</option></select></label>
+            <div class="field-row"><label>Минимальная достаточная сумма, ₽<input id="minimum-amount" type="number" min="0.01" step="0.01" placeholder="Если готовы взять меньше"></label><label>Сколько своих денег готовы вложить, ₽<input id="own-funds" type="number" min="0" step="0.01" placeholder="Если планируете добавить свои"></label></div>
+            <div class="field-row"><label>Когда нужны деньги<input id="needed-by" type="date"></label><label>Потребность<select id="recurring"><option value="">Не выяснено</option><option value="false">Разовая</option><option value="true">Регулярная</option></select></label></div>
             <button class="secondary full" type="submit">Сохранить данные вручную</button>
           </fieldset>
-        </form>
+        </form></details>
+        <details id="finance-section"><summary>Финансы и обязательства · данные банка</summary>
+          <p id="finance-note" class="muted">Показатели получены из банковского профиля. Повторно заполнять их не нужно.</p>
+          <p class="muted">Расходы в таблице указаны без налогов и платежей по кредитам.</p>
+          <form id="finance-form"><fieldset data-lock id="finance-fields">
+            <div class="field-row"><label>Собственные деньги сейчас, ₽<input id="cash-balance" type="number" min="0" step="0.01"></label><label>Доля крупнейшего покупателя, %<input id="buyer-share" type="number" min="0" max="100" step="0.01"></label></div>
+            <div class="table-scroll"><table><thead><tr><th>Месяц</th><th>Поступления, ₽</th><th>Расходы, ₽</th><th>Налоги, ₽</th></tr></thead><tbody id="financial-months"></tbody></table></div>
+            <h3>Действующие кредиты</h3><div id="existing-loans"></div><button id="add-loan" type="button" class="quiet">Добавить кредит</button>
+            <button id="save-finance" type="submit" class="secondary full">Сохранить дополнения</button>
+          </fieldset></form>
+        </details>
+        <details id="plan-section"><summary>Когда нужно заплатить и когда придут деньги</summary>
+          <p class="muted">Укажите предстоящий расход и ожидаемое поступление. Рассчитаем, сколько денег не хватает между этими датами и какой лимит овердрафта нужен.</p>
+          <form id="plan-form"><fieldset data-lock id="plan-fields">
+            <p id="plan-context" class="plan-context"></p>
+            <div id="transactions"></div>
+            <div class="plan-add-actions"><button id="add-transaction" type="button" class="quiet">Ещё расход</button><button id="add-inflow" type="button" class="quiet">Ещё поступление</button></div>
+            <section id="debt-plan-section" class="debt-plan-section" hidden><h3>Платежи по действующим кредитам</h3><p class="muted">Суммы уже известны из профиля. Добавьте платёж, если он попадает в период плана, и укажите дату.</p><div id="known-debt-payments"></div><label class="inline-check"><input id="debt-plan-confirmed" type="checkbox">Все платежи по действующим кредитам за этот период учтены. Если их нет, подтверждаю отсутствие.</label></section>
+            <details id="plan-settings"><summary>Запас денег и период расчёта</summary>
+              <label class="inline-check"><input id="plan-auto-period" type="checkbox" checked>Определить период автоматически: с сегодня до последней операции</label>
+              <div class="field-row"><label>Начало плана<input id="plan-start" type="date" required></label><label>Конец плана<input id="plan-end" type="date" required></label></div>
+              <div class="field-row"><label>Остаток к началу плана, ₽<input id="plan-cash" type="number" min="0" step="0.01" required></label><label>Сколько оставить в запасе, ₽<input id="plan-reserve" type="number" min="0" step="0.01" required></label></div>
+              <p class="muted">Остаток подставлен из профиля. Для будущего начала плана его можно уточнить. Запас — сумма собственных денег, которую не хотите расходовать.</p>
+            </details>
+            <button type="submit" class="secondary full">Сохранить и рассчитать овердрафт</button>
+          </fieldset></form>
+        </details>
         <div class="calculation-actions"><button data-lock id="recommend" class="primary">Подобрать продукт</button><button data-lock id="preview" class="secondary">Рассчитать</button></div>
+        <section class="options-section"><h2>Варианты финансирования</h2><p class="muted">Расчёты сохраняются отдельно от заявки. Если срок или лимит неизвестны, подберём по данным.</p>
+          <form id="options-form"><fieldset data-lock id="option-fields">
+            <label>Что рассчитываем<select id="explore-product"><option value="working_capital_loan">Разовый кредит</option><option value="overdraft">Овердрафт по плану</option></select></label>
+            <div id="loan-preferences"><div class="field-row"><label>Сумма для сравнения, ₽<input id="explore-amount" type="number" min="0.01" step="0.01" placeholder="Как в заявке"></label><label>Комфортный платёж до, ₽<input id="maximum-payment" type="number" min="0.01" step="0.01" placeholder="Не ограничен"></label></div>
+              <div class="field-row"><label>Срок от, мес.<input id="minimum-term" type="number" value="6" min="1" max="120"></label><label>Срок до, мес.<input id="maximum-term" type="number" value="36" min="1" max="120"></label></div>
+              <label>Порядок вариантов<select id="option-priority"><option value="preserve_amount">Сохранить сумму, затем меньше переплата</option><option value="lowest_payment">Меньше платёж</option><option value="lowest_total_cost">Меньше переплата</option></select></label>
+              <label class="inline-check"><input id="preserve-amount" type="checkbox" checked>Сохранять сумму. Меньшие варианты — только при подтверждённом минимуме.</label>
+            </div>
+            <div id="delay-preferences" hidden><label>Проверить задержку поступления<select id="delay-transaction"><option value="">Без задержки</option></select></label><label>На сколько дней<input id="delay-days" type="number" value="7" min="1" max="30"></label></div>
+            <button type="submit" class="primary full">Показать варианты</button>
+          </fieldset></form>
+          <div id="explorations"></div>
+        </section>
         <section id="result" class="result" aria-live="polite"><p class="muted">Здесь появятся предложения и вопросы после расчёта.</p></section>
+        <section class="process-section"><h2>Оформление заявки</h2><p id="next-action" class="muted"></p><div id="process-actions"></div><div id="completion"></div><details><summary>История движения заявки</summary><ol id="timeline"></ol></details></section>
         <details><summary>Сохранённые данные и результат · JSON</summary><pre id="context"></pre></details>
         <details><summary>Формат последнего ответа ассистента</summary><pre id="reply-json">Пока нет ответа</pre></details>
       </div>
     </aside>
   </div>
 </main>
+<dialog id="confirmation-dialog"><h2 id="confirmation-title"></h2><p id="confirmation-text"></p><div class="proposal-buttons"><button id="confirmation-yes" class="primary">Подтвердить</button><button id="confirmation-no">Вернуться</button></div></dialog>
+<dialog id="schedule-dialog"><div class="panel-heading"><h2>График платежей</h2><button id="close-schedule">Закрыть</button></div><div class="table-scroll" id="schedule-table"></div></dialog>
 </body>
 </html>
