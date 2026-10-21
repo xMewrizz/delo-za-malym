@@ -290,6 +290,132 @@
         }
       }
     },
+    "/api/chats/{chat_id}/proposals/{proposal_id}/preview": {
+      "post": {
+        "tags": [
+          "Диалог"
+        ],
+        "summary": "Preview Proposal",
+        "operationId": "preview_proposal_api_chats__chat_id__proposals__proposal_id__preview_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "proposal_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Proposal Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatVersion"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Preview Proposal Api Chats  Chat Id  Proposals  Proposal Id  Preview Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}/clarifications/{question_id}/answer": {
+      "post": {
+        "tags": [
+          "Диалог"
+        ],
+        "summary": "Answer Clarification",
+        "operationId": "answer_clarification_api_chats__chat_id__clarifications__question_id__answer_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "question_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Question Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/AnswerClarification"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Answer Clarification Api Chats  Chat Id  Clarifications  Question Id  Answer Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chats/{chat_id}/proposals/{proposal_id}/reject": {
       "post": {
         "tags": [
@@ -1435,6 +1561,59 @@
   },
   "components": {
     "schemas": {
+      "AnswerClarification": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "base_chat_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Chat Version"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "choice_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Choice Id"
+          },
+          "value": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Value"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "base_chat_version",
+          "request_id"
+        ],
+        "title": "AnswerClarification"
+      },
       "ApplicationView": {
         "properties": {
           "application": {
@@ -1778,6 +1957,21 @@
             "additionalProperties": true,
             "type": "object",
             "title": "Changes"
+          },
+          "overdraft_plan": {
+            "anyOf": [
+              {
+                "$ref": "#/components/schemas/OverdraftPlanUpdate"
+              },
+              {
+                "type": "null"
+              }
+            ]
+          },
+          "remove_overdraft_plan": {
+            "type": "boolean",
+            "title": "Remove Overdraft Plan",
+            "default": false
           }
         },
         "additionalProperties": false,
@@ -2011,6 +2205,125 @@
           "offer_id"
         ],
         "title": "OfferAction"
+      },
+      "OverdraftPlanUpdate": {
+        "properties": {
+          "mode": {
+            "type": "string",
+            "enum": [
+              "merge",
+              "replace"
+            ],
+            "title": "Mode",
+            "default": "merge"
+          },
+          "transactions": {
+            "items": {
+              "$ref": "#/components/schemas/PlannedOperation"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Transactions"
+          },
+          "removed_transaction_ids": {
+            "items": {
+              "type": "string"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "title": "Removed Transaction Ids"
+          },
+          "debt_payments_confirmed": {
+            "anyOf": [
+              {
+                "type": "boolean"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Debt Payments Confirmed"
+          },
+          "cash_reserve": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Cash Reserve"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "title": "OverdraftPlanUpdate"
+      },
+      "PlannedOperation": {
+        "properties": {
+          "transaction_id": {
+            "type": "string",
+            "maxLength": 100,
+            "minLength": 1,
+            "title": "Transaction Id"
+          },
+          "direction": {
+            "anyOf": [
+              {
+                "type": "string",
+                "enum": [
+                  "inflow",
+                  "outflow"
+                ]
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Direction"
+          },
+          "date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Date"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "loan_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Loan Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "transaction_id"
+        ],
+        "title": "PlannedOperation"
       },
       "SelectOffer": {
         "properties": {

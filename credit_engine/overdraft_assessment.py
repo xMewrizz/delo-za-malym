@@ -64,7 +64,7 @@ class OverdraftAssessmentResult(AssessmentResult):
     overdraft_calculation: OverdraftCalculation | None = None
 
 
-def _plan_issues(scenario: Mapping, loans: list, start: date, end: date) -> tuple[CalculationIssue, ...]:
+def validate_debt_payments(scenario: Mapping, loans: list, start: date, end: date) -> tuple[CalculationIssue, ...]:
     """Связать запланированные кредитные платежи с операциями, не добавляя их повторно."""
     field = "product_details.overdraft.existing_debt_payments"
     active = {loan["loan_id"]: loan for loan in loans if Decimal(loan["outstanding_principal"]) > 0}
@@ -304,7 +304,7 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
     if Decimal(scenario["opening_cash_balance"]) > Decimal(current_cash):
         return finish("needs_information", "opening_cash_not_supported", "Начальный остаток плана превышает подтверждённые собственные деньги.", fields=(
             CalculationIssue("product_details.overdraft.opening_cash_balance", "cash_balance_mismatch", "Уточните остаток или обновите сведения о собственных деньгах."),))
-    debt_issues = _plan_issues(scenario, application["financials"]["existing_loans"], start, end)
+    debt_issues = validate_debt_payments(scenario, application["financials"]["existing_loans"], start, end)
     if debt_issues:
         if any(issue.code.startswith("invalid_") for issue in debt_issues):
             return result("invalid_data", issues=debt_issues)

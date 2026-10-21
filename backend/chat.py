@@ -7,8 +7,10 @@ from threading import BoundedSemaphore
 from uuid import uuid4
 
 from .assistant import AssistantReply, AssistantResponseError, build_messages, validate_changes
-from .models import LoanPreferences
-from .service import ProcessError
+from .models import LoanPreferences, OverdraftPlanUpdate
+from .service import EDITABLE_STATES, ProcessError
+from .overdraft_chat import PLAN_PATH, engine_plan, merge_plan, plan_issues
+from .clarifications import next_clarification, pending_proposal, public_clarification, resolve_answer
 from scr.delo_za_malyn.Models.Llm.client import LLMContextLimit, LLMOutputLimit, LLMProtocolError, LLMRateLimit, request_budget
 
 logger = logging.getLogger(__name__)
@@ -45,7 +47,12 @@ class ChatService:
             proposal = message.get("proposal")
             if proposal and proposal["status"] == "pending":
                 proposal["conflicts"] = self.conflicts(proposal, record)
-        return {"chat": public, "record": self.process.public(record), "assistant": self.settings()}
+                if PLAN_PATH in proposal["changes"]:
+                    proposal["plan_issues"] = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock())
+        pending = pending_proposal(chat)
+        clarification = None if pending and self.conflicts(pending, record) else next_clarification(chat, record, self.clock())
+        return {"chat": public, "record": self.process.public(record), "assistant": self.settings(),
+                "clarification": public_clarification(clarification)}
 
     @staticmethod
     def value(record, path):
@@ -55,8 +62,72 @@ class ChatService:
     def conflicts(self, proposal, record):
         if "base_values" not in proposal:
             return list(proposal["changes"]) if proposal["base_application_version"] != record["application"]["application_version"] else []
-        return [path for path, value in proposal["changes"].items()
+        changed = [path for path, value in proposal["changes"].items()
                 if path in proposal.get("review_fields", []) or self.value(record, path) not in (proposal["base_values"].get(path), value)]
+        return list(dict.fromkeys(changed + [path for path, value in proposal.get("dependencies", {}).items()
+                                           if self.value(record, path) != value]))
+
+    def _new_proposal(self, record, changes, pending=None):
+        version = record["application"]["application_version"]
+        base_values = deepcopy((pending or {}).get("base_values", {}))
+        review_fields = list((pending or {}).get("review_fields", []))
+        if pending and "base_values" not in pending and pending["base_application_version"] != version:
+            review_fields.extend(pending["changes"])
+        for path in changes:
+            base_values.setdefault(path, self.value(record, path))
+        proposal = {"proposal_id": str(uuid4()), "application_id": record["application"]["application_id"],
+                    "base_application_version": version, "base_values": base_values, "review_fields": review_fields,
+                    "changes": deepcopy(changes), "status": "pending"}
+        if PLAN_PATH in changes:
+            proposal["dependencies"] = deepcopy((pending or {}).get("dependencies", {}))
+            for path in ("financials.cash_balance", "financials.existing_loans"):
+                proposal["dependencies"].setdefault(path, self.value(record, path))
+        return proposal
+
+    def answer_clarification(self, chat_id, question_id, body):
+        identity = {"question_id": question_id, "choice_id": body.choice_id, "value": body.value}
+        request_id = str(body.request_id)
+        with self.store.connect(write=True) as connection:
+            chat = self._load(connection, chat_id)
+            record = self.store.get(connection, chat["application_id"])
+            previous = next((message for message in chat["messages"] if message.get("request_id") == request_id), None)
+            if previous:
+                if previous.get("clarification_answer") != identity:
+                    raise ProcessError("request_id_conflict", "Этот идентификатор уже использован для другого ответа.")
+                return self._public(chat, record)
+            self._version(chat, body.base_chat_version)
+            self.process._version(record, body.base_application_version)
+            pending = pending_proposal(chat)
+            if record["state"]["status"] not in EDITABLE_STATES or (pending and self.conflicts(pending, record)):
+                raise ProcessError("clarification_stale", "Данные изменились. Обновите вопрос и проверьте значения.")
+            card = next_clarification(chat, record, self.clock())
+            if card is None or card["question_id"] != question_id:
+                raise ProcessError("clarification_stale", "Этот вопрос уже изменился. Используйте актуальную карточку.")
+            if len(chat["messages"]) >= 80:
+                raise ProcessError("chat_limit", "Начните новый диалог: достигнут лимит 40 ответов.", 422)
+            try:
+                fields, plan, label = resolve_answer(card, record, choice_id=body.choice_id, value=body.value,
+                                                     now=self.clock(), operation_id="answer-" + request_id)
+                changes = {**(pending or {}).get("changes", {}), **fields}
+                if plan is not None:
+                    self._plan_changes(record, changes, OverdraftPlanUpdate.model_validate(plan))
+            except ValueError as exc:
+                raise ProcessError("invalid_clarification", str(exc), 422) from None
+            proposal = self._new_proposal(record, changes, pending)
+            if pending:
+                pending["status"] = "superseded"
+            now = self.clock().isoformat()
+            chat["messages"].extend([
+                {"message_id": str(uuid4()), "role": "user", "text": label, "created_at": now,
+                 "request_id": request_id, "clarification_answer": identity, "clarification_question": card["title"]},
+                {"message_id": str(uuid4()), "role": "assistant", "text": "Учёл ответ в черновике.",
+                 "intent": "propose_changes", "question": None, "proposal": proposal,
+                 "created_at": now, "mode": "form", "model": None, "tools": []}])
+            chat["chat_version"] += 1
+            following = next_clarification(chat, record, self.clock())
+            chat["messages"][-1]["question"] = following["title"] if following else None
+            self.store.save_chat(connection, chat)
+        return self._public(chat, record)
 
     def create(self, application_id=None):
         record = self.process.get(application_id) if application_id else self.process.create()
@@ -71,6 +142,38 @@ class ChatService:
             chat = self._load(connection, chat_id)
             record = self.store.get(connection, chat["application_id"])
         return self._public(chat, record)
+
+    def preview(self, chat_id, proposal_id, version):
+        """Расчёт предложенного сценария на копии, без сохранения или вызова модели."""
+        with self.store.connect() as connection:
+            chat = self._load(connection, chat_id)
+            self._version(chat, version)
+            record = self.store.get(connection, chat["application_id"])
+        proposal = next((message["proposal"] for message in chat["messages"]
+                         if (message.get("proposal") or {}).get("proposal_id") == proposal_id), None)
+        if not proposal or proposal["status"] != "pending":
+            raise ProcessError("proposal_not_pending", "Предложение уже обработано или заменено новым.")
+        if self.conflicts(proposal, record):
+            raise ProcessError("version_conflict", "Данные изменились. Проверьте предложенные значения.")
+        projection = deepcopy(record)
+        changes = deepcopy(proposal["changes"])
+        issues = []
+        if PLAN_PATH in changes:
+            issues = plan_issues(record, changes[PLAN_PATH], self.clock())
+            changes[PLAN_PATH] = engine_plan(changes[PLAN_PATH])
+        self.process.patch_record(projection, changes, self.clock())
+        need = projection["application"]["need"]
+        product = "overdraft" if PLAN_PATH in changes else need.get("preferred_product") or (
+            "overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
+        self.workspace.explore_record(projection, self.clock(), product)
+        result = projection["explorations"][-1]["result"]
+        # Неполный денежный план можно визуализировать, но не выдавать за доступное предложение.
+        if issues:
+            result["options"] = []
+            result["status"] = "needs_information"
+        return {"proposal_id": proposal_id, "chat_version": version,
+                "application_version": record["application"]["application_version"],
+                "confirmed": False, "issues": issues, "result": result}
 
     def send(self, chat_id, version, text, request_id):
         request_id = str(request_id)
@@ -87,7 +190,7 @@ class ChatService:
         if len(chat["messages"]) >= 80:
             raise ProcessError("chat_limit", "Начните новый диалог: достигнут лимит 40 сообщений пользователя.", 422)
         try:
-            messages = build_messages(chat, record, text, self.catalog())
+            messages = build_messages(chat, record, text, self.catalog(), now=self.clock())
         except ValueError as exc:
             raise ProcessError("context_limit", str(exc), 422) from None
         if not self.generation_slots.acquire(blocking=False):
@@ -128,25 +231,26 @@ class ChatService:
             self.generation_slots.release()
         now = self.clock().isoformat()
         proposal = None
-        if reply.changes:
+        if reply.changes or reply.overdraft_plan is not None:
             pending = next((message["proposal"] for message in reversed(chat["messages"])
                             if message.get("proposal") and message["proposal"]["status"] == "pending"), None)
             changes = {**(pending["changes"] if pending else {}), **reply.changes}
-            base_values = deepcopy(pending.get("base_values", {})) if pending else {}
-            review_fields = list(pending.get("review_fields", [])) if pending else []
-            if pending and "base_values" not in pending and pending["base_application_version"] != application_version:
-                review_fields.extend(pending["changes"])
-            for path in changes:
-                base_values.setdefault(path, self.value(record, path))
-            proposal = {"proposal_id": str(uuid4()), "application_id": chat["application_id"],
-                        "base_application_version": record["application"]["application_version"],
-                        "base_values": base_values, "review_fields": review_fields, "changes": changes, "status": "pending"}
+            if reply.overdraft_plan is not None:
+                try:
+                    self._plan_changes(record, changes, reply.overdraft_plan)
+                except ValueError as exc:
+                    raise ProcessError("invalid_plan_proposal", str(exc), 422) from None
+            proposal = self._new_proposal(record, changes, pending)
         user = {"message_id": str(uuid4()), "role": "user", "text": text, "created_at": now, "request_id": request_id}
         answer = {"message_id": str(uuid4()), "role": "assistant", "text": reply.text,
                   "intent": reply.intent, "question": reply.question, "proposal": proposal,
                   "model_content": reply.model_dump_json(), "created_at": now,
                   "mode": self.assistant.mode, "model": self.assistant.model,
                   "tools": list(tools)}
+        if reply.overdraft_plan is not None:
+            issues = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock())
+            answer["text"] = "Собрал будущие операции. Проверьте суммы и даты в карточке."
+            answer["question"] = issues[0]["message"] if issues else None
         # Не держим блокировку SQLite, пока модель генерирует ответ.
         with self.store.connect(write=True) as connection:
             current = self._load(connection, chat_id)
@@ -164,7 +268,9 @@ class ChatService:
                         for exploration in explorations:
                             self.workspace.save_exploration_record(record, exploration, self.clock())
                     else:
-                        product = record["application"]["need"].get("preferred_product") or "working_capital_loan"
+                        need = record["application"]["need"]
+                        product = need.get("preferred_product") or (
+                            "overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
                         preferences = (reply.preferences or LoanPreferences()).model_dump(exclude_none=True)
                         if product == "overdraft" and reply.preferences is not None and reply.preferences.model_fields_set:
                             raise ProcessError("invalid_comparison", "Для овердрафта нужен дневной план; настройки платежа и срока относятся к разовому кредиту.", 422)
@@ -193,7 +299,20 @@ class ChatService:
             if apply:
                 if self.conflicts(proposal, record):
                     raise ProcessError("version_conflict", "Некоторые предложенные поля уже изменены в форме. Проверьте и сохраните исправленный черновик.")
-                self.process.patch_record(record, proposal["changes"], self.clock())
+                changes = deepcopy(proposal["changes"])
+                if PLAN_PATH in changes:
+                    issues = plan_issues(record, changes[PLAN_PATH], self.clock())
+                    if issues:
+                        raise ProcessError("plan_incomplete", issues[0]["message"], 422)
+                    changes[PLAN_PATH] = engine_plan(changes[PLAN_PATH])
+                self.process.patch_record(record, changes, self.clock())
+                if PLAN_PATH in changes:
+                    self.workspace.explore_record(record, self.clock(), "overdraft")
+                elif (record["application"]["need"].get("purpose") == "working_capital"
+                      and record["application"]["need"].get("requested_amount") is not None
+                      and record["application"]["need"].get("financing_pattern") != "cash_gap"
+                      and record["application"]["need"].get("preferred_product") != "overdraft"):
+                    self.workspace.explore_record(record, self.clock(), "working_capital_loan")
                 self.store.save(connection, record)
                 proposal["status"] = "applied"
             else:
@@ -202,7 +321,22 @@ class ChatService:
             self.store.save_chat(connection, chat)
         return self._public(chat, record)
 
-    def edit(self, chat_id, proposal_id, version, application_version, changes):
+    def _plan_changes(self, record, changes, update):
+        previous = changes.get(PLAN_PATH)
+        if previous is None:
+            previous = record["application"].get("product_details", {}).get("overdraft")
+            # Новый список из нового диалога не дополняет старый пример молча.
+            # Добавление к сохранённому плану требует явного mode=merge.
+            saved_ids = {row["transaction_id"] for row in (previous or {}).get("transactions", [])}
+            new_ids = {row.transaction_id for row in update.transactions}
+            if previous and new_ids and not new_ids & saved_ids and not update.removed_transaction_ids and "mode" not in update.model_fields_set:
+                update = update.model_copy(update={"mode": "replace"})
+        changes[PLAN_PATH] = merge_plan(record, previous, update, self.clock())
+        for field, default in (("purpose", "working_capital"), ("financing_pattern", "cash_gap")):
+            if changes.get("need." + field, record["application"]["need"].get(field)) is None:
+                changes["need." + field] = default
+
+    def edit(self, chat_id, proposal_id, version, application_version, changes, *, plan_update=None, remove_plan=False):
         try:
             validate_changes(changes)
         except ValueError as exc:
@@ -216,10 +350,24 @@ class ChatService:
                 if (message.get("proposal") or {}).get("proposal_id") == proposal_id), None)
             if not proposal or proposal["status"] != "pending":
                 raise ProcessError("proposal_not_pending", "Черновик уже обработан или заменён.")
+            changes = deepcopy(changes)
+            if not remove_plan and PLAN_PATH in proposal["changes"]:
+                changes[PLAN_PATH] = deepcopy(proposal["changes"][PLAN_PATH])
+            if plan_update is not None:
+                try:
+                    self._plan_changes(record, changes, plan_update)
+                except ValueError as exc:
+                    raise ProcessError("invalid_plan_proposal", str(exc), 422) from None
             proposal.update(changes=deepcopy(changes), base_application_version=application_version,
                             base_values={path: self.value(record, path) for path in changes},
                             review_fields=[],
                             status="pending" if changes else "rejected")
+            proposal["dependencies"] = {path: self.value(record, path) for path in
+                ("financials.cash_balance", "financials.existing_loans")} if PLAN_PATH in changes else {}
+            for message in chat["messages"]:
+                if message.get("proposal") is proposal:
+                    issues = plan_issues(record, changes[PLAN_PATH], self.clock()) if PLAN_PATH in changes else []
+                    message["question"] = issues[0]["message"] if issues else None
             chat["chat_version"] += 1
             self.store.save_chat(connection, chat)
         return self._public(chat, record)

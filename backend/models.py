@@ -1,6 +1,7 @@
 """Тела запросов кабинета; внутренние результаты и проверки клиент не задаёт."""
 
 import json
+from datetime import date
 from uuid import UUID
 from typing import Any
 from typing import Literal
@@ -88,6 +89,18 @@ class ChatMessage(ChatVersion):
         return value.strip()
 
 
+class AnswerClarification(ChatVersion, VersionAction):
+    request_id: UUID
+    choice_id: str | None = Field(default=None, min_length=1, max_length=100)
+    value: str | None = Field(default=None, min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def one_answer(self):
+        if (self.choice_id is None) == (self.value is None):
+            raise ValueError("Выберите готовый ответ или введите значение.")
+        return self
+
+
 class ConfirmChatProposal(ChatVersion):
     confirmed: StrictBool
 
@@ -99,8 +112,62 @@ class ConfirmChatProposal(ChatVersion):
         return value
 
 
+class PlannedOperation(RequestModel):
+    transaction_id: str = Field(min_length=1, max_length=100)
+    direction: Literal["inflow", "outflow"] | None = None
+    date: str | None = None
+    amount: str | None = None
+    loan_id: str | None = Field(default=None, max_length=100)
+
+    @field_validator("date")
+    @classmethod
+    def calendar_date(cls, value):
+        if value is not None and date.fromisoformat(value).isoformat() != value:
+            raise ValueError("Нужна дата YYYY-MM-DD.")
+        return value
+
+    @field_validator("amount")
+    @classmethod
+    def positive_money(cls, value):
+        if value is not None and (not re.fullmatch(r"[0-9]{1,12}\.[0-9]{2}", value) or float(value) <= 0):
+            raise ValueError("Нужна положительная сумма рублей с двумя знаками.")
+        return value
+
+
+class OverdraftPlanUpdate(RequestModel):
+    mode: Literal["merge", "replace"] = "merge"
+    transactions: list[PlannedOperation] = Field(default_factory=list, max_length=100)
+    removed_transaction_ids: list[str] = Field(default_factory=list, max_length=100)
+    debt_payments_confirmed: StrictBool | None = None
+    cash_reserve: str | None = None
+
+    @field_validator("cash_reserve")
+    @classmethod
+    def reserve_money(cls, value):
+        if value is not None and not re.fullmatch(r"[0-9]{1,12}\.[0-9]{2}", value):
+            raise ValueError("Нужна неотрицательная сумма рублей с двумя знаками.")
+        return value
+
+    @model_validator(mode="after")
+    def unique_operations(self):
+        ids = [item.transaction_id for item in self.transactions]
+        if len(ids) != len(set(ids)) or set(ids) & set(self.removed_transaction_ids):
+            raise ValueError("Операция не может повторяться или одновременно изменяться и удаляться.")
+        if not self.transactions and not self.removed_transaction_ids and self.debt_payments_confirmed is None and self.cash_reserve is None:
+            raise ValueError("Нет изменений плана.")
+        return self
+
+
 class EditChatProposal(ChatVersion, VersionAction):
     changes: dict[str, Any]
+    overdraft_plan: OverdraftPlanUpdate | None = None
+    remove_overdraft_plan: StrictBool = False
+
+    @model_validator(mode="after")
+    def plan_action(self):
+        if self.overdraft_plan is not None and self.remove_overdraft_plan:
+            raise ValueError("Выберите изменение либо удаление плана.")
+        return self
 
 
 class LoanPreferences(RequestModel):

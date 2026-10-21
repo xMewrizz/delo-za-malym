@@ -53,7 +53,9 @@ class CreditProcess:
 
     def list(self):
         return [{"application_id": record["application"]["application_id"], "need": record["application"]["need"],
-                 "state": record["state"], "completion": record["completion"]} for record in self.store.list()]
+                 "state": record["state"], "completion": record["completion"],
+                 "ready_for_application": record["state"]["status"] != "draft" or any(
+                     item["type"] == "explored_option_applied" for item in record["events"])} for record in self.store.list()]
 
     def create(self, *, need=None, financials=None, product_details=None, scenario=None):
         now = self.clock()
@@ -124,7 +126,7 @@ class CreditProcess:
                 record["application"][path] = deepcopy(value)
             else:
                 parts = path.split(".")
-                allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else set()
+                allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else {"overdraft"} if parts[0] == "product_details" else set()
                 if len(parts) != 2 or parts[1] not in allowed:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)

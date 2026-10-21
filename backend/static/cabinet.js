@@ -18,6 +18,7 @@ function appPath(suffix="") {return "/api/applications/"+data.chat.application_i
 function versionBody(extra={}) {return {base_application_version:data.record.application.application_version,...extra};}
 function requireSaved() {if(["need","finance","plan"].some(section=>dirty.has(section)))throw new Error("Есть несохранённые изменения в форме. Сначала подтвердите или отмените их.");}
 function focusField(field) {
+  if(typeof focusWorkspaceField === "function")focusWorkspaceField(field);
   let id=({"need.requested_amount":"amount","need.term_months":"term","need.purpose":"purpose","need.minimum_acceptable_amount":"minimum-amount","need.preferred_product":"product","need.financing_pattern":"pattern","product_details.overdraft.end_date":"plan-end"})[field];
   if(field.startsWith("financials")){$("finance-section").open=true;id=field.includes("cash_balance")?"cash-balance":field.includes("largest_buyer_share")?"buyer-share":"financial-months";}
   if(field.startsWith("need."))$("need-section").open=true;
@@ -45,6 +46,7 @@ function renderCabinet() {
   renderExplorations();renderProcess();
   for(const [section,form]of [["need","need-form"],["finance","finance-form"],["plan","plan-form"]])if(!$(form).querySelector(".reset-form")){
     const reset=button("Отменить несохранённые правки",()=>{dirty.delete(section);render();},"quiet reset-form");$(form).append(reset);
+    reset.hidden=!dirty.has(section);
   }
   $("finance-form").querySelector(".reset-form").hidden=$("save-finance").hidden;
   loadApplications().catch(()=>{});
@@ -152,9 +154,10 @@ function renderPlan() {
 function markPlanChanged() {dirty.add("plan");$("debt-plan-confirmed").checked=false;syncPlanDetails();}
 function addTransaction(source={},loanId="",mark=true) {
   const row=el("div",undefined,"transaction-row plan-operation "+(source.direction === "inflow" ? "inflow" : "outflow"));
-  row.dataset.transactionId=source.transaction_id || crypto.randomUUID();row.dataset.direction=source.direction || "outflow";row.dataset.loanId=loanId || "";
+  row.dataset.transactionId=source.transaction_id || crypto.randomUUID();row.dataset.direction=source.direction === null ? "" : source.direction || "outflow";row.dataset.loanId=loanId || "";
   const loanIndex=activeLoans().findIndex(loan=>loan.loan_id === loanId);
-  row.append(el("strong",loanId ? "Платёж по кредиту"+(loanIndex >= 0 ? " "+(loanIndex+1) : "") : row.dataset.direction === "inflow" ? "Деньги поступят" : "Нужно оплатить","operation-title"));
+  row.append(el("strong",loanId ? "Платёж по кредиту"+(loanIndex >= 0 ? " "+(loanIndex+1) : "") : row.dataset.direction === "inflow" ? "Деньги поступят" : row.dataset.direction === "outflow" ? "Нужно оплатить" : "Уточните назначение","operation-title"));
+  if(!row.dataset.direction){const direction=selectInput([["","Не указано"],["outflow","Нужно оплатить"],["inflow","Деньги поступят"]],"");direction.required=true;direction.setAttribute("aria-label","Назначение платежа");direction.addEventListener("change",()=>{row.dataset.direction=direction.value;markPlanChanged();});row.append(direction);}
   for(const [key,title,input]of [["amount","Сумма, ₽",numberInput(source.amount,"0.01")],["date",row.dataset.direction === "inflow" ? "Когда поступят" : "Когда заплатить",dateInput(source.date)]]) {
     input.dataset.field=key;input.required=true;input.max=key === "amount" ? "999999999999.99" : "9999-12-31";
     const label=el("label",title);label.append(input);row.append(label);
@@ -168,6 +171,7 @@ $("add-inflow").addEventListener("click",()=>{addTransaction({direction:"inflow"
 $("plan-form").addEventListener("input",event=>{dirty.add("plan");if(event.target.id !== "debt-plan-confirmed")markPlanChanged();});
 $("plan-form").addEventListener("invalid",event=>{const section=event.target.closest("details");if(section)section.open=true;},true);
 $("plan-form").addEventListener("submit",event=>{event.preventDefault();run(async()=>{
+  if(typeof workspacePending === "function" && workspacePending()){await saveWorkspaceScenario();return;}
   if(dirty.has("finance"))throw new Error("Сначала сохраните дополнения к финансовым данным — они нужны для расчёта.");
   if(dirty.has("need") && !$("need-form").reportValidity())throw new Error("Проверьте поля потребности перед сохранением.");
   const operations=[...$("transactions").children].map(row=>({transaction_id:row.dataset.transactionId,direction:row.dataset.direction,loan_id:row.dataset.loanId,
@@ -183,6 +187,7 @@ $("plan-form").addEventListener("submit",event=>{event.preventDefault();run(asyn
   try{await api(appPath("/explorations"),{base_application_version:saved.application.application_version,product_id:"overdraft"});dirty.delete("preferences");compareIds.clear();showAllOptions=false;}
   finally{await refreshRecord();}
   show("notice","План сохранён. Ниже — расчёт лимита, процентов и погашения либо конкретные уточнения, необходимые для продолжения.");
+  if(typeof workspaceCalculated === "function")workspaceCalculated();
 });});
 
 function toggleProduct() {const loan=$("explore-product").value === "working_capital_loan";$("loan-preferences").hidden=!loan;$("delay-preferences").hidden=loan;}
@@ -194,6 +199,7 @@ $("options-form").addEventListener("submit",event=>{event.preventDefault();run(a
   if(product_id === "working_capital_loan")extra.preferences={...(asMoney($("explore-amount")) ? {requested_amount:asMoney($("explore-amount"))} : {}),...(asMoney($("maximum-payment")) ? {maximum_monthly_payment:asMoney($("maximum-payment"))} : {}),minimum_term:Number($("minimum-term").value),maximum_term:Number($("maximum-term").value),preserve_amount:$("preserve-amount").checked,priority:$("option-priority").value};
   else if($("delay-transaction").value)extra.delay={transaction_id:$("delay-transaction").value,days:Number($("delay-days").value)};
   await api(appPath("/explorations"),versionBody(extra));compareIds.clear();showAllOptions=false;dirty.delete("preferences");await refreshRecord();
+  if(typeof workspaceCalculated === "function")workspaceCalculated();
 });});
 
 function scheduleTable(schedule) {
@@ -233,6 +239,7 @@ function renderExplorations() {
     const compare=el("label",undefined,"inline-check"),check=el("input");check.type="checkbox";check.checked=compareIds.has(option.option_id);check.addEventListener("change",()=>{if(check.checked)compareIds.add(option.option_id);else compareIds.delete(option.option_id);renderComparison(box,options);});compare.append(check,document.createTextNode("Добавить в сравнение"));card.append(compare);
     const apply=button("Выбрать эти условия",()=>confirmAction("Сохранить выбранные условия?",`${money(option.amount)}${option.term_months ? ", "+option.term_months+" месяцев" : ", овердрафт"}. Выбранный вариант станет новой версией черновика; после этого отправьте заявку на рассмотрение.`,async()=>{
       await api(appPath(`/explorations/${exploration.exploration_id}/apply`),versionBody({confirmed:true,option_id:option.option_id}));await refreshRecord(["need","plan"]);show("notice","Условия сохранены. Проверьте заявку и подтвердите отправку.");
+      if(typeof workspaceOptionSelected === "function")workspaceOptionSelected();
     }),"primary");if(stale || !editable.has(data.record.state.status))apply.dataset.stale="true";card.append(apply);box.append(card);
   }
   if(options.length>highlighted.length)box.append(button(showAllOptions ? "Показать основные" : `Все варианты (${options.length})`,()=>{showAllOptions=!showAllOptions;renderExplorations();controls();},"quiet"));

@@ -5,9 +5,11 @@
   <title>Дело за малым · Диалог</title>
   <link rel="stylesheet" href="/chat-assets/chat.css">
   <link rel="stylesheet" href="/chat-assets/cabinet.css">
+  <link rel="stylesheet" href="/chat-assets/workspace.css">
   <script defer src="/chat-assets/chat.js"></script>
   <script defer src="/chat-assets/overdraft-plan.js"></script>
   <script defer src="/chat-assets/cabinet.js"></script>
+  <script defer src="/chat-assets/workspace.js"></script>
 </head>
 <body>
 <header class="header">
@@ -15,6 +17,9 @@
   <a class="api-link" href="/docs" target="_blank" rel="noopener">API ↗</a>
 </header>
 <main>
+  <nav id="product-navigation" class="product-navigation" aria-label="Разделы кабинета" hidden>
+    <button type="button" data-view="manual">Подобрать продукт</button><button type="button" data-view="assistant">С ИИ-ассистентом <span>✳</span></button><button type="button" data-view="applications">Заявки <span id="applications-count">0</span></button>
+  </nav>
   <div class="intro"><div><p class="eyebrow">ОТ ЗАДАЧИ — К ФИНАНСИРОВАНИЮ</p><h1>Давайте обсудим ваше дело</h1><p>Разговор помогает заполнить заявку. Каждое изменение остаётся за вами.</p></div><span id="mode" class="badge">Подключаемся…</span></div>
   <div id="notice" class="notice" role="status" hidden></div>
   <div id="error" class="error" role="alert" hidden></div>
@@ -40,7 +45,7 @@
           <fieldset data-lock id="need-fields"><legend class="sr-only">Потребность в финансировании</legend>
             <div class="task-start"><span class="muted">Начните с задачи или выберите знакомый продукт</span><button type="button" id="task-purchase" class="quiet">Закупить товар</button><button type="button" id="task-gap" class="quiet">Заплатить до поступления денег</button><button type="button" id="known-product" class="quiet">Я знаю продукт</button></div>
             <label>Цель<select id="purpose"><option value="">Пока неизвестна</option><option value="working_capital">Оборотные расходы</option><option value="investment">Развитие и оборудование</option><option value="contract_execution">Исполнение контракта</option><option value="refinancing">Рефинансирование</option><option value="other">Другая</option></select></label>
-            <div class="field-row"><label>Сумма, ₽<input id="amount" inputmode="decimal" type="number" min="0.01" max="999999999999" step="0.01" placeholder="500 000"></label><label>Срок, месяцев<input id="term" type="number" min="1" max="120" step="1" placeholder="12"></label></div>
+            <div class="field-row"><label>Сколько хотите занять, ₽<input id="amount" inputmode="decimal" type="number" min="0.01" max="999999999999" step="0.01" placeholder="500 000"></label><label>Срок, месяцев<input id="term" type="number" min="1" max="120" step="1" placeholder="12"></label></div>
             <label>Как планируете возвращать?<select id="pattern"><option value="">Нужно уточнить</option><option value="gradual_repayment">Постепенно из выручки</option><option value="cash_gap">После конкретного поступления</option></select></label>
             <label>Продукт<select id="product"><option value="">Ещё не выбран</option><option value="working_capital_loan">Разовый кредит</option><option value="overdraft">Овердрафт</option></select></label>
             <div class="field-row"><label>Минимальная достаточная сумма, ₽<input id="minimum-amount" type="number" min="0.01" step="0.01" placeholder="Если готовы взять меньше"></label><label>Сколько своих денег готовы вложить, ₽<input id="own-funds" type="number" min="0" step="0.01" placeholder="Если планируете добавить свои"></label></div>
@@ -76,9 +81,9 @@
         </details>
         <div class="calculation-actions"><button data-lock id="recommend" class="primary">Подобрать продукт</button><button data-lock id="preview" class="secondary">Рассчитать</button></div>
         <section class="options-section"><h2>Варианты финансирования</h2><p class="muted">Расчёты сохраняются отдельно от заявки. Если срок или лимит неизвестны, подберём по данным.</p>
-          <form id="options-form"><fieldset data-lock id="option-fields">
+          <details class="comparison-settings"><summary>Изменить параметры сравнения</summary><form id="options-form"><fieldset data-lock id="option-fields">
             <label>Что рассчитываем<select id="explore-product"><option value="working_capital_loan">Разовый кредит</option><option value="overdraft">Овердрафт по плану</option></select></label>
-            <div id="loan-preferences"><div class="field-row"><label>Сумма для сравнения, ₽<input id="explore-amount" type="number" min="0.01" step="0.01" placeholder="Как в заявке"></label><label>Комфортный платёж до, ₽<input id="maximum-payment" type="number" min="0.01" step="0.01" placeholder="Не ограничен"></label></div>
+            <div id="loan-preferences"><div class="field-row"><label>Проверить другую сумму, ₽<input id="explore-amount" type="number" min="0.01" step="0.01" placeholder="Как в заявке"></label><label>Комфортный платёж до, ₽<input id="maximum-payment" type="number" min="0.01" step="0.01" placeholder="Не ограничен"></label></div>
               <div class="field-row"><label>Срок от, мес.<input id="minimum-term" type="number" value="6" min="1" max="120"></label><label>Срок до, мес.<input id="maximum-term" type="number" value="36" min="1" max="120"></label></div>
               <label>Порядок вариантов<select id="option-priority"><option value="preserve_amount">Сохранить сумму, затем меньше переплата</option><option value="lowest_payment">Меньше платёж</option><option value="lowest_total_cost">Меньше переплата</option></select></label>
               <label class="inline-check"><input id="preserve-amount" type="checkbox" checked>Сохранять сумму. Меньшие варианты — только при подтверждённом минимуме.</label>
@@ -86,7 +91,7 @@
             <div id="delay-preferences" hidden><label>Проверить задержку поступления<select id="delay-transaction"><option value="">Без задержки</option></select></label><label>На сколько дней<input id="delay-days" type="number" value="7" min="1" max="30"></label></div>
             <button type="submit" class="primary full">Показать варианты</button>
           </fieldset></form>
-          <div id="explorations"></div>
+          </details><div id="explorations"></div>
         </section>
         <section id="result" class="result" aria-live="polite"><p class="muted">Здесь появятся предложения и вопросы после расчёта.</p></section>
         <section class="process-section"><h2>Оформление заявки</h2><p id="next-action" class="muted"></p><div id="process-actions"></div><div id="completion"></div><details><summary>История движения заявки</summary><ol id="timeline"></ol></details></section>
@@ -98,5 +103,12 @@
 </main>
 <dialog id="confirmation-dialog"><h2 id="confirmation-title"></h2><p id="confirmation-text"></p><div class="proposal-buttons"><button id="confirmation-yes" class="primary">Подтвердить</button><button id="confirmation-no">Вернуться</button></div></dialog>
 <dialog id="schedule-dialog"><div class="panel-heading"><h2>График платежей</h2><button id="close-schedule">Закрыть</button></div><div class="table-scroll" id="schedule-table"></div></dialog>
+<dialog id="proposal-editor" aria-labelledby="proposal-editor-title">
+  <form id="proposal-editor-form">
+    <div class="panel-heading"><h2 id="proposal-editor-title">Проверить данные</h2><button type="button" id="proposal-editor-close" aria-label="Закрыть правки">Закрыть</button></div>
+    <div class="proposal-editor-body"><div id="proposal-editor-fields"></div><p id="proposal-editor-error" class="error" role="alert" hidden></p></div>
+    <div class="proposal-editor-footer"><button data-lock type="submit" id="proposal-editor-submit" class="primary">Подтвердить и рассчитать</button><button type="button" id="proposal-editor-cancel">Отмена</button></div>
+  </form>
+</dialog>
 </body>
 </html>

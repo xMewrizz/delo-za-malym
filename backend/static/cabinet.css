@@ -3,6 +3,35 @@
 .cabinet .application-body{display:flex;flex-direction:column}.cabinet .scenario-row{order:-4}.cabinet .company{order:-3}.cabinet .application.review .process-section{order:-2;margin-top:0;border-top:0;padding-top:0}#need-section{margin-top:0;border-top:0;padding-top:0;margin-bottom:14px}#need-section>summary{font-size:13px;font-weight:650;margin-bottom:14px;color:#555}
 
 .task-start{display:flex;gap:7px;flex-wrap:wrap;margin-bottom:18px}.task-start>.muted{width:100%}.task-start button{font-size:11px}
+
+/* В переписке — резюме, редактирование — в отдельном окне. */
+.cabinet .messages{height:clamp(380px,65vh,650px)}
+.messages>.proposal{width:100%;flex-shrink:0;margin-top:0}
+.cabinet .messages>.proposal{font-size:12px}
+.proposal-history{margin-top:7px;padding-top:6px}.proposal-history>summary{font-size:11px;color:#647568}
+.plan-summary{margin:12px 0;border-top:1px solid #e9e6e2}
+.plan-summary-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:4px 12px;padding:10px 0;border-bottom:1px solid #e9e6e2;align-items:center}
+.plan-summary-row>span{font-size:12px}.plan-summary-row>strong{font-size:14px;white-space:nowrap}
+.plan-summary-row>time{grid-column:1/-1;font-size:11px;color:#767681}
+.plan-summary-row.inflow>strong{color:#34785c}
+.proposal-buttons{flex-wrap:wrap}.proposal-buttons .primary{flex:1}
+.proposal .inline-check{margin:12px 0;font-size:11px}
+#proposal-editor{width:640px;max-width:calc(100vw - 24px);max-height:calc(100dvh - 32px);padding:0;overflow:hidden}
+#proposal-editor-form{display:flex;flex-direction:column;max-height:calc(100dvh - 34px)}
+#proposal-editor .panel-heading{padding:18px 22px;flex-shrink:0}
+.proposal-editor-body{padding:6px 22px 20px;overflow-y:auto;overscroll-behavior:contain}
+.proposal-editor-footer{display:flex;flex-wrap:wrap;gap:8px;padding:16px 22px;border-top:1px solid #ececef;background:white;flex-shrink:0}
+.proposal-editor-footer .primary{flex:1}
+.proposal-plan-editor h3{font-size:14px;margin:18px 0 8px}
+.proposal-plan-editor .proposal-operation{position:relative;grid-template-columns:1fr 1fr;padding:14px;gap:10px}
+.proposal-plan-editor .proposal-operation>strong{grid-column:1/-1;font-size:12px}
+.proposal-plan-editor .proposal-operation>button{grid-column:auto;justify-self:start;font-size:11px;padding:5px 10px}
+.proposal-plan-editor .proposal-operation.outflow{border-left:3px solid #d98a71}
+.proposal-plan-editor .proposal-operation.inflow{border-left:3px solid #69a38b}
+.proposal-plan-editor details>button{margin:10px 8px 0 0}
+.comparison-settings>summary{font-size:12px;color:#5e6570}
+@media(max-width:450px){#proposal-editor .panel-heading,.proposal-editor-body,.proposal-editor-footer{padding-left:14px;padding-right:14px}.proposal-plan-editor .proposal-operation{padding:11px}.proposal-buttons>.primary{flex-basis:100%}}
+.proposal-plan{border-top:1px solid #e8e1db;margin-top:14px;padding-top:14px}.proposal-operation{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;background:#f5f5f6;padding:10px;border-radius:9px;margin:10px 0}.proposal-operation label{margin:0}.proposal-operation>button{grid-column:1/-1;justify-self:start}.proposal-plan>button{margin:4px 6px 5px 0}.proposal-operation select,.proposal-operation input{font-size:11px;padding:6px}.proposal-plan .inline-check input{width:15px;height:15px}@media(max-width:400px){.proposal-operation{grid-template-columns:1fr}}
 .cabinet .scenario-row{display:flex;justify-content:flex-end;background:transparent;padding:0}.cabinet .scenario-row button{width:auto}
 .plan-context{background:#f2f5f8;border-radius:9px;padding:12px;font-size:11px;line-height:1.7;color:#586577}.plan-operation .operation-title,.plan-operation .operation-note{grid-column:1/-1}.plan-operation .operation-title{font-size:12px;color:#5d626d}.plan-operation.outflow{border-left:3px solid #d98a71}.plan-operation.inflow{border-left:3px solid #69a38b}.plan-add-actions{display:flex;flex-wrap:wrap;gap:8px}.debt-plan-section{margin-top:18px;padding-top:8px;border-top:1px solid #eceef0}.debt-plan-section h3{font-size:12px}.debt-plan-section button{margin:0 6px 8px 0}#plan-settings input[readonly]{background:#f3f4f5;color:#6b7280}#plan-settings summary{font-size:11px}#plan-form>.reset-form{margin-top:10px}
 .bank-summary{padding:16px;background:#f4f7f5;border:1px solid #dfe8e2;border-radius:12px;margin-bottom:20px}.bank-summary h3{font-size:14px;margin:0 0 7px}.bank-summary p{font-size:11px;line-height:1.6}.bank-facts{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:14px;margin:15px 0}.bank-fact{display:flex;flex-direction:column;gap:5px}.bank-fact span{font-size:10px}.bank-fact strong{font-size:12px;line-height:1.5}#finance-form input[readonly]{background:#f3f4f4;border-color:#eceeed;color:#555;cursor:default}#finance-section [hidden]{display:none}@media(max-width:500px){.bank-facts{grid-template-columns:1fr}}

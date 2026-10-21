@@ -42,6 +42,21 @@ class IntegratedChatTests(unittest.TestCase):
             Reply("","tool_calls",(ToolCall("c1","compare_options",json.dumps(args or {"product_id":"working_capital_loan","preferences":{"maximum_monthly_payment":"30000.00"}})),)),
             Reply('{"text":"Расчёт готов. Сравните условия в карточках.","intent":"answer_question","changes":{}}',"stop")]
 
+    def test_future_operations_are_collected_in_one_structured_call_without_calculating_saved_plan(self):
+        self.model.client.chat.return_value = Reply(json.dumps({"text":"Проверьте будущие операции.",
+            "changes":{}, "overdraft_plan":{"transactions":[
+                {"transaction_id":"payment","direction":"outflow","amount":"450000.00","date":"2026-10-22"},
+                {"transaction_id":"receipt","direction":"inflow","amount":"500000.00","date":"2026-10-28"}]}}), "stop")
+        response = self.send("Завтра нужно оплатить поставщику 450 тысяч, через неделю покупатель перечислит 500 тысяч")
+        self.assertEqual(response.status_code, 200, response.text)
+        view = response.json()
+        self.assertEqual(self.model.client.chat.call_count, 1)
+        self.assertNotIn("tools", self.model.client.chat.call_args.kwargs)
+        self.assertIn("response_format", self.model.client.chat.call_args.kwargs)
+        self.assertEqual(view["record"]["application"], self.record["application"])
+        self.assertEqual(view["record"]["explorations"], [])
+        self.assertIn("product_details.overdraft", view["chat"]["messages"][-1]["proposal"]["changes"])
+
     def test_native_comparison_is_saved_once_with_schedule_and_can_be_applied(self):
         self.comparison()
         response=self.send()

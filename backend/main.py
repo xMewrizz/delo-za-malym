@@ -19,7 +19,7 @@ from credit_engine import OverdraftCreditPolicy, WorkingCapitalPolicy
 from . import demo
 from .assistant import configured_assistant
 from .chat import ChatService
-from .models import (ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
+from .models import (AnswerClarification, ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
                      ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction,
                      EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport)
 from .service import CreditProcess, ProcessError
@@ -116,13 +116,22 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     def confirm_proposal(chat_id: str, proposal_id: str, body: ConfirmChatProposal) -> dict:
         return chats.resolve(chat_id, proposal_id, body.base_chat_version, apply=True)
 
+    @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/preview", tags=["Диалог"])
+    def preview_proposal(chat_id: str, proposal_id: str, body: ChatVersion) -> dict:
+        return chats.preview(chat_id, proposal_id, body.base_chat_version)
+
+    @app.post("/api/chats/{chat_id}/clarifications/{question_id}/answer", tags=["Диалог"])
+    def answer_clarification(chat_id: str, question_id: str, body: AnswerClarification) -> dict:
+        return chats.answer_clarification(chat_id, question_id, body)
+
     @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/reject", tags=["Диалог"])
     def reject_proposal(chat_id: str, proposal_id: str, body: ChatVersion) -> dict:
         return chats.resolve(chat_id, proposal_id, body.base_chat_version, apply=False)
 
     @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/edit", tags=["Диалог"])
     def edit_proposal(chat_id: str, proposal_id: str, body: EditChatProposal) -> dict:
-        return chats.edit(chat_id, proposal_id, body.base_chat_version, body.base_application_version, body.changes)
+        return chats.edit(chat_id, proposal_id, body.base_chat_version, body.base_application_version, body.changes,
+                          plan_update=body.overdraft_plan, remove_plan=body.remove_overdraft_plan)
 
     @app.get("/api/applications/{application_id}/chats", tags=["Диалог"])
     def application_chats(application_id: str) -> list:
