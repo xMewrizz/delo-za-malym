@@ -5,7 +5,10 @@ from dataclasses import dataclass
 from urllib.error import HTTPError, URLError
 from urllib.request import Request, urlopen
 
-from settings.settings import Settings, settings
+from typing import TYPE_CHECKING
+
+if TYPE_CHECKING:
+    from settings.settings import Settings
 
 
 @dataclass(frozen=True)
@@ -15,7 +18,10 @@ class Reply:
 
 
 class LLMClient:
-    def __init__(self, config: Settings = settings):
+    def __init__(self, config: "Settings | None" = None):
+        if config is None:
+            from settings.settings import settings
+            config = settings
         self.config = config
 
     def list_models(self) -> list[str]:

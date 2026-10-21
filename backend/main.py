@@ -8,17 +8,21 @@ import sqlite3
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse, RedirectResponse
+from fastapi.responses import FileResponse, JSONResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 
 from credit_engine import OverdraftCreditPolicy, WorkingCapitalPolicy
 
 from . import demo
-from .models import ApplicationView, ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction
+from .assistant import configured_assistant
+from .chat import ChatService
+from .models import (ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
+                     ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction)
 from .service import CreditProcess, ProcessError
 from .store import Store
 
 
-def create_app(database_path: str | Path | None = None, *, clock=None) -> FastAPI:
+def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None) -> FastAPI:
     store = Store(database_path or os.getenv("DATABASE_PATH", "data/cabinet.sqlite3"))
     clock = clock or (lambda: datetime.now(timezone.utc))
     process = CreditProcess(store, clock)
@@ -31,6 +35,12 @@ def create_app(database_path: str | Path | None = None, *, clock=None) -> FastAP
     app = FastAPI(title="Дело за малым", version="0.1.0", lifespan=lifespan,
                   description="Кредитный процесс существующего демонстрационного клиента: разовый кредит и овердрафт.")
     app.state.process = process
+    assets = Path(__file__).with_name("static")
+    app.mount("/chat-assets", StaticFiles(directory=assets), name="chat-assets")
+
+    @app.get("/chat", include_in_schema=False)
+    def chat_page():
+        return FileResponse(assets / "chat.html", headers={"Cache-Control": "no-store"})
     origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
     app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type"])
 
@@ -68,6 +78,33 @@ def create_app(database_path: str | Path | None = None, *, clock=None) -> FastAP
              "annual_rate_percent": overdraft.annual_rate_percent, "agreement_months": overdraft.agreement_months,
              "max_debt_days": overdraft.max_debt_days},
         ]
+
+    chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products)
+    app.state.chats = chats
+
+    @app.get("/api/chat/config", tags=["Диалог"])
+    def chat_config() -> dict:
+        return chats.settings()
+
+    @app.post("/api/chats", status_code=201, tags=["Диалог"])
+    def create_chat(body: CreateChat) -> dict:
+        return chats.create(body.application_id)
+
+    @app.get("/api/chats/{chat_id}", tags=["Диалог"])
+    def get_chat(chat_id: str) -> dict:
+        return chats.get(chat_id)
+
+    @app.post("/api/chats/{chat_id}/messages", tags=["Диалог"])
+    def chat_message(chat_id: str, body: ChatMessage) -> dict:
+        return chats.send(chat_id, body.base_chat_version, body.text, body.request_id)
+
+    @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/confirm", tags=["Диалог"])
+    def confirm_proposal(chat_id: str, proposal_id: str, body: ConfirmChatProposal) -> dict:
+        return chats.resolve(chat_id, proposal_id, body.base_chat_version, apply=True)
+
+    @app.post("/api/chats/{chat_id}/proposals/{proposal_id}/reject", tags=["Диалог"])
+    def reject_proposal(chat_id: str, proposal_id: str, body: ChatVersion) -> dict:
+        return chats.resolve(chat_id, proposal_id, body.base_chat_version, apply=False)
 
     @app.get("/api/demo/scenarios", tags=["Демонстрационные сценарии"])
     def list_scenarios():

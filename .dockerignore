@@ -9,5 +9,10 @@
 !scripts/**
 !contracts/
 !contracts/**
+!scr/
+!scr/delo-za-malyn/
+!scr/delo-za-malyn/Models/
+!scr/delo-za-malyn/Models/Llm/
+!scr/delo-za-malyn/Models/Llm/client.py
 **/__pycache__
 **/*.pyc

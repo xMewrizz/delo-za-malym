@@ -1,6 +1,7 @@
 """Тела запросов кабинета; внутренние результаты и проверки клиент не задаёт."""
 
 import json
+from uuid import UUID
 from typing import Any
 
 from pydantic import BaseModel, ConfigDict, Field, StrictBool, StrictInt, field_validator, model_validator
@@ -11,7 +12,7 @@ class RequestModel(BaseModel):
 
     @model_validator(mode="after")
     def finite_json(self):
-        json.dumps(self.model_dump(), allow_nan=False)
+        json.dumps(self.model_dump(mode="json"), allow_nan=False)
         return self
 
 
@@ -60,3 +61,34 @@ class ApplicationView(BaseModel):
     completion: dict[str, Any] | None
     events: list[dict[str, Any]]
     submitted_versions: list[dict[str, Any]]
+
+
+class CreateChat(RequestModel):
+    application_id: str | None = Field(default=None, min_length=1, max_length=100)
+
+
+class ChatVersion(RequestModel):
+    base_chat_version: StrictInt = Field(ge=1)
+
+
+class ChatMessage(ChatVersion):
+    request_id: UUID
+    text: str = Field(min_length=1, max_length=8000)
+
+    @field_validator("text")
+    @classmethod
+    def nonblank(cls, value):
+        if not value.strip():
+            raise ValueError("Введите сообщение.")
+        return value.strip()
+
+
+class ConfirmChatProposal(ChatVersion):
+    confirmed: StrictBool
+
+    @field_validator("confirmed")
+    @classmethod
+    def explicit_confirmation(cls, value):
+        if not value:
+            raise ValueError("Требуется подтверждение изменений.")
+        return value

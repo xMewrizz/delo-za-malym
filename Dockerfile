@@ -14,6 +14,7 @@ COPY backend ./backend
 COPY credit_engine ./credit_engine
 COPY scripts ./scripts
 COPY contracts ./contracts
+COPY scr/delo-za-malyn/Models/Llm/client.py ./scr/delo-za-malyn/Models/Llm/client.py
 
 USER cabinet
 EXPOSE 8000

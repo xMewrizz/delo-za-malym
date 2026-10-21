@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Дело за малым · Диалог</title>
+  <link rel="stylesheet" href="/chat-assets/chat.css">
+  <script defer src="/chat-assets/chat.js"></script>
+</head>
+<body>
+<header class="header">
+  <a class="brand" href="/chat"><span class="logo">д.</span>дело за малым<span class="tag">лаборатория диалога</span></a>
+  <a class="api-link" href="/docs" target="_blank" rel="noopener">API ↗</a>
+</header>
+<main>
+  <div class="intro"><div><p class="eyebrow">ОТ ЗАДАЧИ — К ФИНАНСИРОВАНИЮ</p><h1>Давайте обсудим ваше дело</h1><p>Разговор помогает заполнить заявку. Каждое изменение остаётся за вами.</p></div><span id="mode" class="badge">Подключаемся…</span></div>
+  <div id="notice" class="notice" role="status" hidden></div>
+  <div id="error" class="error" role="alert" hidden></div>
+  <div class="workspace">
+    <section class="panel conversation" aria-label="Диалог с ассистентом">
+      <div class="panel-heading"><div><h2>Ассистент</h2><span id="chat-info" class="muted">История сохраняется</span></div><button data-lock id="new-chat" class="quiet">Новый диалог</button></div>
+      <div id="demo-note" class="demo-note" hidden>Демонстрационный режим: примеры проверяют интерфейс. Для свободного разговора подключите модель.</div>
+      <div id="messages" class="messages" role="log" aria-label="Переписка" aria-live="polite"></div>
+      <div id="waiting" class="waiting" role="status" hidden><span class="dot"></span>Ассистент готовит ответ…</div>
+      <div id="examples" class="examples" hidden><span class="muted">Попробовать пример</span><button data-lock data-example="Нужно 500 000 ₽ на закупку на 12 месяцев">500 тысяч на закупку</button><button data-lock data-example="Лучше на 18 месяцев">Изменить срок</button></div>
+      <form id="message-form" class="composer"><label class="sr-only" for="message">Сообщение</label><textarea data-lock id="message" rows="2" maxlength="8000" placeholder="Расскажите, на что нужны деньги…" required></textarea><button data-lock id="send" class="primary" type="submit">Отправить ↑</button></form>
+      <div class="composer-hint">Enter — отправить · Shift + Enter — новая строка</div>
+    </section>
+    <aside class="panel application">
+      <div class="panel-heading"><div><h2>Ваша заявка</h2><span id="application-info" class="muted">Данные демонстрационного клиента</span></div><span class="small-mark">₽</span></div>
+      <div class="application-body">
+        <div class="scenario-row"><label for="scenario">Данные для проверки</label><select data-lock id="scenario"><option value="">Новая потребность</option><option value="working_capital_loan/01_approved">Разовый кредит · готовый пример</option><option value="overdraft/01_overdraft_approved">Овердрафт · готовый пример</option></select><button data-lock id="load-scenario" class="quiet">Открыть новую заявку</button></div>
+        <div class="company"><span id="company">ООО «Север»</span><span id="state" class="badge">Черновик</span></div>
+        <form id="need-form">
+          <fieldset data-lock id="need-fields"><legend class="sr-only">Потребность в финансировании</legend>
+            <label>Цель<select id="purpose"><option value="">Пока неизвестна</option><option value="working_capital">Оборотные расходы</option><option value="investment">Развитие и оборудование</option><option value="contract_execution">Исполнение контракта</option><option value="refinancing">Рефинансирование</option><option value="other">Другая</option></select></label>
+            <div class="field-row"><label>Сумма, ₽<input id="amount" inputmode="decimal" type="number" min="0.01" max="999999999999" step="0.01" placeholder="500 000"></label><label>Срок, месяцев<input id="term" type="number" min="1" max="120" step="1" placeholder="12"></label></div>
+            <label>Как планируете возвращать?<select id="pattern"><option value="">Нужно уточнить</option><option value="gradual_repayment">Постепенно из выручки</option><option value="cash_gap">После конкретного поступления</option></select></label>
+            <label>Продукт<select id="product"><option value="">Ещё не выбран</option><option value="working_capital_loan">Разовый кредит</option><option value="overdraft">Овердрафт</option></select></label>
+            <button class="secondary full" type="submit">Сохранить данные вручную</button>
+          </fieldset>
+        </form>
+        <div class="calculation-actions"><button data-lock id="recommend" class="primary">Подобрать продукт</button><button data-lock id="preview" class="secondary">Рассчитать</button></div>
+        <section id="result" class="result" aria-live="polite"><p class="muted">Здесь появятся предложения и вопросы после расчёта.</p></section>
+        <details><summary>Сохранённые данные и результат · JSON</summary><pre id="context"></pre></details>
+        <details><summary>Формат последнего ответа ассистента</summary><pre id="reply-json">Пока нет ответа</pre></details>
+      </div>
+    </aside>
+  </div>
+</main>
+</body>
+</html>

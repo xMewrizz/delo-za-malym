@@ -20,6 +20,10 @@ class Store:
                 updated_at TEXT NOT NULL
             )""")
             connection.execute("PRAGMA user_version=1")
+            connection.execute("""CREATE TABLE IF NOT EXISTS chats (
+                chat_id TEXT PRIMARY KEY,
+                payload TEXT NOT NULL
+            )""")
 
     @contextmanager
     def connect(self, *, write=False):
@@ -52,3 +56,15 @@ class Store:
     def list(self):
         with self.connect() as connection:
             return [json.loads(row[0]) for row in connection.execute("SELECT payload FROM applications ORDER BY updated_at DESC, application_id")]
+
+    @staticmethod
+    def get_chat(connection, chat_id):
+        row = connection.execute("SELECT payload FROM chats WHERE chat_id = ?", (chat_id,)).fetchone()
+        return json.loads(row[0]) if row else None
+
+    @staticmethod
+    def save_chat(connection, chat):
+        connection.execute(
+            "INSERT INTO chats(chat_id, payload) VALUES (?, ?) ON CONFLICT(chat_id) DO UPDATE SET payload=excluded.payload",
+            (chat["chat_id"], json.dumps(chat, ensure_ascii=False, allow_nan=False)),
+        )

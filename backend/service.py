@@ -104,31 +104,32 @@ class CreditProcess:
         return self.public(record)
 
     def patch(self, application_id, version, changes):
-        def update(record, now):
-            if record["state"]["status"] not in EDITABLE_STATES:
-                raise ProcessError("editing_not_allowed", "На текущем этапе изменение заявки недоступно.")
-            if not changes:
-                raise ProcessError("empty_changes", "Нет изменений для сохранения.", 422)
-            # Используется и формой, и подтверждёнными предложениями ассистента.
-            for path, value in changes.items():
-                if path in ("need", "financials", "product_details"):
-                    allowed = NEED_FIELDS if path == "need" else FINANCIAL_FIELDS if path == "financials" else {"overdraft"}
-                    self._validate_fields(value, allowed, path)
-                    record["application"][path] = deepcopy(value)
-                else:
-                    parts = path.split(".")
-                    allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else set()
-                    if len(parts) != 2 or parts[1] not in allowed:
-                        raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
-                    record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
-            record["application"]["application_version"] += 1
-            record["application"]["confirmation"] = None
-            record["state"].update(application_version=record["application"]["application_version"],
-                                    latest_assessment_id=None, selected_offer_id=None)
-            record.update(checks=None, result=None, readiness=None, recommendation=None, fulfilled_conditions={})
-            set_state(record, "draft", "data_collection", "complete_profile", "Подтвердите обновлённые сведения", now)
-            event(record, "application_updated", now, fields=list(changes))
-        return self.change(application_id, version, update)
+        return self.change(application_id, version, lambda record, now: self.patch_record(record, changes, now))
+
+    def patch_record(self, record, changes, now):
+        if record["state"]["status"] not in EDITABLE_STATES:
+            raise ProcessError("editing_not_allowed", "На текущем этапе изменение заявки недоступно.")
+        if not changes:
+            raise ProcessError("empty_changes", "Нет изменений для сохранения.", 422)
+        # Используется и формой, и подтверждёнными предложениями ассистента.
+        for path, value in changes.items():
+            if path in ("need", "financials", "product_details"):
+                allowed = NEED_FIELDS if path == "need" else FINANCIAL_FIELDS if path == "financials" else {"overdraft"}
+                self._validate_fields(value, allowed, path)
+                record["application"][path] = deepcopy(value)
+            else:
+                parts = path.split(".")
+                allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else set()
+                if len(parts) != 2 or parts[1] not in allowed:
+                    raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
+                record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
+        record["application"]["application_version"] += 1
+        record["application"]["confirmation"] = None
+        record["state"].update(application_version=record["application"]["application_version"],
+                                latest_assessment_id=None, selected_offer_id=None)
+        record.update(checks=None, result=None, readiness=None, recommendation=None, fulfilled_conditions={})
+        set_state(record, "draft", "data_collection", "complete_profile", "Подтвердите обновлённые сведения", now)
+        event(record, "application_updated", now, fields=list(changes))
 
     def recommend(self, application_id, version):
         def select_mechanism(record, now):
