@@ -1,5 +1,5 @@
 import { ArrowUpRight } from 'lucide-react'
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Button } from '@/shared/ui/button'
 import { BrandLogo } from '@/shared/ui/brand-logo'
@@ -12,6 +12,31 @@ const copyrightYear = new Date().getFullYear()
 export function AppLayout() {
   const { pathname, hash } = useLocation();
   const isCabinet = pathname === '/cabinet';
+  const header = useRef<HTMLElement>(null);
+  useEffect(() => {
+    const element = header.current;
+    if (isCabinet || !element) return;
+    element.dataset.hidden = 'false';
+    let previous = window.scrollY, origin = previous, direction = 0, frame = 0;
+    function updateHeader() {
+      frame = 0;
+      const current = Math.max(0, Math.min(window.scrollY, document.documentElement.scrollHeight - window.innerHeight));
+      const delta = current - previous;
+      if (current <= 20) {
+        element!.dataset.hidden = 'false';
+        origin = current;
+        direction = 0;
+      } else if (delta !== 0) {
+        const nextDirection = Math.sign(delta);
+        if (nextDirection !== direction) { origin = previous; direction = nextDirection; }
+        if (Math.abs(current - origin) >= 10) element!.dataset.hidden = String(direction > 0);
+      }
+      previous = current;
+    }
+    function onScroll() { if (!frame) frame = requestAnimationFrame(updateHeader); }
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => { window.removeEventListener('scroll', onScroll); cancelAnimationFrame(frame); };
+  }, [pathname, isCabinet]);
   useEffect(() => {
     if (!hash) { window.scrollTo({ top: 0, behavior: 'instant' }); return; }
     const frame = requestAnimationFrame(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: 'start' }));
@@ -21,7 +46,7 @@ export function AppLayout() {
   return (
     <div className="app-shell">
       <a href="#main-content" className="skip-link">Перейти к содержимому</a>
-      <header className="app-header">
+      <header ref={header} className="app-header">
         <div className="app-container app-header-inner">
           <Link to="/" className="app-brand" aria-label="Дело за малым — главная">
             <BrandLogo />
