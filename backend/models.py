@@ -224,7 +224,7 @@ class InflowDelay(RequestModel):
 
 
 class ExploreOptions(VersionAction):
-    product_id: Literal["working_capital_loan", "overdraft", "refinancing"]
+    product_id: Literal["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line"]
     preferences: LoanPreferences = Field(default_factory=LoanPreferences)
     delay: InflowDelay | None = None
 
@@ -238,6 +238,27 @@ class ExploreOptions(VersionAction):
             raise ValueError("Сумму рефинансирования определяем по выбранным долгам.")
         if self.product_id == "refinancing" and "maximum_term" not in self.preferences.model_fields_set:
             self.preferences.maximum_term = 48
+        if self.product_id == "revolving_credit_line" and "maximum_term" not in self.preferences.model_fields_set:
+            self.preferences.maximum_term = 12
+        return self
+
+
+class LineOperation(RequestModel):
+    base_line_version: StrictInt = Field(ge=1)
+    request_id: UUID
+    kind: Literal["draw", "repay", "close"]
+    amount: str | None = None
+    confirmed: StrictBool
+
+    @model_validator(mode="after")
+    def valid_operation(self):
+        if not self.confirmed:
+            raise ValueError("Подтвердите операцию.")
+        if self.kind == "close":
+            if self.amount is not None:
+                raise ValueError("Для закрытия не передавайте сумму.")
+        elif self.amount is None or not re.fullmatch(r"[0-9]{1,12}\.[0-9]{2}", self.amount) or float(self.amount) <= 0:
+            raise ValueError("Нужна положительная сумма с двумя знаками.")
         return self
 
 

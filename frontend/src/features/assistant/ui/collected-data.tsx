@@ -144,7 +144,7 @@ export function CollectedData({
           </dd>
         </div>
         <div className="collected-fact" key={`amount-${need.requested_amount}`}>
-          <dt>{need.preferred_product === "refinancing" ? "На погашение долгов" : "Нужная сумма"}</dt>
+          <dt>{need.preferred_product === "revolving_credit_line" ? "Желаемый лимит" : need.preferred_product === "refinancing" ? "На погашение долгов" : "Нужная сумма"}</dt>
           <dd>
             {need.requested_amount
               ? formatMoney(need.requested_amount)

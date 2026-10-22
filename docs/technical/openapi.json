@@ -2,7 +2,7 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Дело за малым",
-    "description": "Кредитный процесс существующего демонстрационного клиента: разовый кредит, овердрафт и рефинансирование.",
+    "description": "Кредитный процесс существующего демонстрационного клиента: кредит, овердрафт, рефинансирование и возобновляемая линия.",
     "version": "0.1.0"
   },
   "paths": {
@@ -76,6 +76,96 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/credit-line": {
+      "get": {
+        "tags": [
+          "Кредитная линия"
+        ],
+        "summary": "Credit Line",
+        "operationId": "credit_line_api_applications__application_id__credit_line_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/credit-line/operations": {
+      "post": {
+        "tags": [
+          "Кредитная линия"
+        ],
+        "summary": "Credit Line Operation",
+        "operationId": "credit_line_operation_api_applications__application_id__credit_line_operations_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LineOperation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -2406,7 +2496,8 @@
             "enum": [
               "working_capital_loan",
               "overdraft",
-              "refinancing"
+              "refinancing",
+              "revolving_credit_line"
             ],
             "title": "Product Id"
           },
@@ -2496,6 +2587,53 @@
           "days"
         ],
         "title": "InflowDelay"
+      },
+      "LineOperation": {
+        "properties": {
+          "base_line_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Line Version"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "draw",
+              "repay",
+              "close"
+            ],
+            "title": "Kind"
+          },
+          "amount": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Amount"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_line_version",
+          "request_id",
+          "kind",
+          "confirmed"
+        ],
+        "title": "LineOperation"
       },
       "LoanPreferences": {
         "properties": {

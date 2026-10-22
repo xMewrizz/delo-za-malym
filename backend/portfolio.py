@@ -2,10 +2,11 @@
 
 from copy import deepcopy
 from decimal import Decimal
-from datetime import date, timezone, timedelta
+from datetime import date, datetime, timezone, timedelta
 import re
 
 PREFIX = "cabinet-loan:"
+LINE_PREFIX = "cabinet-line:"
 
 
 def refinanced_loans(records):
@@ -16,9 +17,13 @@ def refinanced_loans(records):
 
 
 def cash_disbursed(records):
-    return sum((Decimal(record["completion"]["amount"]) for record in records if belongs_to_client(record)
+    # Выдачи и фактические движения линии; открытие лимита не создаёт денег.
+    issued = sum((Decimal(record["completion"]["amount"]) for record in records if belongs_to_client(record)
                 and (record.get("completion") or {}).get("type") == "disbursement"
                 and record["completion"].get("product_id") != "refinancing"), Decimal("0.00"))
+    return issued + sum((Decimal(op["drawn"]) - Decimal(op["principal_paid"]) - Decimal(op["interest_paid"])
+        for record in records if belongs_to_client(record)
+        for op in ((record.get("completion") or {}).get("credit_line") or {}).get("operations", [])), Decimal("0.00"))
 
 
 def belongs_to_client(record):
@@ -27,11 +32,22 @@ def belongs_to_client(record):
     return not created.get("details", {}).get("scenario")
 
 
-def issued_loans(records):
+def issued_loans(records, now=None):
     loans = []
     closed = refinanced_loans(records)
     for record in records:
         completion = record.get("completion") or {}
+        line = completion.get("credit_line")
+        if belongs_to_client(record) and line and not line.get("closed_at"):
+            from credit_engine.revolving import line_state, line_schedule, local_date
+            today = local_date(now or datetime.now(timezone.utc))
+            state = line_state(line, today)
+            loans.append({"loan_id": LINE_PREFIX + completion["operation_id"],
+                "application_id": record["application"]["application_id"], "product_id": "revolving_credit_line", "is_commitment": True,
+                "outstanding_principal": state["principal"], "monthly_payment": state["capacity_reserve"],
+                "maturity_date": line["maturity_date"], "schedule": line_schedule(line, today),
+                "credit_limit": line["limit"], "accrued_interest": state["accrued_interest"]})
+            continue
         if not belongs_to_client(record) or completion.get("type") != "disbursement":
             continue
         schedule = completion.get("schedule") or []
@@ -60,7 +76,7 @@ def with_loans(financials, loans, *, closed=(), cash_total=None):
         result["cash_balance"] = f'{Decimal(result["cash_balance"]) - previous_cash + current_cash:.2f}'
         result["portfolio_cash_total"] = f"{current_cash:.2f}"
     result["existing_loans"] = [loan for loan in result.get("existing_loans") or []
-                                if not loan["loan_id"].startswith(PREFIX) and loan["loan_id"] not in closed] + deepcopy(loans)
+                                if not loan["loan_id"].startswith((PREFIX, LINE_PREFIX)) and loan["loan_id"] not in closed] + deepcopy(loans)
     return result
 
 
@@ -76,10 +92,10 @@ def include_scheduled_payments(plan, loans, *, closed=()):
     if not isinstance(links, list) or not all(isinstance(link, dict) and isinstance(link.get("loan_id"), str) and isinstance(link.get("transaction_id"), str) for link in links):
         return plan
     managed_ids = {loan["loan_id"] for loan in loans if loan.get("schedule")}
-    removed = {link["transaction_id"] for link in links if link["loan_id"] in managed_ids or link["loan_id"] in closed or link["loan_id"].startswith(PREFIX)}
+    removed = {link["transaction_id"] for link in links if link["loan_id"] in managed_ids or link["loan_id"] in closed or link["loan_id"].startswith((PREFIX, LINE_PREFIX))}
     result["transactions"] = [row for row in result.get("transactions", [])
                                if row["transaction_id"] not in removed and not row["transaction_id"].startswith("bank-payment:")]
-    result["existing_debt_payments"] = [link for link in links if link["loan_id"] not in managed_ids and link["loan_id"] not in closed and not link["loan_id"].startswith(PREFIX) and not link["transaction_id"].startswith("bank-payment:")]
+    result["existing_debt_payments"] = [link for link in links if link["loan_id"] not in managed_ids and link["loan_id"] not in closed and not link["loan_id"].startswith((PREFIX, LINE_PREFIX)) and not link["transaction_id"].startswith("bank-payment:")]
     for loan in loans:
         if loan["loan_id"] not in managed_ids:
             continue
@@ -124,6 +140,25 @@ def calendar_data(records, now):
                     "forecast": True}
                     for row in plan["transactions"] if calendar_operation(row) and row["transaction_id"] not in linked]})
         if not completion:
+            continue
+        if completion.get("credit_line"):
+            from credit_engine.revolving import line_state, line_schedule, local_date
+            line = completion["credit_line"]
+            state = line_state(line, local_date(now))
+            accounts.append({"application_id": identifier, "product_id": completion["product_id"], "amount": line["limit"],
+                "opened_at": completion["completed_at"], "status": state["status"], "refinanced_by": None,
+                "outstanding_principal": state["principal"], "available_limit": state["available_limit"]})
+            events.append({"event_id": completion["operation_id"], "application_id": identifier,
+                "date": line["opened_at"][:10], "amount": line["limit"], "direction": "none", "kind": "line_opened", "title": "Открыта возобновляемая линия", "forecast": False})
+            for operation in line["operations"]:
+                events.append({"event_id": operation["operation_id"], "application_id": identifier,
+                    "date": operation["date"], "amount": operation["amount"], "direction": "inflow" if operation["kind"] == "draw" else "outflow" if operation["kind"] == "repay" else "none",
+                    "kind": "line_" + operation["kind"], "title": {"draw": "Получены деньги по линии", "repay": "Платёж по линии", "close": "Кредитная линия закрыта"}[operation["kind"]], "forecast": False})
+            for index, row in enumerate(line_schedule(line, local_date(now))):
+                final = Decimal(row["principal"]) > 0
+                events.append({"event_id": f"{completion['operation_id']}:line-payment:{index}", "application_id": identifier,
+                    "date": row["date"], "amount": row["total_payment"], "direction": "outflow", "kind": "line_final_payment" if final else "line_interest",
+                    "title": "Возврат долга и процентов по линии" if final else "Проценты по кредитной линии", "forecast": True})
             continue
         overdraft = completion["type"] == "limit_opening"
         refinanced = closed.get(PREFIX + completion["operation_id"])

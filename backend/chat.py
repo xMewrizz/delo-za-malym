@@ -277,7 +277,7 @@ class ChatService:
                         if product == "overdraft" and reply.preferences is not None and reply.preferences.model_fields_set:
                             raise ProcessError("invalid_comparison", "Для овердрафта нужен дневной план; настройки платежа и срока относятся к разовому кредиту.", 422)
                         self.workspace.explore_record(record, self.clock(), product,
-                            preferences=preferences if product in ("working_capital_loan", "refinancing") else None)
+                            preferences=preferences if product in ("working_capital_loan", "refinancing", "revolving_credit_line") else None)
                     self.store.save(connection, record)
                 if proposal:
                     for message in current["messages"]:
@@ -319,7 +319,7 @@ class ChatService:
                       and record["application"]["need"].get("requested_amount") is not None
                       and record["application"]["need"].get("financing_pattern") != "cash_gap"
                       and record["application"]["need"].get("preferred_product") != "overdraft"):
-                    self.workspace.explore_record(record, self.clock(), "working_capital_loan")
+                    self.workspace.explore_record(record, self.clock(), "revolving_credit_line" if need.get("preferred_product") == "revolving_credit_line" else "working_capital_loan")
                 self.store.save(connection, record)
                 proposal["status"] = "applied"
             else:

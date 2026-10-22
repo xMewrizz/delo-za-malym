@@ -14,6 +14,7 @@ from .portfolio import belongs_to_client, issued_loans, with_loans, include_sche
 from .portfolio import refinanced_loans, cash_disbursed
 from credit_engine.refinancing import assess_refinancing
 from credit_engine.financials import MONEY_PATTERN
+from credit_engine.revolving import assess_revolving
 
 
 class ProcessError(Exception):
@@ -46,7 +47,7 @@ class CreditProcess:
     def profile(self):
         profile, _ = demo.profile(self.clock())
         records = self.store.list()
-        profile["financials"] = with_loans(profile["financials"], issued_loans(records), closed=refinanced_loans(records), cash_total=cash_disbursed(records))
+        profile["financials"] = with_loans(profile["financials"], issued_loans(records, self.clock()), closed=refinanced_loans(records), cash_total=cash_disbursed(records))
         return profile
 
     def calendar(self):
@@ -67,7 +68,7 @@ class CreditProcess:
             with self.store.connect(write=True) as connection:
                 return self.sync_portfolio(connection)
         records = self.store.records(connection)
-        loans = issued_loans(records)
+        loans = issued_loans(records, self.clock())
         closed, cash = refinanced_loans(records), cash_disbursed(records)
         for record in records:
             completion = record.get("completion") or {}
@@ -157,7 +158,7 @@ class CreditProcess:
         with self.store.connect(write=True) as connection:
             if not scenario:
                 records = self.store.records(connection)
-                loans, closed, cash = issued_loans(records), refinanced_loans(records), cash_disbursed(records)
+                loans, closed, cash = issued_loans(records, now), refinanced_loans(records), cash_disbursed(records)
                 application["financials"] = with_loans(application["financials"], loans, closed=closed, cash_total=cash)
                 simulator["bank_financials"] = with_loans(simulator["bank_financials"], loans, closed=closed, cash_total=cash)
                 simulator["known_loans"] = deepcopy(application["financials"]["existing_loans"])
@@ -179,6 +180,7 @@ class CreditProcess:
             raise ProcessError("version_conflict", "Заявка уже изменена. Загрузите актуальную версию.")
 
     def change(self, application_id, version, operation):
+        self.sync_portfolio()
         with self.store.connect(write=True) as connection:
             record = self.store.get(connection, application_id)
             if record is None:
@@ -215,6 +217,8 @@ class CreditProcess:
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
         self._check_bank_financials(known, record["application"].get("financials"))
         self._refinancing_amount(record["application"])
+        if record["application"]["need"].get("preferred_product") == "revolving_credit_line":
+            record["application"]["need"].update(recurring=True, financing_pattern="gradual_repayment")
         details = record["application"].get("product_details") or {}
         if details.get("overdraft"):
             details["overdraft"] = include_scheduled_payments(details["overdraft"], record["application"]["financials"].get("existing_loans", []))
@@ -265,6 +269,11 @@ class CreditProcess:
             previous = record.get("recommendation") or {}
             checks = demo.simulate_checks(record["application"], record["simulator"], now,
                                           retry=previous.get("status") in ("check_retry_pending", "needs_checks"))
+            if record["application"]["need"].get("preferred_product") == "revolving_credit_line":
+                from credit_engine.revolving import revolving_options
+                result = revolving_options(record["application"], checks, calculated_at=now)
+                record["recommendation"] = {**result, "recommended_product_id": "revolving_credit_line" if result["options"] else None, "candidates": []}
+                return
             if record["application"]["need"].get("purpose") == "refinancing":
                 from credit_engine.refinancing import refinancing_options
                 result = refinancing_options(record["application"], checks, calculated_at=now)
@@ -285,8 +294,8 @@ class CreditProcess:
         if product == "overdraft" and pattern == "gradual_repayment":
             raise ProcessError("product_pattern_conflict", "Для постепенного возврата по графику выберите разовый кредит или уточните задачу.", 422)
         if product not in demo.SUPPORTED_PRODUCTS:
-            raise ProcessError("product_required", "Выберите кредит, овердрафт или рефинансирование.", 422)
-        return assess_refinancing if product == "refinancing" else assess_overdraft if product == "overdraft" else assess_application
+            raise ProcessError("product_required", "Выберите кредитный продукт.", 422)
+        return assess_revolving if product == "revolving_credit_line" else assess_refinancing if product == "refinancing" else assess_overdraft if product == "overdraft" else assess_application
 
     def _assess(self, record, now, *, stage, retry=False):
         calculator = self._calculator(record)
@@ -413,20 +422,28 @@ class CreditProcess:
             set_state(record, "signed", "signing", "wait", "Договор подписан", now)
             event(record, "contract_signed", now, offer_id=offer_id, mode="simulated")
             overdraft = offer["product_id"] == "overdraft"
+            revolving = offer["product_id"] == "revolving_credit_line"
             record["completion"] = {"operation_id": str(uuid4()), "offer_id": offer_id, "amount": offer["amount"],
                                     "product_id": offer["product_id"], "completed_at": now.isoformat(), "mode": "simulated",
-                                    "type": "limit_opening" if overdraft else "disbursement"}
+                                    "type": "limit_opening" if overdraft or revolving else "disbursement"}
+            if revolving:
+                from credit_engine.revolving import local_date, add_months
+                opened = local_date(now)
+                record["completion"]["credit_line"] = {"limit": offer["amount"], "annual_rate_percent": offer["annual_rate_percent"],
+                    "opened_at": opened.isoformat(), "maturity_date": add_months(opened, offer["term_months"]).isoformat(),
+                    "term_months": offer["term_months"], "capacity_reserve": offer["revolving"]["capacity_reserve"],
+                    "version": 1, "operations": [], "closed_at": None}
             if repaid:
                 record["completion"].update(repaid_loans=repaid, cash_to_client="0.00", settlement_type="direct_loan_repayment")
                 event(record, "loans_refinanced", now, loan_ids=[loan["loan_id"] for loan in repaid], mode="simulated")
-            if not overdraft:
+            if not overdraft and not revolving:
                 from credit_engine.cashflow import payment_calendar
                 from .overdraft_chat import local_now
                 schedule = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]["schedule"]
                 record["completion"]["schedule"] = payment_calendar(schedule, local_now(now).date())
-            set_state(record, "limit_opened" if overdraft else "disbursed", "completion", "none",
-                      "Рефинансирование завершено" if repaid else "Лимит открыт" if overdraft else "Кредит выдан", now)
-            event(record, "limit_opened" if overdraft else "credit_disbursed", now, operation_id=record["completion"]["operation_id"], mode="simulated")
+            set_state(record, "limit_opened" if overdraft or revolving else "disbursed", "completion", "none",
+                      "Кредитная линия открыта" if revolving else "Рефинансирование завершено" if repaid else "Лимит открыт" if overdraft else "Кредит выдан", now)
+            event(record, "limit_opened" if overdraft or revolving else "credit_disbursed", now, operation_id=record["completion"]["operation_id"], mode="simulated")
         return self.change(application_id, version, sign_and_complete)
 
     def cancel(self, application_id, version):

@@ -563,7 +563,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
     await until(() => document.querySelector(".exploration-settings"), "updated loan selection");
-    expect(document.body.textContent).toContain("Рассчитаем: Кредит на оборотные цели");
+    await until(() => document.body.textContent?.includes("Рассчитаем: Кредит на оборотные цели"), "working capital settings after saved selection");
     await act(async () => (document.querySelector(".exploration-settings summary") as HTMLElement).click());
     await click("Показать варианты");
     await until(() => document.querySelector(".loan-calendar summary"), "updated loan options");
@@ -925,5 +925,53 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Моё финансирование");
     await until(() => document.body.textContent?.includes("Погашен рефинансированием"), "old product visibly repaid");
   }, 20_000);
+
+  it("opens a revolving line, draws and repays money while restoring the limit", async () => {
+    await act(async () => { root.unmount(); });
+    localStorage.clear();
+    const before = await nativeFetch(base + "/api/profile").then(response => response.json());
+    root = createRoot(host);
+    await act(async () => { root.render(<QueryClientProvider client={new QueryClient({ defaultOptions: { queries: { retry: false }, mutations: { retry: false } } })}><MemoryRouter initialEntries={["/cabinet?mode=manual"]}><CabinetPage /></MemoryRouter></QueryClientProvider>); });
+    await click("Начать подбор");
+    await click("Регулярные закупки");
+    await input("#need-amount", "200000");
+    await click("Посмотреть подходящие предложения");
+    await until(() => [...document.querySelectorAll<HTMLElement>(".exploration-option")].some(item => item.textContent?.includes("12 мес.")), "line offers");
+    expect(document.body.textContent).toContain("Погашение основного долга восстанавливает доступный лимит");
+    const offer = [...document.querySelectorAll<HTMLElement>(".exploration-option")].find(item => item.textContent?.includes("12 мес."))!;
+    await act(async () => { offer.querySelector<HTMLButtonElement>("button")!.click(); });
+    await click("Перейти к заявке");
+    await click("Проверить и отправить");
+    await click("Отправить заявку");
+    await click("Выбрать предложение");
+    await click("Подписать и завершить");
+    await click("Подписать");
+    await until(() => document.body.textContent?.includes("Управление кредитной линией"), "opened line");
+    const opened = await nativeFetch(base + "/api/profile").then(response => response.json());
+    expect(opened.financials.cash_balance).toBe(before.financials.cash_balance);
+    const loan = opened.financials.existing_loans.find((item: {product_id?: string}) => item.product_id === "revolving_credit_line");
+    expect(loan).toBeTruthy();
+    await click("Моё финансирование");
+    await until(() => document.querySelector("[aria-label='Управление кредитной линией'] input"), "line controls in portfolio");
+    await input("[aria-label='Управление кредитной линией'] input", "50000");
+    await click("Получить деньги по линии");
+    await click("Подтвердить выборку");
+    await until(() => document.querySelector("[aria-label='Управление кредитной линией']")?.textContent?.includes("Операция выполнена"), "draw complete");
+    const url = base + "/api/applications/" + loan.application_id + "/credit-line";
+    expect((await nativeFetch(url).then(response => response.json())).available_limit).toBe("150000.00");
+    await input("[aria-label='Управление кредитной линией'] input", "20000");
+    await click("Внести платёж по линии");
+    await click("Подтвердить платёж");
+    await until(async () => (await nativeFetch(url).then(response => response.json())).available_limit === "170000.00", "limit restored");
+    const profile = await nativeFetch(base + "/api/profile").then(response => response.json());
+    expect(Number(profile.financials.cash_balance)).toBe(Number(before.financials.cash_balance) + 30000);
+    await until(() => {
+      const card = [...document.querySelectorAll<HTMLElement>(".portfolio-product")].find(item => item.textContent?.includes("Возобновляемая кредитная линия"));
+      const payment = card?.querySelectorAll("dd")[1]?.textContent?.replace(/\s/g, "");
+      return payment && !payment.includes("20000₽");
+    }, "completed payment is not shown as the next payment");
+    const calendar = await nativeFetch(base + "/api/calendar").then(response => response.json());
+    expect(calendar.events.some((item: {application_id:string;kind:string}) => item.application_id === loan.application_id && item.kind === "line_final_payment")).toBe(true);
+  }, 25_000);
 
 });

@@ -309,7 +309,7 @@ export const versionAction = (
 export const exploreApplication = (
   id: string,
   version: number,
-  productId: "working_capital_loan" | "overdraft" | "refinancing",
+  productId: "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line",
   preferences: Record<string, unknown> = {},
   delay?: { transaction_id: string; days: number },
 ) =>

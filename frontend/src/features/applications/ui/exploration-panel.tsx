@@ -12,9 +12,10 @@ import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
 import { LoanOptionDetails } from "./loan-option-details";
 import { RefinancingBaseline, RefinancingEffect } from "./refinancing-comparison";
+import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 import { z } from "zod";
 
-type ProductId = "working_capital_loan" | "overdraft" | "refinancing";
+type ProductId = "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line";
 
 export function ExplorationPanel({
   view,
@@ -48,14 +49,14 @@ export function ExplorationPanel({
   const product: ProductId =
     productOverride?.context === productContext
       ? productOverride.product
-      : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
+      : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
           (!need.preferred_product && need.financing_pattern === "cash_gap")
         ? "overdraft"
         : "working_capital_loan";
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("");
   const [minTerm, setMinTerm] = useState("6");
-  const [maxTerm, setMaxTerm] = useState(need.preferred_product === "refinancing" ? "48" : "36");
+  const [maxTerm, setMaxTerm] = useState(need.preferred_product === "revolving_credit_line" ? "12" : need.preferred_product === "refinancing" ? "48" : "36");
   const [priority, setPriority] = useState("preserve_amount");
   const [preserveAmount, setPreserveAmount] = useState(true);
   const [error, setError] = useState("");
@@ -159,7 +160,7 @@ export function ExplorationPanel({
           </div>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
+          {product === "revolving_credit_line" ? "Сравните лимит, срок доступности и стоимость использования. Фактические проценты зависят от выборок и погашений." : options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
           {" "}Выберите предложение и проверьте заявку перед отправкой.
         </p>
       </CardHeader>
@@ -335,7 +336,7 @@ export function ExplorationPanel({
                     {option.term_months ? option.term_months + " мес. · " : ""}
                     {option.monthly_payment
                       ? "В месяц " + formatMoney(option.monthly_payment)
-                      : "Возврат из поступлений на счёт"}
+                      : option.product_id === "revolving_credit_line" ? "Проценты ежемесячно; основной долг — до конца срока" : "Возврат из поступлений на счёт"}
                   </p>
                   {typeof option.total_interest === "string" && <p className="mt-1 text-xs text-muted-foreground">Переплата: {formatMoney(option.total_interest)}</p>}
                   {option.total_repayment && (
@@ -357,6 +358,7 @@ export function ExplorationPanel({
                     </p>
                   )}
                   {option.product_id === "refinancing" && <RefinancingEffect offer={option} />}
+                  {option.product_id === "revolving_credit_line" && <RevolvingTerms value={option.revolving} />}
                   {option.product_id === "working_capital_loan" &&
                     option.option_id && (
                       <LoanOptionDetails
@@ -415,7 +417,7 @@ export function ExplorationPanel({
                 label="Продукт"
                 value={product}
                 onValueChange={(value) => {
-                  if (value === "overdraft" || value === "working_capital_loan" || value === "refinancing")
+                  if (value === "overdraft" || value === "working_capital_loan" || value === "refinancing" || value === "revolving_credit_line")
                     setProductOverride({ context: productContext, product: value });
                 }}
                 options={[
@@ -424,6 +426,7 @@ export function ExplorationPanel({
                     label: "Кредит на оборотные цели",
                   },
                   { value: "overdraft", label: "Овердрафт до поступления денег" },
+                  { value: "revolving_credit_line", label: "Возобновляемая кредитная линия" },
                 ]}
               />}
               {product !== "overdraft" ? (
@@ -441,7 +444,7 @@ export function ExplorationPanel({
                     )}
                     <FormField
                       id="compare-payment"
-                      label="Комфортный платёж до, ₽"
+                      label={product === "revolving_credit_line" ? "Резерв нагрузки до, ₽/мес." : "Комфортный платёж до, ₽"}
                       value={payment}
                       onChange={(event) => setPayment(event.target.value)}
                       placeholder="Без ограничения"
@@ -462,7 +465,7 @@ export function ExplorationPanel({
                       inputMode="numeric"
                     />
                   </div>
-                  <ChoiceField
+                  {product !== "revolving_credit_line" && <ChoiceField
                     id="compare-priority"
                     label="Что важнее"
                     value={priority}
@@ -475,7 +478,7 @@ export function ExplorationPanel({
                         label: "Уменьшить переплату",
                       },
                     ]}
-                  />
+                  />}
                   {product !== "refinancing" && (
                   <label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
                     <input

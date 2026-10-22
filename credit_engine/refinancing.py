@@ -39,6 +39,8 @@ def selected_debts(application, now):
     principal, monthly, total, schedules = Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), []
     today = now.date().isoformat()
     for loan in selected:
+        if loan.get("is_commitment"):
+            raise ValueError("Возобновляемая линия имеет отдельный лимит. Погасите и закройте её в разделе «Моё финансирование».")
         balance, payment = loan.get("outstanding_principal"), loan.get("monthly_payment")
         if any(not isinstance(value, str) or not MONEY_PATTERN.fullmatch(value) or Decimal(value) <= 0 for value in (balance, payment)):
             raise ValueError("Банк должен уточнить остаток долга и платёж по выбранному кредиту.")

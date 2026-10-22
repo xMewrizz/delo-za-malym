@@ -23,12 +23,13 @@ from .assistant import configured_assistant
 from .chat import ChatService
 from .models import (AnswerClarification, ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
                      ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction,
-                     EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport, UseInvoice)
+                     EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport, UseInvoice, LineOperation)
 from .documents import InvoiceDocuments
 from .invoice_pdf import MAX_BYTES
 from .service import CreditProcess, ProcessError
 from .store import Store
 from .workspace import ProductWorkspace
+from .credit_lines import CreditLines
 
 
 def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None, frontend_directory=None) -> FastAPI:
@@ -44,7 +45,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         yield
 
     app = FastAPI(title="Дело за малым", version="0.1.0", lifespan=lifespan,
-                  description="Кредитный процесс существующего демонстрационного клиента: разовый кредит, овердрафт и рефинансирование.")
+                  description="Кредитный процесс существующего демонстрационного клиента: кредит, овердрафт, рефинансирование и возобновляемая линия.")
     app.state.process = process
     assets = Path(__file__).with_name("static")
     frontend = Path(frontend_directory or os.getenv("FRONTEND_DIST", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
@@ -106,6 +107,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     def products():
         loan, overdraft = WorkingCapitalPolicy(), OverdraftCreditPolicy()
         from credit_engine.refinancing import POLICY as refinancing
+        from credit_engine.revolving import POLICY as revolving
         return [
             {"product_id": "working_capital_loan", "name": "Разовый кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
@@ -123,7 +125,21 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
              "annual_rate_percent": refinancing.annual_rate_percent, "terms": list(refinancing.terms),
              "minimum_business_months": refinancing.minimum_business_months, "history_months": 6, "purpose": "refinancing",
              "conditions": "Полное погашение выбранных известных кредитов без дополнительных денег на счёт. Сравниваем платёж и оставшуюся стоимость."},
+            {"product_id": "revolving_credit_line", "name": "Возобновляемая кредитная линия", "policy_version": revolving.version,
+             "minimum_amount": str(revolving.minimum_amount), "maximum_amount": str(revolving.maximum_amount),
+             "annual_rate_percent": revolving.annual_rate_percent, "terms": list(revolving.terms), "purpose": "working_capital",
+             "conditions": "Выборки в пределах лимита. Погашение основного долга восстанавливает доступную сумму; проценты — за фактический долг."},
         ]
+
+    credit_lines = CreditLines(process)
+
+    @app.get("/api/applications/{application_id}/credit-line", tags=["Кредитная линия"])
+    def credit_line(application_id: str):
+        return credit_lines.get(application_id)
+
+    @app.post("/api/applications/{application_id}/credit-line/operations", tags=["Кредитная линия"])
+    def credit_line_operation(application_id: str, payload: LineOperation):
+        return credit_lines.operate(application_id, payload)
 
     chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products, workspace=workspace)
     app.state.chats = chats

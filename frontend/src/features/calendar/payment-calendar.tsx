@@ -44,7 +44,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
   const count = new Date(Date.UTC(year, monthNumber, 0)).getUTCDate();
   const offset = (new Date(Date.UTC(year, monthNumber - 1, 1)).getUTCDay() + 6) % 7;
   const days = Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
-  const nextPayment = events.find(event => event.date >= today && event.direction === "outflow" && !event.kind.startsWith("planned_"));
+  const nextPayment = events.find(event => event.date >= today && event.direction === "outflow" && event.forecast && !event.kind.startsWith("planned_"));
   return <div className="space-y-5">
     <div className="calendar-product-filter"><div><h2>Какие платежи показать?</h2><p>Общий график или обязательства по одному продукту.</p></div><label><span className="sr-only">Продукт в календаре</span><select aria-label="Продукт в календаре" value={product} onChange={event => setSearch(current => { const next = new URLSearchParams(current); if (event.target.value === "all") next.delete("product"); else next.set("product", event.target.value); return next; })}><option value="all">Все продукты</option>{bankLoans.map((loan, index) => <option key={loan.loan_id} value={`loan:${loan.loan_id}`}>Действующий кредит {index + 1} · {formatMoney(loan.outstanding_principal || "0")}</option>)}{calendar.data?.accounts.map(account => <option key={account.application_id} value={`app:${account.application_id}`}>{financingName(account.product_id)} · {formatMoney(account.amount)} · {account.application_id.slice(0, 6)}</option>)}</select></label></div>
     <p className="max-w-3xl text-sm text-muted-foreground">{product === "all" ? "Здесь собраны графики действующих продуктов. Добавьте поступления и расходы выбранного плана, чтобы видеть предстоящие платежи вместе." : "Показан график выбранного продукта. Чтобы вернуться к общему календарю, выберите «Все продукты»."} События с отметкой «По плану» ещё не исполнены.</p>
@@ -95,7 +95,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
     {Boolean(calendar.data?.accounts.length) && <Card><CardContent className="pt-6"><h2 className="text-lg font-bold">Полученное финансирование</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">
       {calendar.data?.accounts.map(account => <Link key={account.application_id} className="rounded-xl border border-border p-4 hover:border-primary" to={`/cabinet?mode=applications&application=${account.application_id}`}>
         <strong>{financingName(account.product_id)} · {formatMoney(account.amount)}</strong>
-        <p className="mt-2 text-sm text-muted-foreground">{account.status === "refinanced" ? "Погашен рефинансированием. Будущие платежи по этому кредиту не учитываются." : account.product_id === "overdraft" ? "Лимит открыт. Использование и погашение показаны как прогноз." : "Учтён при расчёте новых заявок. Платежи показаны по договорному графику."}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{account.status === "closed" ? "Линия закрыта. Новые выборки недоступны, задолженность погашена." : account.status === "refinanced" ? "Погашен рефинансированием. Будущие платежи по этому кредиту не учитываются." : account.product_id === "overdraft" ? "Лимит открыт. Использование и погашение показаны как прогноз." : "Учтён при расчёте новых заявок. Платежи показаны по договорному графику."}</p>
       </Link>)}
     </div></CardContent></Card>}
   </div>;

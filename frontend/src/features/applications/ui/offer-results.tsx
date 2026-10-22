@@ -7,6 +7,7 @@ import type { ApplicationView, Offer } from "../api/applications";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
 
 import { RefinancingEffect } from "./refinancing-comparison";
+import { CreditLinePanel, RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 
 function OfferCard({
   offer,
@@ -26,6 +27,7 @@ function OfferCard({
   return (
     <div className="rounded-[22px] border border-border bg-background p-5 sm:p-6">
       {offer.product_id === "refinancing" && <RefinancingEffect offer={offer} />}
+      {offer.product_id === "revolving_credit_line" && <RevolvingTerms value={offer.revolving} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold text-primary">
@@ -279,6 +281,7 @@ export function OfferResults({
               Операция выполнена в демонстрационном режиме.
             </p>
             {view.completion.product_id === "refinancing" && <p className="mt-3 text-sm">Выбранные кредиты погашены. В календаре и следующих заявках учитывается новый кредит. Дополнительные деньги на счёт не зачислялись.</p>}
+            {view.completion.product_id === "revolving_credit_line" && <div className="mt-4"><p className="mb-4 text-sm">Лимит открыт. Получайте деньги частями и возвращайте их через управление линией. Доступно также в «Моём финансировании».</p><CreditLinePanel applicationId={view.application.application_id} /></div>}
             {typeof view.completion.refinanced_by === "string" && <a className="mt-3 block font-semibold text-primary underline" href={`/cabinet?mode=applications&application=${encodeURIComponent(view.completion.refinanced_by)}`}>Открыть заменивший кредит</a>}
             {view.completion.schedule && (
               <details className="mt-4">

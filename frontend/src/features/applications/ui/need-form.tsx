@@ -62,10 +62,10 @@ export function NeedForm({
     Boolean(view.application.product_details?.overdraft),
   );
   const refinancing = draft.purpose === "refinancing" || draft.preferredProduct === "refinancing";
+  const revolving = draft.preferredProduct === "revolving_credit_line";
   const [refinancingLoans, setRefinancingLoans] = useSavedDraft(`delo-refinancing:${view.application.application_id}:${view.application.application_version}`, refinancingIds(view));
   const nextIsPlan =
-    draft.preferredProduct === "overdraft" ||
-    draft.financingPattern === "cash_gap";
+    !revolving && (draft.preferredProduct === "overdraft" || draft.financingPattern === "cash_gap");
   const set = (key: keyof NeedDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
     if (key === errorField) { setError(""); setErrorField(null); }
@@ -87,7 +87,7 @@ export function NeedForm({
       }
       if (continueToNextStep && !draft.purpose) throw new NeedValidationError("purpose", "Выберите задачу: например, закупку товара или оплату до поступления выручки.");
       if (continueToNextStep && !refinancing && !nextIsPlan && !draft.requestedAmount.trim()) throw new NeedValidationError("requestedAmount", "Укажите, сколько денег нужно на задачу.");
-      if (continueToNextStep && !refinancing && (nextIsPlan || includePayments)) {
+      if (continueToNextStep && !refinancing && !revolving && (nextIsPlan || includePayments)) {
         changes["product_details.overdraft"] = buildOverdraftPlan(
           { ...cashFlow.draft, openingCash: cashFlow.bankCash || "0.00" },
           (view.application.financials.existing_loans || []).filter(loan => !loan.schedule).map(loan => loan.loan_id),
@@ -145,6 +145,7 @@ export function NeedForm({
               Дождаться выручки
             </Button>
             <Button type="button" size="sm" variant={refinancing ? "secondary" : "outline"} aria-pressed={refinancing} onClick={() => setDraft(current => ({ ...current, purpose: "refinancing", preferredProduct: "refinancing", financingPattern: "gradual_repayment", requestedAmount: "", minimumAmount: "", ownFunds: "" }))}>Объединить кредиты</Button>
+            <Button type="button" size="sm" variant={revolving ? "secondary" : "outline"} aria-pressed={revolving} onClick={() => { setChooseProduct(true); setDraft(current => ({ ...current, purpose: "working_capital", preferredProduct: "revolving_credit_line", recurring: "true", financingPattern: "gradual_repayment", termMonths: "12" })); }}>Регулярные закупки</Button>
             <Button
               type="button"
               variant="outline"
@@ -180,6 +181,7 @@ export function NeedForm({
               },
               { value: "overdraft", label: "Овердрафт" },
               { value: "refinancing", label: "Рефинансирование" },
+              { value: "revolving_credit_line", label: "Возобновляемая кредитная линия" },
             ]}
             hint="Если не знаете, подберём после сохранения."
           />
@@ -189,7 +191,7 @@ export function NeedForm({
             <FormField
               id="need-amount"
               error={fieldError("requestedAmount")}
-              label={nextIsPlan ? "Желаемый лимит, ₽" : "Нужная сумма, ₽"}
+              label={nextIsPlan || revolving ? "Желаемый лимит, ₽" : "Нужная сумма, ₽"}
               value={draft.requestedAmount}
               onChange={(event) => set("requestedAmount", event.target.value)}
               inputMode="decimal"
@@ -210,7 +212,7 @@ export function NeedForm({
             inputMode="numeric"
             placeholder="Например, 12"
           />}
-          {!refinancing && (
+          {!refinancing && !revolving && (
           <ChoiceField
             id="need-pattern"
             label="Как планируете возвращать"
@@ -276,7 +278,8 @@ export function NeedForm({
           </div>
         </details>}
         {refinancing && <RefinancingLoans view={view} selected={refinancingLoans} onChange={setRefinancingLoans} />}
-        {continueToNextStep && !refinancing && (
+        {revolving && <p className="rounded-xl bg-secondary p-4 text-sm">Укажите, сколько денег может понадобиться одновременно. Линию можно использовать частями; после погашения основного долга лимит снова доступен. Проценты — на фактический долг, возврат основного долга — до конца срока линии.</p>}
+        {continueToNextStep && !refinancing && !revolving && (
           <section className="space-y-4 border-t border-border pt-5" aria-label="Предстоящие платежи и поступления">
             {nextIsPlan ? (
               <div>

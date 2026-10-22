@@ -24,7 +24,7 @@ export type ApplicationActions = {
     action: "preview" | "recommendations" | "retry" | "submit" | "cancel",
   ) => void;
   explore: (
-    productId: "working_capital_loan" | "overdraft" | "refinancing",
+    productId: "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line",
     preferences: Record<string, unknown>,
     delay?: { transaction_id: string; days: number },
   ) => void;
@@ -119,7 +119,7 @@ export function ApplicationWorkspace({
   useEffect(() => {
     if (!calculateAfterSave.current || busy) return;
     calculateAfterSave.current = false;
-    actions.explore(need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
+    actions.explore(need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
   }, [step, busy, actions, wantsPlan, need.preferred_product]);
   const saveNeed = (changes: Record<string, unknown>) =>
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
@@ -161,8 +161,8 @@ export function ApplicationWorkspace({
           Кредитная история: {historyName}.
         </p>
         {Boolean(bank?.existing_loans?.length) && <div className="mt-4 space-y-2 border-t border-border pt-3">
-          <p className="text-sm font-semibold">Учтены платежи по действующим кредитам: {formatMoney(String((bank?.existing_loans || []).reduce((sum, loan) => sum + Number(loan.monthly_payment || 0), 0)))} в месяц</p>
-          {bank?.existing_loans?.map((loan, index) => <p key={loan.loan_id} className="text-xs text-muted-foreground">Кредит {index + 1}: остаток {formatMoney(loan.outstanding_principal || "0")}, платёж {formatMoney(loan.monthly_payment || "0")} в месяц.</p>)}
+          <p className="text-sm font-semibold">Учтена нагрузка по кредитам и открытым лимитам: {formatMoney(String((bank?.existing_loans || []).reduce((sum, loan) => sum + Number(loan.monthly_payment || 0), 0)))} в месяц</p>
+          {bank?.existing_loans?.map((loan, index) => <p key={loan.loan_id} className="text-xs text-muted-foreground">Кредит {index + 1}: остаток {formatMoney(loan.outstanding_principal || "0")}, {loan.is_commitment ? "резерв нагрузки" : "платёж"} {formatMoney(loan.monthly_payment || "0")} в месяц.</p>)}
         </div>}
       </details>}
       {selection ? (
@@ -198,7 +198,7 @@ export function ApplicationWorkspace({
                   <dl className="grid gap-4 sm:grid-cols-3">
                     <div>
                       <dt className="text-xs text-muted-foreground">
-                        {need.preferred_product === "refinancing" ? "На погашение выбранных долгов" : "Запрошенная сумма"}
+                        {need.preferred_product === "revolving_credit_line" ? "Запрошенный лимит" : need.preferred_product === "refinancing" ? "На погашение выбранных долгов" : "Запрошенная сумма"}
                       </dt>
                       <dd className="mt-1 font-bold">
                         {need.requested_amount

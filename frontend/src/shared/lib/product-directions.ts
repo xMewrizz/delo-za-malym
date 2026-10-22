@@ -1,5 +1,4 @@
 export const upcomingProducts = [
-  { id: "revolving_credit_line", name: "Возобновляемая кредитная линия", short: "Финансировать регулярно", description: "Возобновляемое финансирование повторяющихся задач.", number: "04" },
   { id: "investment_loan", name: "Инвестиционный кредит", short: "Вложиться в следующий этап", description: "Оборудование, новые мощности и развитие бизнеса.", number: "05" },
 ] as const;
 
