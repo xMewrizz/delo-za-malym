@@ -68,7 +68,7 @@ async function input(selector: string, value: string) {
 
 async function openAssistant() {
   await click("Получить финансирование");
-  await click("С ИИ-ассистентом");
+  await click("С Лумой");
 }
 
 describe.skipIf(!base)("React cabinet with real FastAPI", () => {
@@ -151,6 +151,10 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
     await until(() => button("Выбрать условия"), "real loan options");
+    expect(document.querySelectorAll(".exploration-option").length).toBeGreaterThan(1);
+    const settings = document.querySelector<HTMLDetailsElement>(".exploration-settings")!;
+    expect(settings.open).toBe(false);
+    expect(document.querySelector('.exploration-option')!.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(document.activeElement?.textContent).toBe("Ваш запрос");
     await click("Изменить задачу");
     expect(document.activeElement?.textContent).toBe("На что нужны деньги?");
@@ -505,13 +509,13 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       .find((item) => item.parentElement?.textContent?.includes("Я учёл в расходах"));
     if (debtConfirmation) await act(async () => debtConfirmation.click());
     await click("Посмотреть подходящие предложения");
-    await until(() => button("Показать варианты"), "cash gap options step");
+    await until(() => document.querySelector(".exploration-settings"), "cash gap options step");
     await until(() => button("2. Подходящие предложения")?.getAttribute("aria-current") === "step", "cash gap calculation completed");
     expect(document.body.textContent).toContain("Рассчитаем: Овердрафт");
     expect(document.querySelector("#compare-amount")).toBeNull();
     const settings = document.querySelector("#compare-product")!.closest("details")!;
     expect(settings.open).toBe(false);
-    expect(visible(button("Показать варианты")!)).toBe(true);
+    expect(button("Показать варианты")).toBeUndefined();
     await until(() => button("Выбрать условия"), "real overdraft options");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     const read = () => nativeFetch(`${base}/api/applications/${id}`)
@@ -524,6 +528,22 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     expect(view.explorations.at(-1).result.options[0].amount).toBe("150000.00");
     expect(view.explorations).toHaveLength(1);
     expect(requests.slice(initialRequests).some((url) => url.includes("/chats"))).toBe(false);
+
+    const delayDetails = document.querySelector("#delay-inflow")!.closest("details")!;
+    await act(async () => (delayDetails.querySelector("summary") as HTMLElement).click());
+    await act(async () => (document.querySelector("#delay-inflow") as HTMLElement).click());
+    await until(() => [...document.querySelectorAll<HTMLElement>('[role="option"]')].some(item => item.textContent !== "Не указано"), "receipt choices");
+    await act(async () => [...document.querySelectorAll<HTMLElement>('[role="option"]')].find(item => item.textContent !== "Не указано")!.click());
+    await click("Сравнить с задержкой");
+    await until(() => button("Вернуться к основным предложениям"), "independent delay scenario");
+    expect((await read()).application).toEqual(view.application);
+    expect(document.body.textContent).toContain("Сохранённый план не изменён");
+    expect(document.body.textContent).toContain("Сначала дополните платежи и поступления");
+    expect(document.querySelector('.cash-flow-chart')).toBeNull();
+    expect(button("Выбрать условия")).toBeUndefined();
+    await click("Вернуться к основным предложениям");
+    await until(() => button("Выбрать условия"), "original offers restored");
+    expect((await read()).application).toEqual(view.application);
 
     await click("Изменить задачу");
     await until(() => button("Закупить товар"), "edit saved need");
@@ -542,8 +562,9 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-amount", "500000");
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
-    await until(() => button("Показать варианты"), "updated loan selection");
+    await until(() => document.querySelector(".exploration-settings"), "updated loan selection");
     expect(document.body.textContent).toContain("Рассчитаем: Кредит на оборотные цели");
+    await act(async () => (document.querySelector(".exploration-settings summary") as HTMLElement).click());
     await click("Показать варианты");
     await until(() => document.querySelector(".loan-calendar summary"), "updated loan options");
     expect((await read()).explorations.at(-1).product_id).toBe("working_capital_loan");
@@ -591,7 +612,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     ).toBe(assistantChat.chat.chat_id);
   });
 
-  it("reviews a real PDF, explicitly resolves a conflicting credit amount and shows its source", async () => {
+  it("uses a real invoice as a future expense without overwriting the credit amount or bank data", async () => {
     if (root) await act(async () => root.unmount());
     localStorage.clear();
     await render();
@@ -604,8 +625,17 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Закупить товар");
     await input("#need-amount", "500000");
     await input("#need-term", "12");
+    const planToggle = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+      .find(item => item.parentElement?.textContent?.includes("Показать, как кредит"))!;
+    await act(async () => planToggle.click());
+    const dates = document.querySelectorAll<HTMLInputElement>('[id^="operation-date-"]');
+    const amounts = document.querySelectorAll<HTMLInputElement>('[id^="operation-amount-"]');
+    await input(`#${dates[0].id}`, "2026-11-05");
+    await input(`#${amounts[0].id}`, "500000");
+    await input(`#${dates[1].id}`, "2026-11-10");
+    await input(`#${amounts[1].id}`, "600000");
     await click("Посмотреть подходящие предложения");
-    await until(() => button("Показать варианты"), "saved manual form");
+    await until(() => document.querySelector(".exploration-settings"), "saved manual form");
     await click("1. На что нужны деньги");
     await input("#need-term", "24");
     const file = new File(
@@ -645,11 +675,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       '[aria-label="Как использовать счёт"]',
     ) as HTMLSelectElement;
     expect(useAs.value).toBe("planned_expense");
-    await act(async () => {
-      useAs.value = "loan_amount";
-      useAs.dispatchEvent(new Event("change", { bubbles: true }));
-    });
-    expect(button("Использовать проверенные данные")!.disabled).toBe(true);
+    expect([...useAs.options].some(item => item.value === "loan_amount")).toBe(false);
+    expect(button("Учесть оплату счёта")!.disabled).toBe(true);
     expect(
       (document.querySelector("#need-amount") as HTMLInputElement).value,
     ).toBe("500000.00");
@@ -663,12 +690,10 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       item.parentElement?.textContent?.includes("Заменить отличающиеся"),
     )!;
     await act(async () => acknowledge.click());
-    await click("Использовать проверенные данные");
+    await click("Учесть оплату счёта");
     await until(
-      () =>
-        (document.querySelector("#need-amount") as HTMLInputElement).value ===
-        "450000.00",
-      "invoice applied to need",
+      () => document.querySelector<HTMLInputElement>('[id^="operation-amount-"]')?.value === "450000.00",
+      "invoice applied to expense",
     );
     expect(document.body.textContent).toContain("Из счёта, стр. 1");
     expect(
@@ -679,11 +704,14 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       `${base}/api/applications/${contexts.manual}`,
     ).then((response) => response.json());
     expect(record.application.financials.cash_balance).toBe("800000.00");
-    expect(record.field_sources["need.requested_amount"].original.value).toBe(
-      "450000.00",
-    );
+    expect(record.application.need.requested_amount).toBe("500000.00");
+    const expense = record.application.product_details.overdraft.transactions.find((row: {direction: string}) => row.direction === "outflow");
+    expect(expense.amount).toBe("450000.00");
+    expect(expense.date).toBe("2026-11-05");
+    expect(Object.values(record.field_sources).some((source: unknown) => (source as { original?: { value: string } }).original?.value === "450000.00")).toBe(true);
     await click("Посмотреть подходящие предложения");
-    await until(() => button("Показать варианты"), "updated loan need");
+    await until(() => document.querySelector(".exploration-settings"), "updated loan need");
+    await act(async () => (document.querySelector(".exploration-settings summary") as HTMLElement).click());
     await click("Показать варианты");
     await until(() => button("Выбрать условия"), "invoice-backed options");
     await click("Выбрать условия");

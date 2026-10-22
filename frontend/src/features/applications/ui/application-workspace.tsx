@@ -168,6 +168,8 @@ export function ApplicationWorkspace({
           <div ref={stepsRef} className="selection-step-anchor"><SelectionSteps current={step === "options" ? "options" : "need"} busy={busy}
             onNeed={() => setStep("need")} onOptions={need.purpose ? () => setStep("options") : undefined} /></div>
           {step !== "options" && (
+            <>
+            {renderDocuments?.(() => setStep("need"))}
             <Card>
               <CardHeader>
                 <h2 ref={stepHeading} tabIndex={-1} className="text-xl font-extrabold">На что нужны деньги?</h2>
@@ -178,6 +180,7 @@ export function ApplicationWorkspace({
                   busy={busy || !editable} onSave={saveNeed} />
               </CardContent>
             </Card>
+            </>
           )}
           {step === "options" && (
             <>
@@ -334,7 +337,7 @@ export function ApplicationWorkspace({
               )}
             </>
           )}
-          {renderDocuments?.(() => setStep("need"))}
+          {step === "options" && renderDocuments?.(() => setStep("need"))}
         </>
       ) : (
         <>

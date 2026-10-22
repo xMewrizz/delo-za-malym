@@ -4,6 +4,8 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
 import { formatMoney } from "@/shared/lib/format";
+import { FieldOrigin } from "@/shared/ui/field-origin";
+import { originFor } from "@/shared/lib/field-source";
 import type { ApplicationView } from "../api/applications";
 import { useCashFlowDraft } from "../model/use-cash-flow-draft";
 import {
@@ -114,6 +116,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                     </Button>
                   </div>
                   <div className="grid gap-4 sm:grid-cols-2">
+                    <div>
                     <FormField
                       id={`operation-date-${row.id}`}
                       label={row.direction === "inflow" ? "Когда поступят деньги" : "Когда нужно заплатить"}
@@ -124,6 +127,9 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                         rowChange(row.id, { date: event.target.value })
                       }
                     />
+                    <FieldOrigin source={originFor(view.field_sources, `plan/${encodeURIComponent(row.id)}/date`)} />
+                    </div>
+                    <div>
                     <FormField
                       id={`operation-amount-${row.id}`}
                       label={row.direction === "inflow" ? "Сколько поступит, ₽" : "Сколько нужно заплатить, ₽"}
@@ -134,6 +140,8 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                         rowChange(row.id, { amount: event.target.value })
                       }
                     />
+                    <FieldOrigin source={originFor(view.field_sources, `plan/${encodeURIComponent(row.id)}/amount`)} />
+                    </div>
                     {row.direction === "outflow" && loans.length > 0 && (
                       <ChoiceField
                         id={`operation-loan-${row.id}`}

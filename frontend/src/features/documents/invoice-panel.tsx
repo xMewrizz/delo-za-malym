@@ -90,7 +90,8 @@ export function InvoicePanel({
     >
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold">Счёт поставщика</h3>
+          <h3 className="text-sm font-bold">{readOnly ? "Счёт поставщика" : "Есть счёт на оплату?"}</h3>
+          {!readOnly && <p className="mt-2 max-w-xl text-sm text-muted-foreground">Сумма и дата оплаты появятся в будущих расходах. Нехватку денег рассчитаем по банковскому остатку и другим операциям.</p>}
           <p className="mt-1 text-xs text-muted-foreground">
             Необязательно · текстовый PDF, до 2 МБ и 8 страниц
           </p>
@@ -98,7 +99,7 @@ export function InvoicePanel({
         {editable && (
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-ring">
             <FileUp className="size-4 text-primary" />
-            {upload.isPending ? "Читаем счёт…" : "Загрузить PDF"}
+            {upload.isPending ? "Читаем счёт…" : "Загрузить счёт"}
             <input
               aria-label="Загрузить счёт PDF"
               type="file"
@@ -177,12 +178,12 @@ function InvoiceCard({
         )
       : [];
   const [draft, setDraft] = useSavedDraft(
-    `delo-invoice:${invoice.document_id}:${invoice.revision}`,
+    `delo-invoice-expense:${invoice.document_id}:${invoice.revision}`,
     {
       amount: invoice.values?.amount || uniqueValue(invoice.extracted.amount),
       dueDate:
         invoice.values?.due_date || uniqueValue(invoice.extracted.due_date),
-      target: (need.purpose === "working_capital"
+      target: (!need.purpose || need.purpose === "working_capital"
         ? "planned_expense"
         : "evidence") as InvoiceTarget,
       transactionId: expenses.length === 1 ? expenses[0].transaction_id : "",
@@ -201,9 +202,7 @@ function InvoiceCard({
     /* Validated before submission. */
   }
   const conflict =
-    draft.target === "loan_amount"
-      ? need.requested_amount != null && normalized !== need.requested_amount
-      : draft.target === "planned_expense" &&
+    draft.target === "planned_expense" &&
         Boolean(
           operation &&
             ((operation.amount != null && normalized !== operation.amount) ||
@@ -325,20 +324,16 @@ function InvoiceCard({
                   }))
                 }
               >
-                <option value="loan_amount">
-                  Использовать итог как запрашиваемую сумму кредита
-                </option>
-                <option value="planned_expense">
-                  Учесть оплату в денежном плане
-                </option>
+                {(!need.purpose || need.purpose === "working_capital") && <option value="planned_expense">
+                  Добавить предстоящую оплату
+                </option>}
                 <option value="evidence">
                   Сохранить как подтверждение покупки
                 </option>
               </select>
             </label>
             <p className="text-xs text-muted-foreground">
-              Стоимость покупки и сумма кредита могут отличаться. Остаток на
-              счёте берём из данных банка.
+              Сумма счёта — предстоящий расход, а не сумма кредита. Запрошенная сумма и банковские показатели не изменятся.
             </p>
             {draft.target === "planned_expense" && expenses.length > 0 && (
               <label className="grid gap-2 text-xs font-semibold">
@@ -370,9 +365,7 @@ function InvoiceCard({
             {conflict && (
               <div className="rounded-xl border border-primary/30 bg-primary/5 p-3 text-sm">
                 <p>
-                  {draft.target === "loan_amount"
-                    ? `В черновике запрошено ${formatMoney(need.requested_amount!)}. По счёту указано ${normalized ? formatMoney(normalized) : "другое значение"}.`
-                    : `Оплата в плане: ${operation?.amount ? formatMoney(operation.amount) : "сумма не указана"}, ${operation?.date || "дата не указана"}. Значения счёта отличаются.`}
+                  {`Оплата в плане: ${operation?.amount ? formatMoney(operation.amount) : "сумма не указана"}, ${operation?.date || "дата не указана"}. По счёту: ${normalized ? formatMoney(normalized) : "сумма не указана"}, ${draft.dueDate || "дата не указана"}. Выберите, какие данные оставить.`}
                 </p>
                 <label className="mt-3 flex items-start gap-2 text-xs">
                   <input
@@ -400,7 +393,7 @@ function InvoiceCard({
             >
               {draft.target === "evidence"
                 ? "Подтвердить счёт"
-                : "Использовать проверенные данные"}
+                : "Учесть оплату счёта"}
             </Button>
           </fieldset>
         </form>
