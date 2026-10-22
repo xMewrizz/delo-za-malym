@@ -35,7 +35,7 @@ CALCULATIONS = [
     definition("simulate_alternative", "Посчитать отдельный вариант «а если» на копии заявки, не сохраняя изменения.",
                {"changes": {"type": "object", "description": "Только изменённые поля need, например need.requested_amount: строка рублей с двумя десятичными знаками, need.term_months: целое.", "additionalProperties": True}}, ["changes"]),
     definition("compare_options", "Сравнить допустимые условия кредита или рассчитать лимит по плану овердрафта. Заявку не меняет. Подбор сохраняется отдельно; выбор подтверждает клиент.", {
-        "product_id": {"type": "string", "enum": ["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line"]},
+        "product_id": {"type": "string", "enum": ["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line", "investment_loan"]},
         "preferences": {"type": "object", "additionalProperties": False, "properties": {
             "requested_amount": {"type": "string", "description": "Рубли с двумя знаками"},
             "maximum_monthly_payment": {"type": "string", "description": "Рубли с двумя знаками"},
@@ -121,7 +121,10 @@ class CabinetTools:
                 snapshot["application"]["confirmation"] = None
             if name == "recommend_financing":
                 checks = demo.simulate_checks(snapshot["application"], snapshot["simulator"], self.now)
-                if snapshot["application"]["need"].get("preferred_product") == "revolving_credit_line":
+                if snapshot["application"]["need"].get("preferred_product") == "investment_loan":
+                    from credit_engine.investment import investment_options
+                    result = investment_options(snapshot["application"], checks, calculated_at=self.now)
+                elif snapshot["application"]["need"].get("preferred_product") == "revolving_credit_line":
                     from credit_engine.revolving import revolving_options
                     result = revolving_options(snapshot["application"], checks, calculated_at=self.now)
                 elif snapshot["application"]["need"].get("purpose") == "refinancing":

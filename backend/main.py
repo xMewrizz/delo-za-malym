@@ -108,6 +108,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         loan, overdraft = WorkingCapitalPolicy(), OverdraftCreditPolicy()
         from credit_engine.refinancing import POLICY as refinancing
         from credit_engine.revolving import POLICY as revolving
+        from credit_engine.investment import POLICY as investment, GRACE_MONTHS
         return [
             {"product_id": "working_capital_loan", "name": "Разовый кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
@@ -129,6 +130,11 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
              "minimum_amount": str(revolving.minimum_amount), "maximum_amount": str(revolving.maximum_amount),
              "annual_rate_percent": revolving.annual_rate_percent, "terms": list(revolving.terms), "purpose": "working_capital",
              "conditions": "Выборки в пределах лимита. Погашение основного долга восстанавливает доступную сумму; проценты — за фактический долг."},
+            {"product_id": "investment_loan", "name": "Инвестиционный кредит", "policy_version": investment.version,
+             "minimum_amount": str(investment.minimum_amount), "maximum_amount": str(investment.maximum_amount),
+             "annual_rate_percent": investment.annual_rate_percent, "terms": list(investment.terms), "purpose": "investment",
+             "minimum_own_share_percent": "20.00", "principal_grace_months": list(GRACE_MONTHS),
+             "minimum_business_months": investment.minimum_business_months, "history_months": 6},
         ]
 
     credit_lines = CreditLines(process)

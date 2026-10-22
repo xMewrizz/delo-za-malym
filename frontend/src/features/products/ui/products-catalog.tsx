@@ -80,10 +80,11 @@ export function ProductsCatalog() {
 }
 
 function ProductCard({ product }: { product: Product }) {
+  const investment = product.product_id === "investment_loan";
   const loan = product.product_id === "working_capital_loan";
   const refinancing = product.product_id === "refinancing";
   const revolving = product.product_id === "revolving_credit_line";
-  const Icon = revolving ? Repeat2 : refinancing ? RefreshCw : loan ? Banknote : ArrowDownUp;
+  const Icon = investment ? Banknote : revolving ? Repeat2 : refinancing ? RefreshCw : loan ? Banknote : ArrowDownUp;
   const titleId = `product-${product.product_id}`;
   return (
     <Card
@@ -94,7 +95,7 @@ function ProductCard({ product }: { product: Product }) {
       <CardHeader>
         <div className="product-card-top">
           <span className="product-tag">
-            {revolving ? "Для регулярных закупок" : refinancing ? "Для действующих кредитов" : loan ? "На оборотные задачи" : "На каждый день"}
+            {investment ? "Для оборудования и развития" : revolving ? "Для регулярных закупок" : refinancing ? "Для действующих кредитов" : loan ? "На оборотные задачи" : "На каждый день"}
           </span>
           <span className="product-symbol" aria-hidden="true">
             <Icon />
@@ -106,7 +107,7 @@ function ProductCard({ product }: { product: Product }) {
           </h3>
         </CardTitle>
         <CardDescription className="product-description">
-          {revolving ? "Используйте лимит частями. Возвращайте основной долг и берите деньги снова, без новой заявки в пределах открытой линии." : refinancing ? "Замените выбранные кредиты одним. Сравните новый платёж и все оставшиеся выплаты с текущими условиями." : loan
+          {investment ? "Вложитесь в оборудование или новую точку. Укажите стоимость проекта и свой взнос, выберите срок и отсрочку погашения долга." : revolving ? "Используйте лимит частями. Возвращайте основной долг и берите деньги снова, без новой заявки в пределах открытой линии." : refinancing ? "Замените выбранные кредиты одним. Сравните новый платёж и все оставшиеся выплаты с текущими условиями." : loan
             ? "Закупайте товары и материалы. Оплачивайте расходы. Возвращайте деньги по графику."
             : "Оплачивайте важное, пока выручка в пути. Поступления на счёт погасят задолженность."}
         </CardDescription>
@@ -115,11 +116,11 @@ function ProductCard({ product }: { product: Product }) {
         <dl className="product-mechanics">
           <div>
             <dt>Когда подходит</dt>
-            <dd>{revolving ? "Для повторяющихся закупок и оборотных расходов" : refinancing ? "Чтобы пересмотреть текущие обязательства" : loan ? "Для закупок и текущих расходов" : "Когда расходы раньше выручки"}</dd>
+            <dd>{investment ? "Для оборудования, ремонта и новых мощностей" : revolving ? "Для повторяющихся закупок и оборотных расходов" : refinancing ? "Чтобы пересмотреть текущие обязательства" : loan ? "Для закупок и текущих расходов" : "Когда расходы раньше выручки"}</dd>
           </div>
           <div>
             <dt>Как возвращать</dt>
-            <dd>{revolving ? "Проценты ежемесячно, долг — до конца срока" : loan || refinancing ? "Платежами по новому графику" : "Поступлениями на счёт"}</dd>
+            <dd>{investment ? "Проценты ежемесячно; основной долг — после выбранной отсрочки" : revolving ? "Проценты ежемесячно, долг — до конца срока" : loan || refinancing || investment ? "Платежами по новому графику" : "Поступлениями на счёт"}</dd>
           </div>
         </dl>
         <details className="product-details">
@@ -135,7 +136,7 @@ function ProductCard({ product }: { product: Product }) {
             />
           </summary>
           <div className="product-details-content">
-            <p>{revolving ? "Открытие лимита не зачисляет деньги на счёт. Вы сами выбираете сумму выборки и платежа. Проценты начисляются на использованный долг; за неиспользованный лимит комиссии нет." : refinancing ? "Сумма направляется на полное погашение выбранных долгов. Уменьшение платежа за счёт увеличения срока может повысить общую стоимость — покажем разницу до оформления." : loan
+            <p>{investment ? "Собственный взнос — от 20% проекта. Отсрочка основного долга — 0, 3 или 6 месяцев, входит в общий срок. Платёж проверяется после отсрочки; полная стоимость видна до отправки заявки." : revolving ? "Открытие лимита не зачисляет деньги на счёт. Вы сами выбираете сумму выборки и платежа. Проценты начисляются на использованный долг; за неиспользованный лимит комиссии нет." : refinancing ? "Сумма направляется на полное погашение выбранных долгов. Уменьшение платежа за счёт увеличения срока может повысить общую стоимость — покажем разницу до оформления." : loan
               ? "Деньги выдаются одной суммой под задачу бизнеса. Возврат идёт по графику; погашенную часть кредита нельзя использовать повторно."
               : "Овердрафт помогает оплатить расходы при временной нехватке денег на счёте. Поступления на счёт уменьшают задолженность."}</p>
           </div>

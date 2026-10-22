@@ -6,6 +6,7 @@ import { ConfirmAction } from "@/shared/ui/confirm-action";
 import type { ApplicationView, Offer } from "../api/applications";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
 
+import { InvestmentTerms } from "./investment-terms";
 import { RefinancingEffect } from "./refinancing-comparison";
 import { CreditLinePanel, RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 
@@ -26,6 +27,7 @@ function OfferCard({
 }) {
   return (
     <div className="rounded-[22px] border border-border bg-background p-5 sm:p-6">
+      {offer.product_id === "investment_loan" && <InvestmentTerms offer={offer} />}
       {offer.product_id === "refinancing" && <RefinancingEffect offer={offer} />}
       {offer.product_id === "revolving_credit_line" && <RevolvingTerms value={offer.revolving} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
@@ -51,7 +53,7 @@ function OfferCard({
           </dd>
         </div>
         <div>
-          <dt className="text-xs text-muted-foreground">Платёж в месяц</dt>
+          <dt className="text-xs text-muted-foreground">{offer.product_id === "investment_loan" ? "Максимальный платёж" : "Платёж в месяц"}</dt>
           <dd className="mt-1 font-bold">
             {offer.monthly_payment
               ? formatMoney(offer.monthly_payment)

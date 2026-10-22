@@ -32,5 +32,10 @@ export function projectApplication(
         };
     }
   }
+  const need = projected.application.need;
+  if (need.preferred_product === "investment_loan" || need.purpose === "investment") {
+    const amount = Math.round(Number(need.project_cost) * 100) - Math.round(Number(need.own_funds) * 100);
+    need.requested_amount = need.project_cost && need.own_funds != null && Number.isSafeInteger(amount) && amount > 0 ? (amount / 100).toFixed(2) : null;
+  }
   return projected;
 }

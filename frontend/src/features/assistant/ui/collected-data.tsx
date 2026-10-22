@@ -12,6 +12,7 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { FieldOrigin } from "@/shared/ui/field-origin";
 import { originFor } from "@/shared/lib/field-source";
+import { InvestmentTerms } from "@/features/applications/ui/investment-terms";
 import type { Proposal, ProposalPreview } from "../api/chat";
 
 const rowsSchema = z.array(
@@ -134,7 +135,7 @@ export function CollectedData({
         <div className="collected-fact" key={`purpose-${need.purpose}-${need.financing_pattern}`}>
           <dt>Задача</dt>
           <dd>
-            {need.purpose === "refinancing" ? "Рефинансирование действующих кредитов" : need.purpose === "working_capital"
+            {need.purpose === "investment" ? "Оборудование и развитие" : need.purpose === "refinancing" ? "Рефинансирование действующих кредитов" : need.purpose === "working_capital"
               ? need.financing_pattern === "cash_gap"
                 ? "Заплатить до выручки"
                 : "Оборотные расходы"
@@ -156,7 +157,7 @@ export function CollectedData({
               originFor(view.field_sources, "need.requested_amount")
             }
           />
-          {proposal && need.preferred_product !== "refinancing" && (
+          {proposal && need.preferred_product !== "refinancing" && need.preferred_product !== "investment_loan" && (
             <Correction
               label="Сумма"
               initial={need.requested_amount || ""}
@@ -165,6 +166,11 @@ export function CollectedData({
             />
           )}
         </div>
+        {need.preferred_product === "investment_loan" && <>
+          <div className="collected-fact"><dt>Стоимость проекта</dt><dd>{need.project_cost ? formatMoney(need.project_cost) : "Уточняем"}</dd><FieldOrigin source={originFor(proposal?.field_sources, "need.project_cost") || originFor(view.field_sources, "need.project_cost")} />{proposal && <Correction label="Стоимость проекта" initial={need.project_cost || ""} disabled={busy} onSave={value => onEdit({"need.project_cost": value})} />}</div>
+          <div className="collected-fact"><dt>Собственный взнос</dt><dd>{need.own_funds ? formatMoney(need.own_funds) : "Уточняем"}</dd>{proposal && <Correction label="Собственный взнос" initial={need.own_funds || ""} disabled={busy} onSave={value => onEdit({"need.own_funds": value})} />}</div>
+          <div className="collected-fact"><dt>Отсрочка долга</dt><dd>{need.principal_grace_months == null ? "Уточняем" : need.principal_grace_months ? need.principal_grace_months + " мес., проценты ежемесячно" : "Без отсрочки"}</dd></div>
+        </>}
         {need.term_months && (
           <div className="collected-fact" key={`term-${need.term_months}`}>
             <dt>Срок</dt>
@@ -314,9 +320,10 @@ export function CollectedData({
                 </p>
                 <p className="text-xs text-muted-foreground">
                   {option.monthly_payment
-                    ? `${formatMoney(option.monthly_payment)} в месяц`
+                    ? `${option.product_id === "investment_loan" ? "Максимальный платёж " : ""}${formatMoney(option.monthly_payment)} в месяц`
                     : "Погашение из поступлений"}
                 </p>
+                {option.product_id === "investment_loan" && <InvestmentTerms offer={option} />}
               </div>
             ))}
           </div>

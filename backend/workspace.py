@@ -11,6 +11,7 @@ from credit_engine.options import loan_options, overdraft_options
 from credit_engine.cashflow import loan_cashflow
 from credit_engine.refinancing import refinancing_options
 from credit_engine.revolving import revolving_options
+from credit_engine.investment import investment_options
 
 from . import demo
 from .imports import HEADERS, preview_csv
@@ -58,6 +59,8 @@ class ProductWorkspace:
                 result = refinancing_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
             elif product_id == "revolving_credit_line":
                 result = revolving_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
+            elif product_id == "investment_loan":
+                result = investment_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
             else:
                 raise ValueError("Продукт не поддерживается.")
         except ValueError as exc:

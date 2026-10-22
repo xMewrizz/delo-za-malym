@@ -39,7 +39,7 @@ export function HomePage() {
       </div>
     </section>
     <section id="products" className="next-products" aria-labelledby="products-heading"><div className="next-section-heading next-heading-row"><div><p className="next-eyebrow">РАЗНЫЕ ЗАДАЧИ — РАЗНЫЕ РЕШЕНИЯ</p><h2 id="products-heading">Капитал для<br /><em className="silver-text">вашего движения.</em></h2></div><p>Выберите направление.<br />Условия подберём в кабинете<br />с учётом вашего бизнеса.</p></div><ProductsCatalog />
-      <div className="next-horizons-heading"><span>Следующие возможности</span><span>В разработке</span></div><div className="next-horizons">{upcomingProducts.map(product => <article key={product.id}><span>{product.number}<ArrowUpRight size={17} /></span><h3>{product.name}</h3><p>{product.description}</p><small>Скоро</small></article>)}</div>
+      {upcomingProducts.length > 0 && <><div className="next-horizons-heading"><span>Следующие возможности</span><span>В разработке</span></div><div className="next-horizons">{upcomingProducts.map(product => <article key={product.id}><span>{product.number}<ArrowUpRight size={17} /></span><h3>{product.name}</h3><p>{product.description}</p><small>Скоро</small></article>)}</div></>}
     </section>
     <section className="next-journey" id="selection-guide" aria-labelledby="guide-heading"><div className="next-section-heading"><p className="next-eyebrow">ОТ «НУЖНЫ ДЕНЬГИ» К ПОНЯТНОМУ ПЛАНУ</p><h2 id="guide-heading">Ваше дело.<br /><em>Ваш следующий шаг.</em></h2></div><ol>{[
       ["Расскажите о задаче", "В форме или в разговоре. Нужна закупка, запас оборотных средств или деньги до выручки?"],

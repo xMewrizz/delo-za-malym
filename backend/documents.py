@@ -108,7 +108,16 @@ class InvoiceDocuments:
             sources = deepcopy((pending or {}).get("field_sources", {})) if chat else {}
             identifier = body.transaction_id or "invoice-" + document_id
             conflicts = []
-            if body.target == "loan_amount":
+            if body.target == "project_cost":
+                if need.get("purpose") != "investment" and need.get("preferred_product") != "investment_loan":
+                    raise ProcessError("invoice_project_not_applicable", "Стоимость проекта используется в инвестиционном кредите.", 422)
+                if need.get("project_cost") is not None and need["project_cost"] != body.amount:
+                    conflicts.append("стоимость проекта")
+                changes["need.project_cost"] = body.amount
+                sources["need.project_cost"] = self.source(document, "amount", body.amount)
+            elif body.target == "loan_amount":
+                if need.get("preferred_product") in ("investment_loan", "refinancing"):
+                    raise ProcessError("invoice_amount_derived", "Сумма кредита рассчитывается по параметрам продукта. Для проекта используйте стоимость проекта.", 422)
                 existing = need.get("requested_amount")
                 if existing is not None and existing != body.amount:
                     conflicts.append("сумма кредита")

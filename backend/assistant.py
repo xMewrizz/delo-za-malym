@@ -51,6 +51,8 @@ need — пожелания клиента, а не одобренные усл�
 предлагай повторно сохранять те же поля. Пожелание сохранить сумму не отменяет вопрос.
 Для рефинансирования предложи purpose=refinancing и preferred_product=refinancing. Кредиты для замены клиент отмечает в рабочей области: не проси вручную переписывать банковские остатки и графики, не выдумывай их идентификаторы. Сумму определяет система по выбранным долгам. Разницу в платеже и общей оставшейся стоимости объясняй отдельно: меньший платёж не обязательно означает экономию.
 Ты не вызываешь отправку, подпись или выдачу. Изменения сначала подтверждает клиент.
+Инвестиционный кредит — purpose=investment, preferred_product=investment_loan. Для оборудования или проекта собери project_cost (полная стоимость), own_funds (собственный взнос), principal_grace_months (0/3/6, только если клиент выбрал) и срок. Сумму кредита система вычисляет как стоимость минус взнос; не приравнивай стоимость проекта к кредиту. Минимальный взнос 20%. Во время отсрочки платятся проценты, затем основной долг; отсрочка увеличивает переплату и последующий платёж. Не обещай одобрение.
+
 Возобновляемая кредитная линия — preferred_product=revolving_credit_line, purpose=working_capital. Подходит для регулярных закупок; сумма запроса здесь желаемый лимит. Выборки частями, погашение основного долга восстанавливает доступный лимит, оплата процентов его не увеличивает. Проценты начисляются на фактический долг, а не весь открытый лимит. После открытия клиент управляет выборками и платежами в «Моём финансировании» с отдельным подтверждением. Ты не выполняешь эти операции и не утверждаешь, что уже выдала деньги. Резерв нагрузки в предложении — проверка платёжеспособности всего лимита, не фиксированный платёж по договору.
 Ответь ровно одним JSON-объектом без markdown и рассуждений:
 {"text":"ответ клиенту", "intent":"ask_clarification", "changes":{}, "question":"вопрос или null"}.
@@ -71,9 +73,9 @@ priority: lowest_payment/lowest_total_cost/preserve_amount}. Неизвестн�
 В остальных намерениях preferences: null. Результат нового расчёта объясняй по переданным
 данным со следующего сообщения, не придумывай результат вызова заранее.
 Разрешены только отдельные поля need: purpose (working_capital/investment/refinancing/
-contract_execution/other), preferred_product (working_capital_loan/overdraft/refinancing/revolving_credit_line),
-requested_amount, minimum_acceptable_amount, own_funds (строки рублей с двумя знаками),
-term_months (целое), needed_by (YYYY-MM-DD), recurring (boolean),
+contract_execution/other), preferred_product (working_capital_loan/overdraft/refinancing/revolving_credit_line/investment_loan),
+project_cost, requested_amount, minimum_acceptable_amount, own_funds (строки рублей с двумя знаками),
+principal_grace_months (0/3/6), term_months (целое), needed_by (YYYY-MM-DD), recurring (boolean),
 financing_pattern (cash_gap/gradual_repayment), priority
 (lowest_payment/lowest_total_cost/preserve_amount). Неизвестные поля можно установить в null.
 Пример changes: {"need.requested_amount":"500000.00", "need.term_months":12}.
@@ -143,6 +145,19 @@ class FactsExtractionReply(RequestModel):
     # The application owns clarification cards during fact collection.
     question: None = None
 
+    @model_validator(mode="before")
+    @classmethod
+    def flat_need_fields(cls, value):
+        # Два эквивалентных представления одного раздела; список разрешённых полей
+        # и проверка значений ниже остаются обязательными для каждого поля.
+        if isinstance(value, dict):
+            changes = value.get("changes")
+            if isinstance(changes, dict) and set(changes) == {"need"} and isinstance(changes["need"], dict):
+                return {**value, "changes": {f"need.{field}": item for field, item in changes["need"].items()}}
+            if isinstance(changes, dict) and changes and set(changes) <= NEED_FIELDS:
+                return {**value, "changes": {f"need.{field}": item for field, item in changes.items()}}
+        return value
+
     @model_validator(mode="after")
     def allowed_changes(self):
         validate_changes(self.changes)
@@ -151,7 +166,7 @@ class FactsExtractionReply(RequestModel):
 
 ENUMS = {
     "purpose": {"working_capital", "investment", "refinancing", "contract_execution", "other"},
-    "preferred_product": {"working_capital_loan", "overdraft", "refinancing", "revolving_credit_line"},
+    "preferred_product": {"working_capital_loan", "overdraft", "refinancing", "revolving_credit_line", "investment_loan"},
     "financing_pattern": {"cash_gap", "gradual_repayment"},
     "priority": {"lowest_payment", "lowest_total_cost", "preserve_amount"},
 }
@@ -167,7 +182,7 @@ def validate_changes(changes):
         if field in ENUMS:
             if not isinstance(value, str) or value not in ENUMS[field]:
                 raise ValueError("Неизвестное значение поля.")
-        elif field in {"requested_amount", "minimum_acceptable_amount", "own_funds"}:
+        elif field in {"requested_amount", "minimum_acceptable_amount", "own_funds", "project_cost"}:
             if not isinstance(value, str) or not re.fullmatch(r"\d{1,12}\.\d{2}", value):
                 raise ValueError("Некорректная денежная сумма.")
             try:
@@ -175,6 +190,8 @@ def validate_changes(changes):
                     raise ValueError("Сумма должна быть положительной.")
             except InvalidOperation:
                 raise ValueError("Некорректная денежная сумма.") from None
+        elif field == "principal_grace_months" and (type(value) is not int or value not in (0, 3, 6)):
+            raise ValueError("Отсрочка: 0, 3 или 6 месяцев.")
         elif field == "term_months" and (type(value) is not int or not 1 <= value <= 120):
             raise ValueError("Некорректный срок.")
         elif field == "recurring" and type(value) is not bool:
@@ -464,11 +481,12 @@ existing_debt_payments определяет приложение: их НЕ во
 Если новых данных нет — overdraft_plan:null. Не возвращай пустой объект overdraft_plan:{}.
 changes содержит только явно изменённые поля с ПОЛНЫМИ именами:
 need.purpose: working_capital/investment/refinancing/contract_execution/other;
-need.preferred_product: working_capital_loan/overdraft/refinancing/revolving_credit_line;
+need.preferred_product: working_capital_loan/overdraft/refinancing/revolving_credit_line/investment_loan;
 need.financing_pattern: gradual_repayment/cash_gap;
-need.requested_amount, need.minimum_acceptable_amount, need.own_funds: строки рублей с двумя знаками, например "150000.00";
-need.term_months: целое число месяцев, например 12; need.needed_by: строка YYYY-MM-DD;
+need.project_cost, need.requested_amount, need.minimum_acceptable_amount, need.own_funds: строки рублей с двумя знаками, например "150000.00";
+need.principal_grace_months: 0, 3 или 6; need.term_months: целое число месяцев, например 12; need.needed_by: строка YYYY-MM-DD;
 need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/preserve_amount.
+Инвестиционный кредит — purpose=investment, preferred_product=investment_loan. Для оборудования или проекта собери project_cost (полная стоимость), own_funds (собственный взнос), principal_grace_months (0/3/6, только если клиент выбрал) и срок. Сумму кредита система вычисляет как стоимость минус взнос; не приравнивай стоимость проекта к кредиту. Минимальный взнос 20%. Во время отсрочки платятся проценты, затем основной долг; отсрочка увеличивает переплату и последующий платёж. Не обещай одобрение.
 Покупка товара и сырья — purpose=working_capital. minimum_acceptable_amount — только если клиент явно подтвердил достаточность меньшей суммы.
 Фраза «нужны именно 500 тысяч, меньше не хватит» оставляет changes пустым, если запрос уже 500000.00: minimum_acceptable_amount не заполняй и не приравнивай к requested_amount.
 Не добавляй другие поля, например валюту, банк, комментарий или тип заёмщика.

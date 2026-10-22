@@ -61,6 +61,7 @@ def calculate_loan(
     amount: str | None,
     term_months: int | None,
     annual_rate_percent: str | None,
+    *, principal_grace_months: int = 0,
 ) -> LoanCalculationResult:
     """Рассчитать график без комиссий; ставка — проценты годовых, например '24.00'."""
     missing: list[CalculationIssue] = []
@@ -83,6 +84,8 @@ def calculate_loan(
         invalid.append(CalculationIssue(
             "term_months", "invalid_term", f"Нужен целый срок от 1 до {MAX_TERM_MONTHS} месяцев."
         ))
+    if type(principal_grace_months) is not int or principal_grace_months < 0 or (type(term_months) is int and principal_grace_months >= term_months):
+        invalid.append(CalculationIssue("principal_grace_months", "invalid_grace", "Отсрочка должна быть короче срока кредита."))
     if invalid or missing:
         return LoanCalculationResult(
             "invalid_data" if invalid else "needs_information", issues=tuple(invalid + missing)
@@ -95,8 +98,8 @@ def calculate_loan(
         context.rounding = ROUND_HALF_UP
         monthly_rate = annual_rate / 100 / 12
         raw_payment = (
-            principal * monthly_rate / (1 - (1 + monthly_rate) ** (-term_months))
-            if monthly_rate else principal / term_months
+            principal * monthly_rate / (1 - (1 + monthly_rate) ** (-(term_months - principal_grace_months)))
+            if monthly_rate else principal / (term_months - principal_grace_months)
         )
         payment = raw_payment.quantize(CENT)
         balance = principal
@@ -104,7 +107,7 @@ def calculate_loan(
         for month_number in range(1, term_months + 1):
             interest = (balance * monthly_rate).quantize(CENT)
             # Ограничение остатком исключает переплату при округлении маленьких сумм.
-            due = balance + interest if month_number == term_months else min(payment, balance + interest)
+            due = interest if month_number <= principal_grace_months else balance + interest if month_number == term_months else min(payment, balance + interest)
             principal_payment = due - interest
             closing_balance = balance - principal_payment
             schedule.append(LoanPayment(

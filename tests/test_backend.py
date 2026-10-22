@@ -50,7 +50,7 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(profile["client_id"], "demo-client")
         self.assertEqual(len(profile["financials"]["monthly"]), 6)
         products = self.client.get("/api/products").json()
-        self.assertEqual([product["product_id"] for product in products], ["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line"])
+        self.assertEqual([product["product_id"] for product in products], ["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line", "investment_loan"])
         self.assertNotIn("terms", products[1])
         schema = self.client.get("/openapi.json")
         self.assertEqual(schema.status_code, 200)

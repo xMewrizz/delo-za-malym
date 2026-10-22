@@ -61,7 +61,7 @@ uv run --env-file .env --frozen uvicorn backend.main:app --reload
 }
 ```
 
-Из ответа сохраняем `application.application_id` и `application.application_version`. Профиль и история финансов уже заполнены. Для расчёта выбирается один из четырёх продуктов; у овердрафта заполняется `product_details.overdraft` по [его контракту](OVERDRAFT.md), у рефинансирования — `product_details.refinancing.loan_ids` по [контракту замены долгов](REFINANCING.md). Линия использует `preferred_product: "revolving_credit_line"`; сумма запроса — лимит, срок — 6 или 12 месяцев.
+Из ответа сохраняем `application.application_id` и `application.application_version`. Профиль и история финансов уже заполнены. Для расчёта выбирается один из пяти продуктов; у овердрафта заполняется `product_details.overdraft` по [его контракту](OVERDRAFT.md), у рефинансирования — `product_details.refinancing.loan_ids` по [контракту замены долгов](REFINANCING.md). Для инвестиционного кредита задаются `project_cost`, `own_funds`, `principal_grace_months` и срок в `need`; сумма вычисляется сервером. [Правила и график](INVESTMENT_LOAN.md). Линия использует `preferred_product: "revolving_credit_line"`; сумма запроса — лимит, срок — 6 или 12 месяцев.
 
 Изменение через `PATCH /api/applications/{id}`:
 

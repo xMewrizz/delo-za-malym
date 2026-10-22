@@ -32,7 +32,7 @@ export const documentsSchema = z.array(
   }),
 );
 export type Invoice = z.infer<typeof documentsSchema>[number];
-export type InvoiceTarget = "loan_amount" | "planned_expense" | "evidence";
+export type InvoiceTarget = "loan_amount" | "planned_expense" | "project_cost" | "evidence";
 export type InvoiceValues = {
   amount: string;
   due_date: string | null;

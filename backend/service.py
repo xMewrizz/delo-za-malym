@@ -15,6 +15,7 @@ from .portfolio import refinanced_loans, cash_disbursed
 from credit_engine.refinancing import assess_refinancing
 from credit_engine.financials import MONEY_PATTERN
 from credit_engine.revolving import assess_revolving
+from credit_engine.investment import assess_investment, project_values
 
 
 class ProcessError(Exception):
@@ -24,7 +25,7 @@ class ProcessError(Exception):
 
 
 NEED_FIELDS = {"purpose", "preferred_product", "requested_amount", "term_months", "needed_by", "recurring",
-               "own_funds", "priority", "minimum_acceptable_amount", "financing_pattern"}
+               "own_funds", "priority", "minimum_acceptable_amount", "financing_pattern", "project_cost", "principal_grace_months"}
 FINANCIAL_FIELDS = {"monthly", "cash_balance", "existing_loans", "largest_buyer_share"}
 EDITABLE_STATES = {"draft", "waiting_for_data", "check_retry_pending", "offers_ready", "conditions_pending",
                    "ready_to_sign", "offer_expired", "declined", "out_of_policy"}
@@ -165,7 +166,7 @@ class CreditProcess:
                 details = application.get("product_details") or {}
                 if details.get("overdraft"):
                     details["overdraft"] = include_scheduled_payments(details["overdraft"], application["financials"]["existing_loans"], closed=closed)
-            self._refinancing_amount(application)
+            self._normalize_product_need(application)
             self.store.save(connection, record)
         return self.public(record)
 
@@ -216,7 +217,7 @@ class CreditProcess:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
         self._check_bank_financials(known, record["application"].get("financials"))
-        self._refinancing_amount(record["application"])
+        self._normalize_product_need(record["application"])
         if record["application"]["need"].get("preferred_product") == "revolving_credit_line":
             record["application"]["need"].update(recurring=True, financing_pattern="gradual_repayment")
         details = record["application"].get("product_details") or {}
@@ -234,8 +235,14 @@ class CreditProcess:
         event(record, "application_updated", now, fields=list(changes))
 
     @staticmethod
-    def _refinancing_amount(application):
+    def _normalize_product_need(application):
         need = application["need"]
+        if need.get("preferred_product") == "investment_loan" or (need.get("purpose") == "investment" and not need.get("preferred_product")):
+            need.update(purpose="investment", preferred_product="investment_loan", financing_pattern="gradual_repayment", minimum_acceptable_amount=None)
+            project, _ = project_values(need)
+            need["requested_amount"] = project["loan_amount"] if project else None
+            application.setdefault("product_details", {}).pop("overdraft", None)
+            return
         if need.get("preferred_product") != "refinancing" and need.get("purpose") != "refinancing":
             return
         need.update(purpose="refinancing", preferred_product="refinancing", financing_pattern="gradual_repayment",
@@ -269,6 +276,11 @@ class CreditProcess:
             previous = record.get("recommendation") or {}
             checks = demo.simulate_checks(record["application"], record["simulator"], now,
                                           retry=previous.get("status") in ("check_retry_pending", "needs_checks"))
+            if record["application"]["need"].get("preferred_product") == "investment_loan":
+                from credit_engine.investment import investment_options
+                result = investment_options(record["application"], checks, calculated_at=now)
+                record["recommendation"] = {**result, "recommended_product_id": "investment_loan" if result["options"] else None, "candidates": []}
+                return
             if record["application"]["need"].get("preferred_product") == "revolving_credit_line":
                 from credit_engine.revolving import revolving_options
                 result = revolving_options(record["application"], checks, calculated_at=now)
@@ -295,7 +307,7 @@ class CreditProcess:
             raise ProcessError("product_pattern_conflict", "Для постепенного возврата по графику выберите разовый кредит или уточните задачу.", 422)
         if product not in demo.SUPPORTED_PRODUCTS:
             raise ProcessError("product_required", "Выберите кредитный продукт.", 422)
-        return assess_revolving if product == "revolving_credit_line" else assess_refinancing if product == "refinancing" else assess_overdraft if product == "overdraft" else assess_application
+        return assess_investment if product == "investment_loan" else assess_revolving if product == "revolving_credit_line" else assess_refinancing if product == "refinancing" else assess_overdraft if product == "overdraft" else assess_application
 
     def _assess(self, record, now, *, stage, retry=False):
         calculator = self._calculator(record)
@@ -439,7 +451,7 @@ class CreditProcess:
             if not overdraft and not revolving:
                 from credit_engine.cashflow import payment_calendar
                 from .overdraft_chat import local_now
-                schedule = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]["schedule"]
+                schedule = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"], principal_grace_months=offer.get("investment", {}).get("principal_grace_months", 0)).to_dict()["calculation"]["schedule"]
                 record["completion"]["schedule"] = payment_calendar(schedule, local_now(now).date())
             set_state(record, "limit_opened" if overdraft or revolving else "disbursed", "completion", "none",
                       "Кредитная линия открыта" if revolving else "Рефинансирование завершено" if repaid else "Лимит открыт" if overdraft else "Кредит выдан", now)

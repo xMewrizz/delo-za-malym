@@ -73,7 +73,7 @@ class ApplicationView(BaseModel):
 
 class UseInvoice(ConfirmedAction):
     document_revision: StrictInt = Field(ge=1)
-    target: Literal["loan_amount", "planned_expense", "evidence"]
+    target: Literal["loan_amount", "planned_expense", "project_cost", "evidence"]
     amount: str
     due_date: str | None = None
     transaction_id: str | None = Field(default=None, min_length=1, max_length=100)
@@ -224,12 +224,17 @@ class InflowDelay(RequestModel):
 
 
 class ExploreOptions(VersionAction):
-    product_id: Literal["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line"]
+    product_id: Literal["working_capital_loan", "overdraft", "refinancing", "revolving_credit_line", "investment_loan"]
     preferences: LoanPreferences = Field(default_factory=LoanPreferences)
     delay: InflowDelay | None = None
 
     @model_validator(mode="after")
     def matching_product(self):
+        if self.product_id == "investment_loan":
+            if self.preferences.requested_amount is not None:
+                raise ValueError("Сумма кредита рассчитывается из стоимости проекта и собственного взноса.")
+            if "maximum_term" not in self.preferences.model_fields_set:
+                self.preferences.maximum_term = 60
         if self.product_id != "overdraft" and self.delay is not None:
             raise ValueError("Перенос поступления доступен в плане овердрафта.")
         if self.product_id == "overdraft" and self.preferences.model_fields_set:

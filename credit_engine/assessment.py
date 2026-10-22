@@ -24,6 +24,7 @@ class WorkingCapitalPolicy:
     minimum_business_months: int = 12
     offer_valid_days: int = 7
     checks_valid_hours: int = 24
+    principal_grace_months: int = 0
 
     def __post_init__(self) -> None:
         amounts = (self.minimum_amount, self.maximum_amount, self.amount_step)
@@ -35,6 +36,8 @@ class WorkingCapitalPolicy:
         if (not self.terms or any(type(term) is not int or not 1 <= term <= 600 for term in self.terms)
                 or tuple(sorted(set(self.terms))) != self.terms):
             raise ValueError("Сроки должны быть уникальны, упорядочены и находиться в пределах 1–600 месяцев")
+        if type(self.principal_grace_months) is not int or not 0 <= self.principal_grace_months < min(self.terms):
+            raise ValueError("Отсрочка должна быть короче каждого доступного срока")
         if (not isinstance(self.annual_rate_percent, str) or not MONEY_PATTERN.fullmatch(self.annual_rate_percent)):
             raise ValueError("Ставка должна быть неотрицательной строкой с двумя знаками после точки")
         for value in (self.minimum_business_months, self.offer_valid_days, self.checks_valid_hours):
@@ -63,7 +66,7 @@ class AssessmentResult:
 
 
 def _loan(amount: Decimal, term: int, policy: WorkingCapitalPolicy) -> LoanCalculation:
-    return calculate_loan(f"{amount:.2f}", term, policy.annual_rate_percent).calculation
+    return calculate_loan(f"{amount:.2f}", term, policy.annual_rate_percent, principal_grace_months=policy.principal_grace_months).calculation
 
 
 def _maximum_affordable(
@@ -174,7 +177,7 @@ def _assess_application(
         return AssessmentResult("invalid_data", issues=tuple(invalid + missing))
     if missing:
         return finish("needs_information", "missing_application_data", "Нужны данные заявки.", fields=missing)
-    request = calculate_loan(need["requested_amount"], need["term_months"], policy.annual_rate_percent)
+    request = calculate_loan(need["requested_amount"], need["term_months"], policy.annual_rate_percent, principal_grace_months=policy.principal_grace_months)
     if request.status != "calculated":
         return AssessmentResult("invalid_data", issues=tuple(
             CalculationIssue(f"need.{issue.field}", issue.code, issue.message) for issue in request.issues

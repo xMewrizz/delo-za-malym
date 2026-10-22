@@ -11,11 +11,12 @@ import { describeIssue, outcomeName, productName } from "../model/presentation";
 import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
 import { LoanOptionDetails } from "./loan-option-details";
+import { InvestmentTerms } from "./investment-terms";
 import { RefinancingBaseline, RefinancingEffect } from "./refinancing-comparison";
 import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 import { z } from "zod";
 
-type ProductId = "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line";
+type ProductId = "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line" | "investment_loan";
 
 export function ExplorationPanel({
   view,
@@ -49,14 +50,14 @@ export function ExplorationPanel({
   const product: ProductId =
     productOverride?.context === productContext
       ? productOverride.product
-      : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
+      : need.preferred_product === "investment_loan" ? "investment_loan" : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
           (!need.preferred_product && need.financing_pattern === "cash_gap")
         ? "overdraft"
         : "working_capital_loan";
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("");
   const [minTerm, setMinTerm] = useState("6");
-  const [maxTerm, setMaxTerm] = useState(need.preferred_product === "revolving_credit_line" ? "12" : need.preferred_product === "refinancing" ? "48" : "36");
+  const [maxTerm, setMaxTerm] = useState(need.preferred_product === "investment_loan" ? "60" : need.preferred_product === "revolving_credit_line" ? "12" : need.preferred_product === "investment_loan" ? "60" : product === "refinancing" ? "48" : "36");
   const [priority, setPriority] = useState("preserve_amount");
   const [preserveAmount, setPreserveAmount] = useState(true);
   const [error, setError] = useState("");
@@ -119,7 +120,7 @@ export function ExplorationPanel({
       };
       const requested = normalizeMoneyInput(amount);
       const maximumPayment = normalizeMoneyInput(payment);
-      if (requested && product !== "refinancing") preferences.requested_amount = requested;
+      if (requested && product !== "refinancing" && product !== "investment_loan") preferences.requested_amount = requested;
       if (maximumPayment) preferences.maximum_monthly_payment = maximumPayment;
       onExplore(product, preferences);
       setError("");
@@ -335,7 +336,7 @@ export function ExplorationPanel({
                   <p className="mt-3 text-xs text-muted-foreground">
                     {option.term_months ? option.term_months + " мес. · " : ""}
                     {option.monthly_payment
-                      ? "В месяц " + formatMoney(option.monthly_payment)
+                      ? (option.product_id === "investment_loan" ? "Максимальный платёж " : "В месяц ") + formatMoney(option.monthly_payment)
                       : option.product_id === "revolving_credit_line" ? "Проценты ежемесячно; основной долг — до конца срока" : "Возврат из поступлений на счёт"}
                   </p>
                   {typeof option.total_interest === "string" && <p className="mt-1 text-xs text-muted-foreground">Переплата: {formatMoney(option.total_interest)}</p>}
@@ -357,6 +358,7 @@ export function ExplorationPanel({
                       Без поручительства и залога
                     </p>
                   )}
+                  {option.product_id === "investment_loan" && <InvestmentTerms offer={option} />}
                   {option.product_id === "refinancing" && <RefinancingEffect offer={option} />}
                   {option.product_id === "revolving_credit_line" && <RevolvingTerms value={option.revolving} />}
                   {option.product_id === "working_capital_loan" &&
@@ -399,7 +401,7 @@ export function ExplorationPanel({
             Рассчитаем: {productName(product)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {product === "refinancing" ? "Сумма равна остатку выбранных долгов. Сравним несколько сроков, платежи и оставшуюся стоимость." : product === "overdraft"
+            {product === "investment_loan" ? "Сумма равна стоимости проекта минус ваш взнос. Платёж проверяем после отсрочки; сравниваем полную переплату." : product === "refinancing" ? "Сумма равна остатку выбранных долгов. Сравним несколько сроков, платежи и оставшуюся стоимость." : product === "overdraft"
               ? "Лимит и проценты определим по сохранённым поступлениям и расходам."
               : amount.trim()
                 ? `Сумма для сравнения: ${amount} ₽. Исходный запрос не меняется.`
@@ -412,7 +414,7 @@ export function ExplorationPanel({
           )}
           <div>
             <fieldset disabled={busy} className="mt-4 space-y-5">
-              {need.purpose !== "refinancing" && need.preferred_product !== "refinancing" && <ChoiceField
+              {need.purpose !== "refinancing" && need.preferred_product !== "refinancing" && product !== "investment_loan" && <ChoiceField
                 id="compare-product"
                 label="Продукт"
                 value={product}
@@ -432,7 +434,7 @@ export function ExplorationPanel({
               {product !== "overdraft" ? (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    {product !== "refinancing" && (
+                    {product !== "refinancing" && product !== "investment_loan" && (
                     <FormField
                       id="compare-amount"
                       label="Сумма для сравнения, ₽"
@@ -479,7 +481,7 @@ export function ExplorationPanel({
                       },
                     ]}
                   />}
-                  {product !== "refinancing" && (
+                  {product !== "refinancing" && product !== "investment_loan" && (
                   <label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
                     <input
                       type="checkbox"

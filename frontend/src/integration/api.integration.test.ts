@@ -35,7 +35,7 @@ describe.skipIf(!base)("frontend contracts against the running backend", () => {
   afterAll(() => vi.unstubAllGlobals());
   it("accepts the real profile, catalog and all fourteen assessment responses", async () => {
     expect((await getProfile()).company_name).toBeTruthy();
-    expect(await getProducts()).toHaveLength(4);
+    expect(await getProducts()).toHaveLength(5);
     const scenarios = await listScenarios();
     expect(scenarios).toHaveLength(14);
     for (const scenario of scenarios) {

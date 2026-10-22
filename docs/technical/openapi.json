@@ -2497,7 +2497,8 @@
               "working_capital_loan",
               "overdraft",
               "refinancing",
-              "revolving_credit_line"
+              "revolving_credit_line",
+              "investment_loan"
             ],
             "title": "Product Id"
           },
@@ -2913,6 +2914,7 @@
             "enum": [
               "loan_amount",
               "planned_expense",
+              "project_cost",
               "evidence"
             ],
             "title": "Target"

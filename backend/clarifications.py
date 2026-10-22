@@ -39,6 +39,18 @@ def next_clarification(chat, record, now):
     def choice(identifier, label, changes=None, plan_update=None):
         return {"choice_id": identifier, "label": label, "_changes": changes or {}, "_plan": plan_update}
 
+    if need.get("purpose") == "investment" or need.get("preferred_product") == "investment_loan":
+        if not need.get("project_cost"):
+            return card("need.project_cost", "Сколько стоит весь проект или оборудование?", input_type="money")
+        if need.get("own_funds") is None:
+            return card("need.own_funds", "Какую сумму вложите сами? Нужно не менее 20% стоимости проекта.", input_type="money")
+        if need.get("principal_grace_months") is None:
+            return card("need.principal_grace_months", "Нужна отсрочка основного долга? Проценты платятся ежемесячно.", [
+                choice("none", "Без отсрочки", {"need.principal_grace_months": 0}),
+                choice("three", "3 месяца", {"need.principal_grace_months": 3}),
+                choice("six", "6 месяцев", {"need.principal_grace_months": 6})])
+        return None
+
     if plan:
         for operation in plan.get("transactions", []):
             identifier = operation["transaction_id"]

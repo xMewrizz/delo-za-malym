@@ -54,7 +54,7 @@ export function CabinetOverview({ applications, loading, error }: { applications
       <section className="dashboard-card pulse-assistant"><div className="dashboard-card-heading"><span className="dashboard-kicker">ЛУМА / ИИ-АССИСТЕНТ</span><ArrowUpRight size={17} /></div><div className="luma-dashboard-portrait"><LumaAvatar size={80} /></div><h2>Яснее с деньгами.<br />Ближе к планам.</h2><p>Разберём задачу, соберём данные<br />и посмотрим на варианты.</p><div className="pulse-prompt-chips"><Link to="/cabinet?mode=assistant">Нужны деньги на закупку</Link><Link to="/cabinet?mode=assistant">Выручка придёт позже</Link></div><Link to="/cabinet?mode=assistant" className="pulse-assistant-action"><span>Обсудить с Лумой</span><ArrowUpRight size={17} /></Link></section>
     </div>
     <section className="dashboard-next-step"><div><span className="dashboard-kicker">ИДЕЯ ЕСТЬ. ОСТАЛОСЬ НАЧАТЬ.</span><h2>Деньги под вашу задачу.</h2><p>Известные сведения уже в профиле. Уточним только необходимое.</p></div><Button asChild><Link to="/cabinet?mode=manual">Получить финансирование<ArrowUpRight size={17} /></Link></Button></section>
-    <div className="dashboard-future"><span>На следующем этапе</span>{upcomingProducts.map(product => <span key={product.id}>{product.name}<small>Скоро</small></span>)}</div>
+    {upcomingProducts.length > 0 && <div className="dashboard-future"><span>На следующем этапе</span>{upcomingProducts.map(product => <span key={product.id}>{product.name}<small>Скоро</small></span>)}</div>}
     {(calendar.error || profile.error) && <p role="alert" className="text-sm text-destructive">{getErrorMessage(calendar.error || profile.error)}</p>}
   </div>;
 }

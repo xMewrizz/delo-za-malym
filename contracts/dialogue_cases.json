@@ -96,6 +96,8 @@
       "need": {"purpose": "working_capital", "preferred_product": "revolving_credit_line", "requested_amount": "500000.00", "term_months": 12},
       "text": "Если погашу часть основного долга по возобновляемой линии, смогу использовать эту сумму снова? Только объясни, параметры не меняй и операции не выполняй.",
       "expect": {"no_changes": true}
-    }
+    },
+    {"id": "investment_project_request", "text": "Хочу инвестиционный кредит на покупку станка. Полная стоимость проекта 1 миллион, своих внесу 200 тысяч. Срок 36 месяцев, отсрочка основного долга 3 месяца.", "expect": {"changes": {"need.purpose": "investment", "need.preferred_product": "investment_loan", "need.project_cost": "1000000.00", "need.own_funds": "200000.00", "need.term_months": 36, "need.principal_grace_months": 3}, "not_changed": ["need.requested_amount"]}},
+    {"id": "investment_grace_explanation", "need": {"purpose": "investment", "preferred_product": "investment_loan", "project_cost": "1000000.00", "own_funds": "200000.00", "requested_amount": "800000.00", "term_months": 36, "principal_grace_months": 3}, "text": "При отсрочке я совсем ничего не плачу? Объясни, что плачу в первые три месяца и после них. Ничего в заявке не меняй.", "expect": {"no_changes": true}}
   ]
 }

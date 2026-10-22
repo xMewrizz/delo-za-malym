@@ -24,7 +24,7 @@ export type ApplicationActions = {
     action: "preview" | "recommendations" | "retry" | "submit" | "cancel",
   ) => void;
   explore: (
-    productId: "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line",
+    productId: "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line" | "investment_loan",
     preferences: Record<string, unknown>,
     delay?: { transaction_id: string; days: number },
   ) => void;
@@ -119,7 +119,7 @@ export function ApplicationWorkspace({
   useEffect(() => {
     if (!calculateAfterSave.current || busy) return;
     calculateAfterSave.current = false;
-    actions.explore(need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
+    actions.explore(need.preferred_product === "investment_loan" ? "investment_loan" : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
   }, [step, busy, actions, wantsPlan, need.preferred_product]);
   const saveNeed = (changes: Record<string, unknown>) =>
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });

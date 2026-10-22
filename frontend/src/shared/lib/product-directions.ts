@@ -1,6 +1,4 @@
-export const upcomingProducts = [
-  { id: "investment_loan", name: "Инвестиционный кредит", short: "Вложиться в следующий этап", description: "Оборудование, новые мощности и развитие бизнеса.", number: "05" },
-] as const;
+export const upcomingProducts: readonly { id: string; name: string; short: string; description: string; number: string }[] = [];
 
 export function financingName(id?: string | null) {
   const names: Record<string, string> = {

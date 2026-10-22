@@ -10,6 +10,8 @@ export type NeedDraft = {
   ownFunds: string;
   neededBy: string;
   recurring: string;
+  projectCost?: string;
+  graceMonths?: string;
 };
 
 export function mergeNeedDraft(
@@ -50,6 +52,8 @@ export function draftFromApplication(view: ApplicationView): NeedDraft {
     ownFunds: need.own_funds || "",
     neededBy: need.needed_by || "",
     recurring: need.recurring == null ? "" : String(need.recurring),
+    projectCost: need.project_cost || "",
+    graceMonths: need.principal_grace_months?.toString() || "0",
   };
 }
 
@@ -88,13 +92,23 @@ export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
     try { return normalizeMoneyInput(draft[field], allowZero); }
     catch (cause) { throw new NeedValidationError(field, (cause as Error).message); }
   };
+  const investment = draft.preferredProduct === "investment_loan" || draft.purpose === "investment";
+  let projectCost: string | null = null;
+  if (investment) {
+    try { projectCost = normalizeMoneyInput(draft.projectCost || ""); }
+    catch (cause) { throw new NeedValidationError("projectCost", (cause as Error).message); }
+    if (!projectCost) throw new NeedValidationError("projectCost", "Укажите стоимость проекта.");
+    if (!draft.ownFunds.trim()) throw new NeedValidationError("ownFunds", "Укажите собственный взнос.");
+    if (Number(money("ownFunds", true)) >= Number(projectCost)) throw new NeedValidationError("ownFunds", "Собственный взнос должен быть меньше стоимости проекта.");
+  }
   return {
+    ...(investment ? { "need.project_cost": projectCost, "need.principal_grace_months": Number(draft.graceMonths || "0"), "need.preferred_product": "investment_loan" } : {}),
     "need.purpose": draft.purpose || null,
-    "need.preferred_product": draft.preferredProduct || null,
-    "need.requested_amount": money("requestedAmount"),
+    "need.preferred_product": investment ? "investment_loan" : draft.preferredProduct || null,
+    "need.requested_amount": investment ? null : money("requestedAmount"),
     "need.term_months": term ? Number(term) : null,
     "need.financing_pattern": draft.financingPattern || null,
-    "need.minimum_acceptable_amount": money("minimumAmount"),
+    "need.minimum_acceptable_amount": investment ? null : money("minimumAmount"),
     "need.own_funds": money("ownFunds", true),
     "need.needed_by": draft.neededBy || null,
     "need.recurring":

@@ -53,7 +53,7 @@ export function NeedForm({
   }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
   const [errorField, setErrorField] = useState<keyof NeedDraft | null>(null);
-  const fieldIds = { purpose: "need-purpose", requestedAmount: "need-amount", termMonths: "need-term", minimumAmount: "need-minimum", ownFunds: "need-own" };
+  const fieldIds = { projectCost: "need-project-cost", purpose: "need-purpose", requestedAmount: "need-amount", termMonths: "need-term", minimumAmount: "need-minimum", ownFunds: "need-own" };
   const fieldError = (key: keyof NeedDraft) => errorField === key ? error : undefined;
   const [chooseProduct, setChooseProduct] = useState(Boolean(draft.preferredProduct));
   const cashFlow = useCashFlowDraft(view, true);
@@ -62,10 +62,11 @@ export function NeedForm({
     Boolean(view.application.product_details?.overdraft),
   );
   const refinancing = draft.purpose === "refinancing" || draft.preferredProduct === "refinancing";
+  const investment = draft.purpose === "investment" || draft.preferredProduct === "investment_loan";
   const revolving = draft.preferredProduct === "revolving_credit_line";
   const [refinancingLoans, setRefinancingLoans] = useSavedDraft(`delo-refinancing:${view.application.application_id}:${view.application.application_version}`, refinancingIds(view));
   const nextIsPlan =
-    !revolving && (draft.preferredProduct === "overdraft" || draft.financingPattern === "cash_gap");
+    !investment && !revolving && (draft.preferredProduct === "overdraft" || draft.financingPattern === "cash_gap");
   const set = (key: keyof NeedDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
     if (key === errorField) { setError(""); setErrorField(null); }
@@ -86,8 +87,8 @@ export function NeedForm({
         changes["product_details.refinancing"] = { loan_ids: refinancingLoans };
       }
       if (continueToNextStep && !draft.purpose) throw new NeedValidationError("purpose", "Выберите задачу: например, закупку товара или оплату до поступления выручки.");
-      if (continueToNextStep && !refinancing && !nextIsPlan && !draft.requestedAmount.trim()) throw new NeedValidationError("requestedAmount", "Укажите, сколько денег нужно на задачу.");
-      if (continueToNextStep && !refinancing && !revolving && (nextIsPlan || includePayments)) {
+      if (continueToNextStep && !refinancing && !investment && !nextIsPlan && !draft.requestedAmount.trim()) throw new NeedValidationError("requestedAmount", "Укажите, сколько денег нужно на задачу.");
+      if (continueToNextStep && !refinancing && !investment && !revolving && (nextIsPlan || includePayments)) {
         changes["product_details.overdraft"] = buildOverdraftPlan(
           { ...cashFlow.draft, openingCash: cashFlow.bankCash || "0.00" },
           (view.application.financials.existing_loans || []).filter(loan => !loan.schedule).map(loan => loan.loan_id),
@@ -128,8 +129,8 @@ export function NeedForm({
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant={!refinancing && draft.financingPattern === "gradual_repayment" ? "secondary" : "outline"}
-              aria-pressed={!refinancing && draft.financingPattern === "gradual_repayment"}
+              variant={!refinancing && !investment && !revolving && draft.financingPattern === "gradual_repayment" ? "secondary" : "outline"}
+              aria-pressed={!refinancing && !investment && !revolving && draft.financingPattern === "gradual_repayment"}
               size="sm"
               onClick={() => selectTask("gradual_repayment")}
             >
@@ -144,6 +145,7 @@ export function NeedForm({
             >
               Дождаться выручки
             </Button>
+            <Button type="button" size="sm" variant={investment ? "secondary" : "outline"} aria-pressed={investment} onClick={() => setDraft(current => ({ ...current, purpose: "investment", preferredProduct: "investment_loan", financingPattern: "gradual_repayment", termMonths: "36", graceMonths: "0", minimumAmount: "" }))}>Купить оборудование</Button>
             <Button type="button" size="sm" variant={refinancing ? "secondary" : "outline"} aria-pressed={refinancing} onClick={() => setDraft(current => ({ ...current, purpose: "refinancing", preferredProduct: "refinancing", financingPattern: "gradual_repayment", requestedAmount: "", minimumAmount: "", ownFunds: "" }))}>Объединить кредиты</Button>
             <Button type="button" size="sm" variant={revolving ? "secondary" : "outline"} aria-pressed={revolving} onClick={() => { setChooseProduct(true); setDraft(current => ({ ...current, purpose: "working_capital", preferredProduct: "revolving_credit_line", recurring: "true", financingPattern: "gradual_repayment", termMonths: "12" })); }}>Регулярные закупки</Button>
             <Button
@@ -152,7 +154,7 @@ export function NeedForm({
               size="sm"
               onClick={() => {
                 setChooseProduct(true);
-                setDraft(current => ({ ...current, purpose: current.purpose === "refinancing" ? "working_capital" : current.purpose || "working_capital", preferredProduct: "working_capital_loan" }));
+                setDraft(current => ({ ...current, purpose: ["refinancing", "investment"].includes(current.purpose) ? "working_capital" : current.purpose || "working_capital", preferredProduct: "working_capital_loan" }));
               }}
             >
               Я знаю продукт
@@ -165,7 +167,7 @@ export function NeedForm({
             label="Для чего нужны деньги"
             error={fieldError("purpose")}
             value={draft.purpose}
-            onValueChange={(value) => { set("purpose", value); if (value === "refinancing") set("preferredProduct", "refinancing"); else if (draft.preferredProduct === "refinancing") set("preferredProduct", ""); }}
+            onValueChange={(value) => { set("purpose", value); if (value === "investment") { set("preferredProduct", "investment_loan"); set("financingPattern", "gradual_repayment"); } else if (value === "refinancing") set("preferredProduct", "refinancing"); else if (["refinancing", "investment_loan"].includes(draft.preferredProduct)) set("preferredProduct", ""); }}
             options={purposes}
           />
           {chooseProduct && (
@@ -173,7 +175,7 @@ export function NeedForm({
             id="need-product"
             label="Предпочитаемый продукт"
             value={draft.preferredProduct}
-            onValueChange={(value) => { set("preferredProduct", value); if (value === "refinancing") set("purpose", "refinancing"); else if (draft.purpose === "refinancing") set("purpose", "working_capital"); }}
+            onValueChange={(value) => { set("preferredProduct", value); if (value === "investment_loan") { set("purpose", "investment"); set("financingPattern", "gradual_repayment"); } else if (value === "refinancing") set("purpose", "refinancing"); else if (["refinancing", "investment"].includes(draft.purpose)) set("purpose", "working_capital"); }}
             options={[
               {
                 value: "working_capital_loan",
@@ -181,12 +183,13 @@ export function NeedForm({
               },
               { value: "overdraft", label: "Овердрафт" },
               { value: "refinancing", label: "Рефинансирование" },
+              { value: "investment_loan", label: "Инвестиционный кредит" },
               { value: "revolving_credit_line", label: "Возобновляемая кредитная линия" },
             ]}
             hint="Если не знаете, подберём после сохранения."
           />
           )}
-          {!refinancing && (
+          {!refinancing && !investment && (
           <div>
             <FormField
               id="need-amount"
@@ -203,6 +206,12 @@ export function NeedForm({
             />
           </div>
           )}
+          {investment && <>
+            <FormField id="need-project-cost" label="Стоимость проекта, ₽" value={draft.projectCost || ""} inputMode="decimal" error={fieldError("projectCost")} onChange={event => set("projectCost", event.target.value)} hint="Оборудование, ремонт или запуск новой точки — полная стоимость." />
+            <FormField id="need-own" label="Собственный взнос, ₽" value={draft.ownFunds} inputMode="decimal" error={fieldError("ownFunds")} onChange={event => set("ownFunds", event.target.value)} hint="От 20% стоимости проекта. Кредит покроет оставшуюся часть." />
+            <fieldset className="space-y-2"><legend className="text-xs font-semibold">Отсрочка основного долга</legend><div className="flex flex-wrap gap-2">{[{value:"0",label:"Без отсрочки"},{value:"3",label:"3 месяца"},{value:"6",label:"6 месяцев"}].map(option => <Button key={option.value} type="button" size="sm" aria-pressed={(draft.graceMonths || "0") === option.value} variant={(draft.graceMonths || "0") === option.value ? "secondary" : "outline"} onClick={() => set("graceMonths", option.value)}>{option.label}</Button>)}</div><p className="text-xs text-muted-foreground">Во время отсрочки платите проценты; затем платёж станет выше. Отсрочка входит в общий срок.</p></fieldset>
+            <p className="rounded-xl bg-secondary p-4 text-sm self-end">Кредит на проект: {Math.max(0, Number((draft.projectCost || "0").replaceAll(" ", "").replace(",", ".")) - Number((draft.ownFunds || "0").replaceAll(" ", "").replace(",", "."))).toLocaleString("ru-RU")} ₽</p>
+          </>}
           {!nextIsPlan && <FormField
             id="need-term"
             error={fieldError("termMonths")}
@@ -212,7 +221,7 @@ export function NeedForm({
             inputMode="numeric"
             placeholder="Например, 12"
           />}
-          {!refinancing && !revolving && (
+          {!refinancing && !investment && !revolving && (
           <ChoiceField
             id="need-pattern"
             label="Как планируете возвращать"
@@ -225,7 +234,7 @@ export function NeedForm({
           />
           )}
         </div>
-        {!refinancing && <details className="rounded-xl border border-border p-4">
+        {!refinancing && !investment && <details className="rounded-xl border border-border p-4">
           <summary className="cursor-pointer text-sm font-semibold">
             Дополнительно: сроки, собственные средства и сумма поменьше
           </summary>
@@ -279,7 +288,7 @@ export function NeedForm({
         </details>}
         {refinancing && <RefinancingLoans view={view} selected={refinancingLoans} onChange={setRefinancingLoans} />}
         {revolving && <p className="rounded-xl bg-secondary p-4 text-sm">Укажите, сколько денег может понадобиться одновременно. Линию можно использовать частями; после погашения основного долга лимит снова доступен. Проценты — на фактический долг, возврат основного долга — до конца срока линии.</p>}
-        {continueToNextStep && !refinancing && !revolving && (
+        {continueToNextStep && !refinancing && !investment && !revolving && (
           <section className="space-y-4 border-t border-border pt-5" aria-label="Предстоящие платежи и поступления">
             {nextIsPlan ? (
               <div>
