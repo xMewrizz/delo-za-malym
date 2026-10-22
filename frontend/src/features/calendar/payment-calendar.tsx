@@ -63,7 +63,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
       {product === "all" && plans.length > 0 && <label className="block max-w-xl text-sm font-semibold">Показать поступления и расходы
         <select className="mt-2 block min-h-11 w-full rounded-xl border border-input bg-background p-3 text-sm font-normal" value={planId} onChange={event => setPlan(event.target.value)}>
           <option value="">Только графики полученных кредитов</option>
-          {plans.map(item => <option key={item.application_id} value={item.application_id}>{item.application_id === initialPlanId ? "Самостоятельный подбор" : item.application_id === assistantPlanId ? "Диалог с ассистентом" : item.state === "disbursed" || item.state === "limit_opened" ? "Полученное финансирование" : "Другая заявка"}{item.amount ? ` · ${formatMoney(item.amount)}` : ""}{item.state === "draft" ? " · черновик" : ""}</option>)}
+          {plans.map(item => <option key={item.application_id} value={item.application_id}>{item.application_id === initialPlanId ? "Самостоятельный подбор" : item.application_id === assistantPlanId ? "Диалог с Лумой" : item.state === "disbursed" || item.state === "limit_opened" ? "Полученное финансирование" : "Другая заявка"}{item.amount ? ` · ${formatMoney(item.amount)}` : ""}{item.state === "draft" ? " · черновик" : ""}</option>)}
         </select>
         <span className="mt-2 block text-xs font-normal text-muted-foreground">Показываем один выбранный план. Платежи по всем полученным кредитам учитываются вместе с ним.</span>
       </label>}

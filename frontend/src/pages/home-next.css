@@ -4,7 +4,8 @@
 .next-eyebrow>span { width:6px; height:6px; border-radius:50%; background:var(--lime); box-shadow:0 0 15px #e0ff5340; }
 .next-hero-copy { position:relative; z-index:2; }
 .next-hero h1 { margin-top:26px; font-size:clamp(56px,6.4vw,104px); line-height:.99; letter-spacing:-.075em; font-weight:650; }
-.next-hero h1>span { display:inline-flex; align-items:center; gap:20px; color:var(--primary); }
+.next-hero h1>span { display:inline-flex; align-items:center; gap:20px; color:var(--lime); }
+html[data-theme=light] .next-hero h1>span { color:var(--primary); }
 .next-hero h1>span svg { width:.65em; height:.65em; border-radius:50%; background:var(--lime); color:#202116; padding:8px; stroke-width:1.4; }
 .next-hero-lead { color:var(--muted-foreground); font-size:16px; line-height:1.8; margin-top:28px; }
 .next-hero-actions { display:flex; align-items:center; flex-wrap:wrap; gap:25px; margin-top:30px; }

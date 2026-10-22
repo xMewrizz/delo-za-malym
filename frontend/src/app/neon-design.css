@@ -5,7 +5,9 @@ html .app-header[data-hidden=true] { transform:translateY(calc(-100% - 1px)); po
 html .app-header:has(:focus-visible) { transform:translateY(0); pointer-events:auto; }
 html .app-shell [id] { scroll-margin-top:120px; }
 html .app-header-inner { min-height:96px; gap:24px; }
-.brand-logo { display:inline-block; max-width:100%; vertical-align:middle; }
+.brand-logo { display:inline-flex; align-items:center; gap:11px; max-width:100%; vertical-align:middle; }
+.brand-logo-symbol { width:34px; height:34px; flex:0 0 auto; color:var(--brand-ink); }
+.brand-logo-wordmark { flex:1; min-width:0; }
 html .brand-logo img { width:100%; height:auto; }
 .brand-logo-on-dark { display:none; }
 html[data-theme=light] .brand-logo-on-dark { display:none; }
@@ -29,11 +31,11 @@ html .workspace-company { flex-shrink:0; background:var(--card); border-radius:1
 html .company-avatar { background:var(--accent); color:var(--accent-foreground); }
 html .workspace-navigation nav { flex-shrink:0; gap:6px; }
 html .workspace-navigation nav button { min-height:46px; padding:12px; gap:12px; color:var(--muted-foreground); font-size:12px; font-weight:550; border-radius:10px; }
-html .workspace-navigation nav button[aria-current=page] { background:var(--lime); color:#242919; font-weight:750; }
+html .workspace-navigation nav button[aria-current=page] { background:var(--accent); color:var(--accent-foreground); font-weight:650; }
 html .workspace-navigation nav button[aria-current=page]::before { display:none; }
-html .workspace-navigation nav button[aria-current=page] small { background:#191d1015; color:#242919; }
+html .workspace-navigation nav button[aria-current=page] small { background:var(--card); color:var(--accent-foreground); }
 html .workspace-navigation nav button:hover { background:var(--secondary); color:var(--foreground); }
-html .workspace-navigation nav button[aria-current=page]:hover { background:var(--lime); color:#242919; }
+html .workspace-navigation nav button[aria-current=page]:hover { background:var(--accent); color:var(--accent-foreground); }
 .workspace-assistant-shortcut { display:flex; flex-shrink:0; align-items:center; gap:12px; width:100%; padding:17px 13px; margin-top:20px; border:1px solid var(--border); border-radius:14px; background:var(--card); text-align:left; cursor:pointer; transition:background .2s,border-color .2s; }
 .workspace-assistant-shortcut:hover { background:var(--secondary); border-color:var(--accent-foreground); }
 .workspace-assistant-icon { display:grid; place-items:center; width:34px; height:38px; flex-shrink:0; color:var(--primary); }

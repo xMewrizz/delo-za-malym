@@ -64,12 +64,12 @@
   --violet: #b672ff;
   --lilac: #c29dff;
   --periwinkle: #9d94ff;
-  --background: #101014;
+  --background: #111015;
   --foreground: #f3f2f6;
-  --card: #19191f;
-  --primary: #e0ff53;
-  --primary-hover: #cce945;
-  --primary-foreground: #191b10;
+  --card: #1b1921;
+  --primary: #c29dff;
+  --primary-hover: #d6b3ff;
+  --primary-foreground: #241b33;
   --secondary: #24232d;
   --mint: #e0ff53;
   --muted-foreground: #b1aebd;
@@ -88,7 +88,18 @@
   --hero-muted: var(--muted-foreground);
   --chart-1: #b672ff;
   --chart-2: #e0ff53;
-  --surface-raised: #202027;
+  --surface-raised: #23202a;
+  --brand-ink: #c29dff;
+  --luma-ink: #d0afff;
+  --luma-surface: #231e2e;
+  --luma-highlight: #34283f;
+  --luma-border: #493958;
+  --luma-core: #f4ffd3;
+  --luma-ray: #e0ff53;
+  --luma-tip: #c29dff;
+  --luma-orbit: #c29dff36;
+  --luma-glow: #b672ff24;
+  --luma-halo: #c29dff22;
   --plot-grid: #ffffff0b;
 }
 :root[data-theme="light"] {
@@ -96,7 +107,7 @@
   --background: #f6f6f2;
   --foreground: #1a1921;
   --card: #ffffff;
-  --primary: #643297;
+  --primary: #7544d8;
   --primary-hover: #4d217b;
   --primary-foreground: #ffffff;
   --secondary: #eae8f0;
@@ -110,6 +121,17 @@
   --ring: #643297;
   --stage: #f6f6f2;
   --surface-raised: #eeedf1;
+  --brand-ink: #7544d8;
+  --luma-ink: #6535a6;
+  --luma-surface: #f5f0fc;
+  --luma-highlight: #ece0fb;
+  --luma-border: #d9c7ee;
+  --luma-core: #6535a6;
+  --luma-ray: #7544d8;
+  --luma-tip: #9564d1;
+  --luma-orbit: #7544d830;
+  --luma-glow: #b672ff20;
+  --luma-halo: #b672ff0c;
   --plot-grid: #1a19210a;
 }
 @media (max-width: 1000px) {

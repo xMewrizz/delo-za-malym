@@ -3,12 +3,13 @@ import { CashflowChart } from "./cashflow-chart";
 import { monthlyValue } from "@/shared/lib/business-cashflow";
 import { financingName, upcomingProducts } from "@/shared/lib/product-directions";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowRight, ArrowUpRight, Building2, CalendarDays, ChevronRight, CreditCard, FileText, ShieldCheck, Sparkles, TrendingUp, Wallet } from "lucide-react";
+import { ArrowRight, ArrowUpRight, Building2, CalendarDays, ChevronRight, CreditCard, FileText, ShieldCheck, TrendingUp, Wallet } from "lucide-react";
 import { Link } from "react-router";
 import { applicationQueries, stateName, type ApplicationSummary, type Profile } from "@/features/applications";
 import { calendarQuery } from "@/features/calendar/api";
 import { formatMoney } from "@/shared/lib/format";
 import { getErrorMessage } from "@/shared/api/client";
+import { LumaAvatar } from "@/shared/ui/luma-mark";
 import { Button } from "@/shared/ui/button";
 
 const dateLabel = (value: string) => new Date(value.slice(0, 10) + "T12:00:00").toLocaleDateString("ru-RU", { day: "numeric", month: "long" });
@@ -49,7 +50,7 @@ export function CabinetOverview({ applications, loading, error }: { applications
           {shown.length ? <div className="pulse-application-list">{shown.map(item => <Link key={item.application_id} to={"/cabinet?mode=applications&application=" + item.application_id}><span className="pulse-application-icon"><CreditCard size={17} /></span><div><strong>{financingName(item.need.preferred_product)}</strong><span>{stateName(item.state.status)}</span></div><b>{amount(item.need.requested_amount)}</b><ArrowUpRight size={16} /></Link>)}</div> : <div className="pulse-no-applications"><FileText size={24} /><p>{listMode === "active" && applications.length ? "Сейчас нет заявок в работе" : "Ваша следующая идея начинается здесь"}</p><Link to="/cabinet?mode=manual">Подобрать финансирование<ArrowRight size={15} /></Link></div>}
         </>}
       </section>
-      <section className="dashboard-card pulse-assistant"><div className="dashboard-card-heading"><span className="dashboard-kicker">ВАШ ИИ-АССИСТЕНТ</span><ArrowUpRight size={17} /></div><div className="pulse-ai-orbit" aria-hidden="true"><span>✳</span></div><h2>Что у вас<br />в планах?</h2><p>Разберём задачу, соберём данные<br />и посмотрим на варианты.</p><div className="pulse-prompt-chips"><Link to="/cabinet?mode=assistant">Нужны деньги на закупку</Link><Link to="/cabinet?mode=assistant">Выручка придёт позже</Link></div><Link to="/cabinet?mode=assistant" className="pulse-assistant-action"><span>Начать разговор</span><Sparkles size={17} /></Link></section>
+      <section className="dashboard-card pulse-assistant"><div className="dashboard-card-heading"><span className="dashboard-kicker">ЛУМА / ИИ-АССИСТЕНТ</span><ArrowUpRight size={17} /></div><div className="luma-dashboard-portrait"><LumaAvatar size={80} /></div><h2>Яснее с деньгами.<br />Ближе к планам.</h2><p>Разберём задачу, соберём данные<br />и посмотрим на варианты.</p><div className="pulse-prompt-chips"><Link to="/cabinet?mode=assistant">Нужны деньги на закупку</Link><Link to="/cabinet?mode=assistant">Выручка придёт позже</Link></div><Link to="/cabinet?mode=assistant" className="pulse-assistant-action"><span>Обсудить с Лумой</span><ArrowUpRight size={17} /></Link></section>
     </div>
     <section className="dashboard-next-step"><div><span className="dashboard-kicker">ИДЕЯ ЕСТЬ. ОСТАЛОСЬ НАЧАТЬ.</span><h2>Деньги под вашу задачу.</h2><p>Известные сведения уже в профиле. Уточним только необходимое.</p></div><Button asChild><Link to="/cabinet?mode=manual">Получить финансирование<ArrowUpRight size={17} /></Link></Button></section>
     <div className="dashboard-future"><span>На следующем этапе</span>{upcomingProducts.map(product => <span key={product.id}>{product.name}<small>Скоро</small></span>)}</div>

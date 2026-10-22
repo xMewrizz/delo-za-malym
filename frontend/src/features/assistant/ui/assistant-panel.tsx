@@ -1,7 +1,7 @@
 import { RefinancingWorkspace } from "@/features/applications/ui/refinancing-loans";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, MessageCircle, Plus, RefreshCw } from "lucide-react";
+import { ArrowUp, Plus, RefreshCw } from "lucide-react";
 import {
   applicationKeys,
   ExplorationPanel,
@@ -13,6 +13,7 @@ import { ApiError, getErrorMessage } from "@/shared/api/client";
 import { useSavedDraft } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
+import { LumaAvatar, LumaMark } from "@/shared/ui/luma-mark";
 import { Textarea } from "@/shared/ui/textarea";
 import {
   answerClarification,
@@ -270,9 +271,10 @@ export function AssistantPanel({
       <Card className="assistant-conversation gap-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 ref={conversationHeading} tabIndex={-1} className="flex items-center gap-2 text-xl font-extrabold">
-              <MessageCircle className="text-primary" /> Ассистент
-            </h2>
+            <div className="luma-conversation-heading">
+              <LumaAvatar size={44} active={send.isPending} />
+              <div><h2 ref={conversationHeading} tabIndex={-1}>Лума</h2><p>Ваш финансовый ИИ-ассистент</p></div>
+            </div>
             <Button
               variant="outline"
               size="icon"
@@ -285,8 +287,8 @@ export function AssistantPanel({
               <Plus />
             </Button>
           </div>
-          <p className="text-xs text-muted-foreground">
-            Рассказывайте о задаче — кабинет собирает данные рядом.
+          <p className="luma-conversation-intro">
+            Разберёмся вместе. Вы рассказываете — я собираю данные и объясняю варианты.
           </p>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
@@ -345,18 +347,25 @@ export function AssistantPanel({
               <p className="text-xs text-muted-foreground">Загружаем диалог…</p>
             )}
             {!chat.data?.chat.messages.length && !outgoing && (
-              <p className="m-auto max-w-64 text-center text-sm text-muted-foreground">
-                Например: «Завтра нужно заплатить поставщику 450 тысяч. Через
-                неделю покупатель перечислит 500 тысяч».
-              </p>
+              <div className="luma-empty">
+                <LumaAvatar size={68} />
+                <h3>Начнём с вашей идеи?</h3>
+                <p>Расскажите, на что нужны деньги и когда. Я помогу уточнить детали и разобраться в вариантах.</p>
+                <div className="luma-starters" aria-label="Примеры задач для Лумы">{[
+                  ["Закупить товар", "Нужны деньги на закупку товара."],
+                  ["Дождаться выручки", "Нужно оплатить поставщику до поступления выручки."],
+                ].map(([label, text]) => <button key={label} type="button" disabled={busy || !editable} onClick={() => { setMessage(text); messageBox.current?.focus(); }}>{label}</button>)}</div>
+                <small>Предложения проверяете вы. Отправка заявки — после вашего подтверждения.</small>
+              </div>
             )}
             {chat.data?.chat.messages.map((item) => (
               <div
                 className={`assistant-message ${item.role === "user" ? "assistant-message-user" : ""}`}
                 key={item.message_id}
               >
-                <p className="mb-1 text-xs font-bold opacity-60">
-                  {item.role === "user" ? "Вы" : "Ассистент"}
+                <p className="luma-message-author">
+                  {item.role !== "user" && <LumaMark size={16} />}
+                  {item.role === "user" ? "Вы" : "Лума"}
                 </p>
                 <p className="whitespace-pre-wrap">{item.text}</p>
               </div>
@@ -371,9 +380,9 @@ export function AssistantPanel({
               </div>
             )}
             {send.isPending && (
-              <p role="status" className="text-sm text-primary">
-                Собираем данные и готовим ответ…
-              </p>
+              <div role="status" className="luma-thinking">
+                <LumaAvatar size={26} active />Лума разбирается в задаче…
+              </div>
             )}
           </div>
           {sendError && send.variables && (
@@ -425,7 +434,7 @@ export function AssistantPanel({
                   event.currentTarget.form?.requestSubmit();
                 }
               }}
-              placeholder="Расскажите о задаче…"
+              placeholder="Расскажите Луме о своей задаче…"
               className="min-h-20 resize-none"
               disabled={!editable}
             />

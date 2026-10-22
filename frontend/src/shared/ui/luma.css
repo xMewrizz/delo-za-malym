@@ -1,0 +1,39 @@
+.luma-mark { display:block; flex-shrink:0; aspect-ratio:1; object-fit:contain; user-select:none; }
+.luma-avatar { position:relative; isolation:isolate; display:inline-grid; place-items:center; flex:0 0 auto; width:var(--luma-size); height:var(--luma-size); color:var(--luma-ink); }
+.luma-avatar::after { content:""; position:absolute; z-index:-2; inset:0; border-radius:20%; background:radial-gradient(ellipse,var(--luma-halo) 0%,var(--luma-glow) 35%,transparent 70%); pointer-events:none; }
+.luma-avatar[data-active=true]::after { animation:luma-listening 2s ease-in-out infinite; }
+.luma-conversation-heading { display:flex; align-items:center; gap:12px; min-width:0; }
+.luma-conversation-heading h2 { font-size:21px; font-weight:600; line-height:1.2; letter-spacing:-.04em; }
+.luma-conversation-heading p { color:var(--muted-foreground); margin-top:4px; font-size:11px; }
+.luma-conversation-intro { color:var(--muted-foreground); font-size:12px; line-height:1.7; margin-top:4px; }
+.luma-empty { display:flex; flex-direction:column; align-items:center; margin:auto; padding:22px 4px; max-width:340px; text-align:center; }
+.luma-empty h3 { margin-top:19px; font-size:25px; line-height:1.2; font-weight:550; letter-spacing:-.045em; }
+.luma-empty>p { margin-top:12px; color:var(--muted-foreground); font-size:13px; line-height:1.8; }
+.luma-empty small { margin-top:19px; color:var(--muted-foreground); font-size:10px; line-height:1.7; }
+.luma-starters { display:flex; flex-wrap:wrap; justify-content:center; gap:8px; margin-top:23px; }
+.luma-starters button { border:1px solid var(--luma-border); border-radius:12px; background:var(--luma-surface); color:var(--luma-ink); min-height:44px; padding:10px 13px; font-size:11px; cursor:pointer; transition:border-color .2s,background .2s; }
+.luma-starters button:hover { background:var(--accent); border-color:var(--luma-ink); }
+.luma-starters button:disabled { opacity:.5; cursor:default; }
+.luma-message-author { display:flex; align-items:center; gap:6px; margin-bottom:7px; color:var(--luma-ink); font-size:11px; font-weight:650; }
+.assistant-message-user .luma-message-author { color:inherit; opacity:.65; }
+.luma-thinking { display:flex; align-items:center; gap:10px; padding:7px 2px; color:var(--luma-ink); font-size:12px; }
+html .assistant-message:not(.assistant-message-user) { border:1px solid var(--luma-border); background:var(--luma-surface); }
+html .workspace-assistant-shortcut { background:linear-gradient(110deg,var(--luma-surface),var(--card)); border-color:var(--luma-border); }
+html .workspace-assistant-shortcut[aria-current=page] { border-color:var(--luma-ink); }
+html .workspace-assistant-shortcut strong { font-size:15px; letter-spacing:-.02em; }
+html .workspace-assistant-shortcut small { font-size:11px; margin-top:3px; }
+.luma-shortcut-name { display:flex; align-items:baseline; gap:7px; flex-wrap:wrap; }
+.luma-shortcut-name>span { color:var(--muted-foreground); font-size:9px; }
+.luma-dashboard-portrait { display:grid; place-items:center; margin:25px auto 19px; }
+html .pulse-assistant { background:radial-gradient(ellipse at 50% 20%,var(--luma-highlight),transparent 65%),var(--card); border-color:var(--luma-border); }
+html .pulse-assistant-action { color:var(--luma-ink); border-color:var(--luma-border); background:var(--luma-surface); min-height:46px; }
+html .pulse-assistant-action>svg { background:none; color:inherit; padding:0; }
+.next-home .next-bento .next-bento-ai { background:linear-gradient(130deg,var(--luma-highlight),var(--card) 80%); color:var(--foreground); border-color:var(--luma-border); }
+.next-home .next-bento-ai .next-card-label,.next-home .next-bento-ai p { color:var(--muted-foreground); }
+.next-home .next-bento-ai .next-link-text { color:var(--luma-ink); }
+.next-home .next-ai-symbol { color:var(--luma-ink); width:64px; height:64px; }
+.next-home .next-scene-assistant { border-color:var(--luma-border); }
+.next-home .next-scene-assistant>span:nth-child(2)>strong { display:block; font-size:14px; font-weight:600; }
+@keyframes luma-listening { 50% { opacity:.55; transform:scale(.86); } }
+@media(prefers-reduced-motion:reduce) { .luma-avatar[data-active=true]::after { animation:none; } }
+@media(forced-colors:active) { .luma-avatar { color:CanvasText; }.luma-avatar::after { display:none; }.luma-mark { forced-color-adjust:none; } }

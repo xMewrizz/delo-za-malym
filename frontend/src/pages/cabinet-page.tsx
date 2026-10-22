@@ -28,6 +28,7 @@ import { readSaved } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { LumaMark } from "@/shared/ui/luma-mark";
 import { ThemeToggle } from "@/shared/ui/theme-toggle";
 import { financingName } from "@/shared/lib/product-directions";
 import "./cabinet-page.css";
@@ -42,7 +43,7 @@ const modeNames: Record<Mode, string> = {
   overview: "Обзор",
   business: "Данные бизнеса",
   manual: "Подобрать продукт",
-  assistant: "С ИИ-ассистентом",
+  assistant: "С Лумой",
   applications: "Заявки",
   calendar: "Платёжный календарь",
   portfolio: "Моё финансирование",
@@ -275,7 +276,7 @@ export function CabinetPage() {
     ],
     assistant: [
       "Расскажите о своём деле",
-      "Обсуждайте задачу — суммы, даты и варианты будут появляться рядом.",
+      "Лума поможет разобраться. Суммы, даты и варианты будут появляться рядом с разговором.",
     ],
     applications: [
       "Ваши заявки",
@@ -306,6 +307,7 @@ export function CabinetPage() {
             aria-current={name === mode ? "page" : undefined}
             onClick={() => navigate(name)}
           >
+            {name === "assistant" && <LumaMark size={16} />}
             {modeNames[name]}
           </Button>
         ))}
@@ -408,7 +410,7 @@ export function CabinetPage() {
           !assistant.isFetching && (
             <StartCard
               title="Подберём финансирование в разговоре"
-              text="Расскажите о задаче обычными словами. Ассистент уточнит детали и соберёт отдельный вариант."
+              text="Расскажите о задаче обычными словами. Лума уточнит детали и соберёт отдельный вариант."
               busy={create.isPending}
               onStart={() => create.mutate("assistant")}
             />
