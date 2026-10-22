@@ -25,9 +25,9 @@ export function CabinetOverview({ applications, loading, error }: { applications
   const latest = [...(profile.data?.financials.monthly || [])].sort((a, b) => a.month.localeCompare(b.month)).at(-1);
   const net = monthlyValue(latest, "net");
   const stages = [
-    { name: "Черновики", count: applications.filter(item => item.state.status === "draft").length, color: "var(--periwinkle)" },
-    { name: "В работе", count: active.length, color: "var(--violet)" },
-    { name: "Получено", count: applications.filter(item => ["disbursed", "limit_opened"].includes(item.state.status)).length, color: "var(--lime)" },
+    { name: "Черновики", count: applications.filter(item => item.state.status === "draft").length, color: "var(--input)" },
+    { name: "В работе", count: active.length, color: "var(--chart-1)" },
+    { name: "Получено", count: applications.filter(item => ["disbursed", "limit_opened"].includes(item.state.status)).length, color: "var(--growth)" },
     { name: "Закрыто", count: applications.filter(item => ["cancelled", "declined", "out_of_policy"].includes(item.state.status)).length, color: "var(--muted-foreground)" },
   ];
   const shown = (listMode === "active" ? active : applications).slice(0, 3);
@@ -35,9 +35,9 @@ export function CabinetOverview({ applications, loading, error }: { applications
     <div className="pulse-upper">
       <div className="pulse-metrics">
         <Link to="/cabinet?mode=business" className="pulse-metric pulse-metric-lime"><div><span>На счёте</span><Wallet size={17} /></div><strong>{profile.isPending ? "…" : amount(profile.data?.financials.cash_balance)}</strong><p>Остаток из банковского профиля<ArrowUpRight size={14} /></p></Link>
-        <Link to="/cabinet?mode=business" className="pulse-metric"><div><span>Денежный поток</span><TrendingUp size={17} /></div><strong>{profile.isPending ? "…" : net == null ? "Нет данных" : formatMoney(String(net))}</strong><p>{latest?.month || "Последний месяц"} · после расходов и налогов</p></Link>
+        <Link to="/cabinet?mode=business" className="pulse-metric pulse-metric-flow"><div><span>Денежный поток</span><TrendingUp size={17} /></div><strong>{profile.isPending ? "…" : net == null ? "Нет данных" : formatMoney(String(net))}</strong><p>{latest?.month || "Последний месяц"} · после расходов и налогов</p></Link>
         <Link to="/cabinet?mode=calendar" className="pulse-metric"><div><span>Ближайший платёж</span><CalendarDays size={17} /></div><strong>{calendar.isPending ? "…" : calendar.error ? "Нет данных" : next ? formatMoney(next.amount) : "Нет платежей"}</strong><p>{next ? dateLabel(next.date) : "По доступным графикам"}<ArrowUpRight size={14} /></p></Link>
-        <Link to="/cabinet?mode=applications" className="pulse-metric"><div><span>Заявки в работе</span><FileText size={17} /></div><strong>{loading ? "…" : error ? "—" : active.length}</strong><p>Требуют следующего шага<ArrowUpRight size={14} /></p></Link>
+        <Link to="/cabinet?mode=applications" className="pulse-metric pulse-metric-applications"><div><span>Заявки в работе</span><FileText size={17} /></div><strong>{loading ? "…" : error ? "—" : active.length}</strong><p>Требуют следующего шага<ArrowUpRight size={14} /></p></Link>
       </div>
       <CashflowChart profile={profile.data} loading={profile.isPending} error={profile.error} />
     </div>
