@@ -66,6 +66,11 @@ async function input(selector: string, value: string) {
   });
 }
 
+async function openAssistant() {
+  await click("Получить финансирование");
+  await click("С ИИ-ассистентом");
+}
+
 describe.skipIf(!base)("React cabinet with real FastAPI", () => {
   let root: Root, host: HTMLDivElement;
   const requests: string[] = [];
@@ -137,6 +142,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       () => document.querySelector("#need-amount"),
       "manual need form",
     );
+    expect(document.activeElement?.id).toBe("cabinet-title");
     const manualId = JSON.parse(
       localStorage.getItem("delo-react-contexts")!,
     ).manual;
@@ -145,7 +151,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
     await until(() => button("Выбрать условия"), "real loan options");
-    expect(requests.filter(path => path.endsWith(`/applications/${manualId}/explorations`))).toHaveLength(1);
+    expect(document.activeElement?.textContent).toBe("Ваш запрос");
+    await click("Изменить задачу");
+    expect(document.activeElement?.textContent).toBe("На что нужны деньги?");
+    await click("Посмотреть подходящие предложения");
+    await until(() => button("Выбрать условия"), "reopened loan options");
+    expect(requests.filter(path => path.endsWith(`/applications/${manualId}/explorations`))).toHaveLength(2);
     await click("Выбрать условия");
     await until(() => button("Перейти к заявке"), "apply confirmation");
     await click("Перейти к заявке");
@@ -186,7 +197,27 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await act(async () => paymentDay.click());
     expect(document.querySelector(".calendar-day-details")?.textContent).toContain("По плану");
 
-    await click("С ИИ-ассистентом");
+    await click("Моё финансирование");
+    await until(() => document.querySelectorAll(".portfolio-product").length === 2, "existing and newly issued products");
+    const productCalendar = document.querySelector<HTMLAnchorElement>(`a[href="/cabinet?mode=calendar&product=app:${manualId}"]`)!;
+    expect(productCalendar).toBeTruthy();
+    await act(async () => productCalendar.click());
+    await until(() => document.querySelector<HTMLSelectElement>('[aria-label="Продукт в календаре"]')?.value === `app:${manualId}`, "calendar opened for issued product");
+    await click("К ближайшему платежу");
+    await until(() => document.querySelector(".payment-calendar-grid")?.textContent?.includes("Платёж по кредиту"), "selected product schedule");
+    expect(document.querySelector(".payment-calendar-grid")?.textContent).not.toContain("Платёж по действующему кредиту");
+    const productFilter = document.querySelector<HTMLSelectElement>('[aria-label="Продукт в календаре"]')!;
+    const existingLoan = [...productFilter.options].find(option => option.value.startsWith("loan:"))!;
+    await act(async () => {
+      productFilter.focus();
+      Object.getOwnPropertyDescriptor(HTMLSelectElement.prototype, "value")!.set!.call(productFilter, existingLoan.value);
+      productFilter.dispatchEvent(new Event("change", { bubbles: true }));
+    });
+    await until(() => document.querySelector(".payment-calendar-grid")?.textContent?.includes("Платёж по действующему кредиту"), "bank loan schedule");
+    expect(document.activeElement).toBe(productFilter);
+    expect(document.querySelector(".payment-calendar-grid")?.textContent).not.toContain("Последний платёж по кредиту");
+
+    await openAssistant();
     await until(() => button("Начать подбор"), "assistant start");
     await click("Начать подбор");
     await until(
@@ -268,7 +299,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     expect(after.application.application_version).toBe(2);
     expect(after.application.financials.cash_balance).toBe("800000.00");
 
-    await click("Подобрать продукт");
+    await click("Получить финансирование");
     await until(() => button("Новый подбор"), "manual mode");
     await click("Новый подбор");
     await until(
@@ -278,8 +309,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       "fresh independent manual draft",
     );
     await input("#need-amount", "600000");
-    await click("С ИИ-ассистентом");
-    await click("Подобрать продукт");
+    await openAssistant();
+    await click("Получить финансирование");
     await until(
       () =>
         (document.querySelector("#need-amount") as HTMLInputElement)?.value ===
@@ -304,7 +335,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
         )
       ).application.need.requested_amount,
     ).toBeNull();
-    await click("С ИИ-ассистентом");
+    await openAssistant();
     await until(
       () => document.querySelector('[aria-label="Сообщение ассистенту"]'),
       "restored assistant",
@@ -324,7 +355,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       '[aria-label="Сообщение ассистенту"]',
       "Следующий вопрос ещё не отправлен",
     );
-    await click("Подобрать продукт");
+    await click("Получить финансирование");
     await act(async () => {
       holdMessages = false;
       releaseMessage!();
@@ -340,7 +371,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     expect(button("Подобрать продукт")?.getAttribute("aria-current")).toBe(
       "page",
     );
-    await click("С ИИ-ассистентом");
+    await openAssistant();
     expect(document.querySelector(".assistant-message-outgoing")).toBeNull();
     expect(
       (
@@ -354,7 +385,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     if (root) await act(async () => root.unmount());
     localStorage.clear();
     await render();
-    await click("С ИИ-ассистентом");
+    await openAssistant();
     await until(() => button("Начать подбор"), "new assistant start");
     await click("Начать подбор");
     await until(() => document.querySelector(".clarification-card"), "new conversation ready");
@@ -426,7 +457,27 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await until(() => button("Начать подбор"), "manual cash gap start");
     await click("Начать подбор");
     await until(() => document.querySelector("#need-amount"), "cash gap need form");
+    await click("Посмотреть подходящие предложения");
+    await until(() => document.activeElement?.id === "need-purpose", "focus on missing purpose");
+    expect(document.querySelector("#need-purpose")?.getAttribute("aria-invalid")).toBe("true");
+    expect(document.querySelector("#need-purpose")?.getAttribute("aria-describedby")).toContain("need-purpose-error");
+    await click("Закупить товар");
+    await input("#need-amount", "не сумма");
+    await click("Посмотреть подходящие предложения");
+    await until(() => document.activeElement?.id === "need-amount", "focus on invalid amount");
+    expect(document.querySelector<HTMLInputElement>("#need-amount")?.value).toBe("не сумма");
+    expect(document.querySelector("#need-amount")?.getAttribute("aria-invalid")).toBe("true");
+    await input("#need-amount", "");
+    await input("#need-term", "не срок");
     await click("Дождаться выручки");
+    await click("Посмотреть подходящие предложения");
+    await until(() => document.activeElement?.id === "need-term", "retained term is editable after switching product");
+    expect(document.querySelector("#need-term-error")?.textContent).toContain("Срок должен быть");
+    expect(document.querySelector("#need-term")?.closest("details")?.open).toBe(true);
+    await click("Закупить товар");
+    await input("#need-term", "");
+    await click("Дождаться выручки");
+    expect(document.querySelector("#need-amount")?.getAttribute("aria-describedby")).toContain("need-amount-hint");
     const manualId = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     const needKey = `delo-need:${manualId}:1`;
     expect(JSON.parse(localStorage.getItem(needKey)!).financingPattern).toBe("cash_gap");
@@ -530,7 +581,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     const contexts = JSON.parse(localStorage.getItem("delo-react-contexts")!);
     expect(contexts.manual).toBe(manual.application.application_id);
     expect(contexts.assistant).toBe(assistant.application.application_id);
-    await click("С ИИ-ассистентом");
+    await openAssistant();
     await until(
       () => document.querySelector(".clarification-card"),
       "legacy assistant conversation",

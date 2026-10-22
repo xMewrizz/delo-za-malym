@@ -281,7 +281,7 @@ export function OfferResults({
                   Посмотреть график платежей
                 </summary>
                 <div className="mt-3 max-h-72 overflow-auto rounded-xl bg-background">
-                  <table className="w-full text-left text-xs">
+                  <table aria-label="График погашения выбранного кредита" className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-border">
                         <th className="p-3">Дата</th>

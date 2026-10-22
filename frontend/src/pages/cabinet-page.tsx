@@ -29,14 +29,21 @@ import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
 import "./cabinet-page.css";
+import "./cabinet-workspace.css";
+import { CabinetNavigation, type CabinetMode } from "./cabinet-navigation";
+import { BusinessProfile, CabinetOverview, FinancingPortfolio } from "./cabinet-insights";
 
-type Mode = "manual" | "assistant" | "applications" | "calendar";
+type Mode = CabinetMode;
+type WorkspaceSource = "manual" | "assistant" | "applications";
 type Contexts = { manual: string | null; assistant: string | null };
 const modeNames: Record<Mode, string> = {
+  overview: "Обзор",
+  business: "Данные бизнеса",
   manual: "Подобрать продукт",
   assistant: "С ИИ-ассистентом",
   applications: "Заявки",
   calendar: "Платёжный календарь",
+  portfolio: "Моё финансирование",
 };
 function savedContexts(): Contexts {
   const value = readSaved<Partial<Contexts>>("delo-react-contexts", {});
@@ -53,16 +60,17 @@ export function CabinetPage() {
   const queryClient = useQueryClient(),
     [search, setSearch] = useSearchParams();
   const location = useLocation();
-  const modeNavigation = useRef<HTMLElement>(null);
+  const modeNavigation = useRef<HTMLDivElement>(null);
+  const pageHeading = useRef<HTMLHeadingElement>(null);
   const [allApplications, setAllApplications] = useState(false);
   const requestedMode =
     search.get("mode") ||
     (search.has("application")
       ? "applications"
-      : location.hash.slice(1) || "manual");
+      : location.hash.slice(1) || "overview");
   const mode: Mode = Object.hasOwn(modeNames, requestedMode)
     ? (requestedMode as Mode)
-    : "manual";
+    : "overview";
   const activeMode = useRef<Mode>(mode);
   useEffect(() => {
     activeMode.current = mode;
@@ -137,12 +145,15 @@ export function CabinetPage() {
   const selectedId =
     search.get("application") || applications[0]?.application_id || null;
   const recentApplications = allApplications ? applications : applications.filter((item, index) => index < 6 || item.application_id === selectedId);
-  const previousLocation = useRef(search.toString());
+  const focusLocation = `${mode}:${search.get("application") || ""}`;
+  const previousLocation = useRef(focusLocation);
   useEffect(() => {
-    if (previousLocation.current !== search.toString())
+    if (previousLocation.current !== focusLocation) {
+      pageHeading.current?.focus({ preventScroll: true });
       modeNavigation.current?.scrollIntoView({ block: "start" });
-    previousLocation.current = search.toString();
-  }, [search]);
+    }
+    previousLocation.current = focusLocation;
+  }, [focusLocation]);
   const manual = useQuery({
     ...applicationQueries.detail(contexts.manual || ""),
     enabled: Boolean(contexts.manual),
@@ -193,12 +204,16 @@ export function CabinetPage() {
         }
         return next;
       });
+      if (activeMode.current === source) {
+        pageHeading.current?.focus({ preventScroll: true });
+        modeNavigation.current?.scrollIntoView({ block: "start" });
+      }
     },
   });
   const action = useMutation({
     mutationFn: (task: {
       run: () => Promise<ApplicationView>;
-      source: Exclude<Mode, "calendar">;
+      source: WorkspaceSource;
       applied?: boolean;
       onSaved?: () => void;
       id: string;
@@ -223,7 +238,7 @@ export function CabinetPage() {
       }
     },
   });
-  function actionsFor(view: ApplicationView, source: Exclude<Mode, "calendar">): ApplicationActions {
+  function actionsFor(view: ApplicationView, source: WorkspaceSource): ApplicationActions {
     const id = view.application.application_id,
       version = view.application.application_version;
     const run = (request: () => Promise<ApplicationView>, extra = {}) =>
@@ -249,6 +264,9 @@ export function CabinetPage() {
   const activeDetail =
     mode === "manual" ? manual : mode === "assistant" ? assistant : detail;
   const copy = {
+    overview: ["Хороший день для больших планов", "Ваш бизнес, финансирование и ближайшие шаги — перед глазами."],
+    business: ["Данные вашего бизнеса", "Сведения, которые уже есть у банка. Без повторного ввода и лишних анкет."],
+    portfolio: ["Моё финансирование", "Полученные кредиты, открытые лимиты и обязательства вашего бизнеса."],
     manual: [
       "Финансирование под вашу задачу",
       "Выберите цель, проверьте параметры и сравните условия по данным бизнеса.",
@@ -265,18 +283,21 @@ export function CabinetPage() {
   }[mode];
   return (
     <section className="cabinet-page" aria-labelledby="cabinet-title">
-      <div className="cabinet-heading">
+      <CabinetNavigation mode={mode} company={profile.data?.company_name} applications={applications.length} navigate={navigate} />
+      <div className="workspace-body">
+      <div className="workspace-topbar"><p>Личный кабинет<span>/</span>{mode === "assistant" ? "Получить финансирование" : mode === "manual" ? "Получить финансирование" : modeNames[mode]}</p><span className="workspace-profile-avatar">С</span></div>
+      <div ref={modeNavigation} className="cabinet-heading">
         <div>
           <p className="cabinet-eyebrow">
             <Sparkles className="size-4" />
-            Личный кабинет
+            {profile.data?.company_name || "Ваш бизнес"}
           </p>
-          <h1 id="cabinet-title">{copy[0]}</h1>
+          <h1 ref={pageHeading} tabIndex={-1} id="cabinet-title">{copy[0]}</h1>
           <p>{copy[1]}</p>
         </div>
       </div>
-      <nav ref={modeNavigation} className="cabinet-modes" aria-label="Способ подбора и заявки">
-        {(Object.keys(modeNames) as Mode[]).map((name) => (
+      {(mode === "manual" || mode === "assistant") && <nav className="cabinet-modes" aria-label="Способ подбора финансирования">
+        {(["manual", "assistant"] as const).map((name) => (
           <Button
             key={name}
             variant={name === mode ? "default" : "outline"}
@@ -297,7 +318,10 @@ export function CabinetPage() {
             Новый подбор
           </Button>
         )}
-      </nav>
+      </nav>}
+      {mode === "overview" && <CabinetOverview applications={applications} loading={list.isPending} error={list.error} />}
+      {mode === "business" && <BusinessProfile profile={profile.data} loading={profile.isPending} />}
+      {mode === "portfolio" && <FinancingPortfolio />}
       {mode === "calendar" && <PaymentCalendar initialPlanId={contexts.manual} assistantPlanId={contexts.assistant} />}
       {error && (
         <div
@@ -489,6 +513,7 @@ export function CabinetPage() {
           {getErrorMessage(profile.error)}
         </p>
       )}
+      </div>
     </section>
   );
 }

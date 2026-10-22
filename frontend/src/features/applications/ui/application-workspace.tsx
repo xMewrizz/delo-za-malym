@@ -105,9 +105,13 @@ export function ApplicationWorkspace({
     need.financing_pattern === "cash_gap";
   const calculateAfterSave = useRef(false);
   const stepsRef = useRef<HTMLDivElement>(null);
+  const stepHeading = useRef<HTMLHeadingElement>(null);
   const previousStep = useRef(step);
   useEffect(() => {
-    if (previousStep.current !== step) stepsRef.current?.scrollIntoView({ block: "start" });
+    if (previousStep.current !== step) {
+      stepHeading.current?.focus({ preventScroll: true });
+      stepsRef.current?.scrollIntoView({ block: "start" });
+    }
     previousStep.current = step;
   }, [step]);
   useEffect(() => {
@@ -119,7 +123,7 @@ export function ApplicationWorkspace({
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
   return (
     <div className="space-y-5">
-      <details className="rounded-2xl border border-border bg-card p-4">
+      {!selection && <details className="rounded-2xl border border-border bg-card p-4">
         <summary className="cursor-pointer text-sm font-bold">
           <Building2 className="mr-2 inline size-4 text-primary" />
           {view.client_data.company_name ||
@@ -158,7 +162,7 @@ export function ApplicationWorkspace({
           <p className="text-sm font-semibold">Учтены платежи по действующим кредитам: {formatMoney(String((bank?.existing_loans || []).reduce((sum, loan) => sum + Number(loan.monthly_payment || 0), 0)))} в месяц</p>
           {bank?.existing_loans?.map((loan, index) => <p key={loan.loan_id} className="text-xs text-muted-foreground">Кредит {index + 1}: остаток {formatMoney(loan.outstanding_principal || "0")}, платёж {formatMoney(loan.monthly_payment || "0")} в месяц.</p>)}
         </div>}
-      </details>
+      </details>}
       {selection ? (
         <>
           <div ref={stepsRef} className="selection-step-anchor"><SelectionSteps current={step === "options" ? "options" : "need"} busy={busy}
@@ -166,7 +170,7 @@ export function ApplicationWorkspace({
           {step !== "options" && (
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-extrabold">На что нужны деньги?</h2>
+                <h2 ref={stepHeading} tabIndex={-1} className="text-xl font-extrabold">На что нужны деньги?</h2>
                 <p className="text-sm text-muted-foreground">Укажите задачу и ответьте на уточнения. Данные бизнеса уже известны банку.</p>
               </CardHeader>
               <CardContent>
@@ -180,7 +184,7 @@ export function ApplicationWorkspace({
               {busy && <p role="status" className="rounded-xl bg-primary/10 p-4 text-sm text-primary">Подбираем подходящие условия…</p>}
               <Card>
                 <CardHeader>
-                  <h2 className="text-xl font-extrabold">Ваш запрос</h2>
+                  <h2 ref={stepHeading} tabIndex={-1} className="text-xl font-extrabold">Ваш запрос</h2>
                   <p className="text-sm text-muted-foreground">
                     Эти данные уже учтены. Настройки расчёта можно изменить ниже.
                   </p>

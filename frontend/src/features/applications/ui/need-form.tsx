@@ -13,6 +13,7 @@ import {
   buildNeedChanges,
   draftFromApplication,
   mergeNeedDraft,
+  NeedValidationError,
   type NeedDraft,
 } from "../model/need";
 
@@ -49,6 +50,9 @@ export function NeedForm({
     }
   }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
+  const [errorField, setErrorField] = useState<keyof NeedDraft | null>(null);
+  const fieldIds = { purpose: "need-purpose", requestedAmount: "need-amount", termMonths: "need-term", minimumAmount: "need-minimum", ownFunds: "need-own" };
+  const fieldError = (key: keyof NeedDraft) => errorField === key ? error : undefined;
   const [chooseProduct, setChooseProduct] = useState(Boolean(draft.preferredProduct));
   const cashFlow = useCashFlowDraft(view, true);
   const [includePayments, setIncludePayments] = useSavedDraft(
@@ -58,15 +62,21 @@ export function NeedForm({
   const nextIsPlan =
     draft.preferredProduct === "overdraft" ||
     draft.financingPattern === "cash_gap";
-  const set = (key: keyof NeedDraft, value: string) =>
+  const set = (key: keyof NeedDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
+    if (key === errorField) { setError(""); setErrorField(null); }
+  };
+  const selectTask = (financingPattern: string) => {
+    setDraft(current => ({ ...current, purpose: "working_capital", financingPattern, preferredProduct: "" }));
+    if (errorField === "purpose") { setError(""); setErrorField(null); }
+  };
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
       const changes = buildNeedChanges(draft);
-      if (continueToNextStep && !draft.purpose) throw new Error("Выберите задачу: например, закупку товара или оплату до поступления выручки.");
-      if (continueToNextStep && !nextIsPlan && !draft.requestedAmount.trim()) throw new Error("Укажите, сколько денег нужно на задачу.");
+      if (continueToNextStep && !draft.purpose) throw new NeedValidationError("purpose", "Выберите задачу: например, закупку товара или оплату до поступления выручки.");
+      if (continueToNextStep && !nextIsPlan && !draft.requestedAmount.trim()) throw new NeedValidationError("requestedAmount", "Укажите, сколько денег нужно на задачу.");
       if (continueToNextStep && (nextIsPlan || includePayments)) {
         changes["product_details.overdraft"] = buildOverdraftPlan(
           { ...cashFlow.draft, openingCash: cashFlow.bankCash || "0.00" },
@@ -77,7 +87,21 @@ export function NeedForm({
       }
       onSave(changes);
       setError("");
+      setErrorField(null);
     } catch (cause) {
+      const requestedField = cause instanceof NeedValidationError ? cause.field : null;
+      // A value retained from another product can belong to a hidden field.
+      // Keep a visible summary when there is no rendered control to focus.
+      const field = requestedField && requestedField in fieldIds && document.getElementById(fieldIds[requestedField as keyof typeof fieldIds])
+        ? requestedField : null;
+      setErrorField(field);
+      const targetId = field && field in fieldIds ? fieldIds[field as keyof typeof fieldIds] : "need-form-error";
+      requestAnimationFrame(() => {
+        const target = document.getElementById(targetId);
+        let details = target?.closest("details");
+        while (details) { details.open = true; details = details.parentElement?.closest("details") || null; }
+        target?.focus();
+      });
       setError(
         cause instanceof Error ? cause.message : "Проверьте поля формы.",
       );
@@ -97,14 +121,7 @@ export function NeedForm({
               variant={draft.financingPattern === "gradual_repayment" ? "secondary" : "outline"}
               aria-pressed={draft.financingPattern === "gradual_repayment"}
               size="sm"
-              onClick={() =>
-                setDraft((current) => ({
-                  ...current,
-                  purpose: "working_capital",
-                  financingPattern: "gradual_repayment",
-                  preferredProduct: "",
-                }))
-              }
+              onClick={() => selectTask("gradual_repayment")}
             >
               Закупить товар
             </Button>
@@ -113,14 +130,7 @@ export function NeedForm({
               variant={draft.financingPattern === "cash_gap" ? "secondary" : "outline"}
               aria-pressed={draft.financingPattern === "cash_gap"}
               size="sm"
-              onClick={() =>
-                setDraft((current) => ({
-                  ...current,
-                  purpose: "working_capital",
-                  financingPattern: "cash_gap",
-                  preferredProduct: "",
-                }))
-              }
+              onClick={() => selectTask("cash_gap")}
             >
               Дождаться выручки
             </Button>
@@ -141,6 +151,7 @@ export function NeedForm({
           <ChoiceField
             id="need-purpose"
             label="Для чего нужны деньги"
+            error={fieldError("purpose")}
             value={draft.purpose}
             onValueChange={(value) => set("purpose", value)}
             options={purposes}
@@ -164,6 +175,7 @@ export function NeedForm({
           <div>
             <FormField
               id="need-amount"
+              error={fieldError("requestedAmount")}
               label={nextIsPlan ? "Желаемый лимит, ₽" : "Нужная сумма, ₽"}
               value={draft.requestedAmount}
               onChange={(event) => set("requestedAmount", event.target.value)}
@@ -177,6 +189,7 @@ export function NeedForm({
           </div>
           {!nextIsPlan && <FormField
             id="need-term"
+            error={fieldError("termMonths")}
             label="Срок, месяцев"
             value={draft.termMonths}
             onChange={(event) => set("termMonths", event.target.value)}
@@ -199,6 +212,15 @@ export function NeedForm({
             Дополнительно: сроки, собственные средства и сумма поменьше
           </summary>
           <div className="mt-4 grid gap-5 sm:grid-cols-2">
+            {nextIsPlan && draft.termMonths.trim() && <FormField
+              id="need-term"
+              error={fieldError("termMonths")}
+              label="Сохранённый срок, месяцев"
+              value={draft.termMonths}
+              onChange={(event) => set("termMonths", event.target.value)}
+              inputMode="numeric"
+              hint="Остался от кредитного сценария. Можно очистить, если срок больше не нужен."
+            />}
           <ChoiceField
             id="need-recurring"
             label="Как часто нужны деньги"
@@ -212,6 +234,7 @@ export function NeedForm({
 
             <FormField
               id="need-minimum"
+              error={fieldError("minimumAmount")}
               label="Минимальная достаточная сумма, ₽"
               value={draft.minimumAmount}
               onChange={(event) => set("minimumAmount", event.target.value)}
@@ -220,6 +243,7 @@ export function NeedForm({
             />
             <FormField
               id="need-own"
+              error={fieldError("ownFunds")}
               label="Собственные средства, ₽"
               value={draft.ownFunds}
               onChange={(event) => set("ownFunds", event.target.value)}
@@ -251,8 +275,10 @@ export function NeedForm({
             {(nextIsPlan || includePayments) && <CashFlowFields view={view} {...cashFlow} />}
           </section>
         )}
-        {error && (
+        {error && !errorField && (
           <p
+            id="need-form-error"
+            tabIndex={-1}
             role="alert"
             className="rounded-xl bg-destructive/10 px-4 py-3 text-sm text-destructive"
           >

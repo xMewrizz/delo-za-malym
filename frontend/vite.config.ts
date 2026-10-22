@@ -14,7 +14,7 @@ export default defineConfig(({ mode }) => {
       host: '127.0.0.1',
       port: 5173,
       strictPort: true,
-      proxy: { '/api': { target, changeOrigin: true } },
+      proxy: { '/api': { target, changeOrigin: true }, '/docs': { target, changeOrigin: true }, '/openapi.json': { target, changeOrigin: true } },
     },
   }
 })

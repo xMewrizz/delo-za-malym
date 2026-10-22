@@ -50,7 +50,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     frontend = Path(frontend_directory or os.getenv("FRONTEND_DIST", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
     frontend_index = frontend / "index.html"
     app.mount("/chat-assets", StaticFiles(directory=assets), name="chat-assets")
-    for folder in ("assets", "fonts", "images"):
+    for folder in ("assets", "fonts", "images", "brand", "project-docs"):
         if (frontend / folder).is_dir():
             app.mount("/" + folder, StaticFiles(directory=frontend / folder), name="frontend-" + folder)
 
@@ -60,6 +60,10 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     @app.get("/cabinet", include_in_schema=False)
     def cabinet_page():
+        return FileResponse(frontend_index if frontend_index.is_file() else assets / "chat.html", headers={"Cache-Control": "no-store"})
+
+    @app.get("/project", include_in_schema=False)
+    def project_page():
         return FileResponse(frontend_index if frontend_index.is_file() else assets / "chat.html", headers={"Cache-Control": "no-store"})
 
     @app.get("/cabinet/{page:path}", include_in_schema=False)

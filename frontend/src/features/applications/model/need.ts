@@ -71,19 +71,31 @@ export function normalizeMoneyInput(
   return rubles.replace(/^0+(?=\d)/, "") + "." + kopecks.padEnd(2, "0");
 }
 
+export class NeedValidationError extends Error {
+  field: keyof NeedDraft;
+  constructor(field: keyof NeedDraft, message: string) {
+    super(message);
+    this.field = field;
+  }
+}
+
 export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
   const term = draft.termMonths.trim();
   if (term && (!/^\d+$/.test(term) || Number(term) < 1 || Number(term) > 120)) {
-    throw new Error("Срок должен быть целым числом от 1 до 120 месяцев.");
+    throw new NeedValidationError("termMonths", "Срок должен быть целым числом от 1 до 120 месяцев.");
   }
+  const money = (field: "requestedAmount" | "minimumAmount" | "ownFunds", allowZero = false) => {
+    try { return normalizeMoneyInput(draft[field], allowZero); }
+    catch (cause) { throw new NeedValidationError(field, (cause as Error).message); }
+  };
   return {
     "need.purpose": draft.purpose || null,
     "need.preferred_product": draft.preferredProduct || null,
-    "need.requested_amount": normalizeMoneyInput(draft.requestedAmount),
+    "need.requested_amount": money("requestedAmount"),
     "need.term_months": term ? Number(term) : null,
     "need.financing_pattern": draft.financingPattern || null,
-    "need.minimum_acceptable_amount": normalizeMoneyInput(draft.minimumAmount),
-    "need.own_funds": normalizeMoneyInput(draft.ownFunds, true),
+    "need.minimum_acceptable_amount": money("minimumAmount"),
+    "need.own_funds": money("ownFunds", true),
     "need.needed_by": draft.neededBy || null,
     "need.recurring":
       draft.recurring === "" ? null : draft.recurring === "true",

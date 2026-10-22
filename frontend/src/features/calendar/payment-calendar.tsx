@@ -1,25 +1,14 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
-import { Link } from "react-router";
-import { z } from "zod";
-import { apiRequest, getErrorMessage } from "@/shared/api/client";
+import { Link, useSearchParams } from "react-router";
+import { getErrorMessage } from "@/shared/api/client";
+import { applicationQueries } from "@/features/applications/model/queries";
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import "./payment-calendar.css";
-import { calendarKey } from "./keys";
-
-const eventSchema = z.object({
-  event_id: z.string(), application_id: z.string(), date: z.string(), amount: z.string(),
-  direction: z.enum(["inflow", "outflow", "none"]), kind: z.string(), title: z.string(), forecast: z.boolean(),
-});
-const calendarSchema = z.object({
-  today: z.string(), events: z.array(eventSchema),
-  plans: z.array(z.object({ application_id: z.string(), state: z.string(), amount: z.string().nullable(), events: z.array(eventSchema) })),
-  accounts: z.array(z.object({ application_id: z.string(), product_id: z.string(), amount: z.string(), opened_at: z.string(), outstanding_principal: z.string() })),
-});
-type CalendarEvent = z.infer<typeof eventSchema>;
+import { calendarQuery, filterProductEvents, type CalendarEvent } from "./api";
 
 function shiftMonth(month: string, offset: number) {
   const [year, number] = month.split("-").map(Number);
@@ -31,10 +20,11 @@ const amountLabel = (event: CalendarEvent) =>
   `${event.direction === "inflow" ? "+" : event.direction === "outflow" ? "−" : ""}${formatMoney(event.amount)}`;
 
 export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPlanId?: string | null; assistantPlanId?: string | null }) {
-  const calendar = useQuery({
-    queryKey: calendarKey,
-    queryFn: ({ signal }) => apiRequest("/calendar", calendarSchema, { signal }),
-  });
+  const calendar = useQuery(calendarQuery);
+  const profile = useQuery(applicationQueries.profile());
+  const [search, setSearch] = useSearchParams();
+  const product = search.get("product") || "all";
+  const bankLoans = profile.data?.financials.existing_loans?.filter(loan => !loan.application_id) || [];
   const [initialToday] = useState(() => new Date().toLocaleDateString("en-CA", { timeZone: "Europe/Moscow" }));
   const today = calendar.data?.today || initialToday;
   const [chosenMonth, setMonth] = useState<string | null>(null);
@@ -43,7 +33,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
   const plans = calendar.data?.plans.filter(plan => plan.state !== "cancelled") || [];
   const planId = chosenPlan ?? (plans.some(plan => plan.application_id === initialPlanId) ? initialPlanId : "") ?? "";
   const plan = plans.find(item => item.application_id === planId);
-  const events = [...calendar.data?.events || [], ...plan?.events || []]
+  const events = [...filterProductEvents(calendar.data?.events || [], product), ...(product === "all" ? plan?.events || [] : [])]
     .sort((left, right) => left.date.localeCompare(right.date) || left.event_id.localeCompare(right.event_id));
   const monthEvents = events.filter(event => event.date.startsWith(month));
   const [chosenDate, setDate] = useState<string | null>(null);
@@ -55,7 +45,8 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
   const days = Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
   const nextPayment = events.find(event => event.date >= today && event.direction === "outflow" && !event.kind.startsWith("planned_"));
   return <div className="space-y-5">
-    <p className="max-w-3xl text-sm text-muted-foreground">Здесь собраны графики полученных кредитов. Добавьте к ним поступления и расходы из выбранного плана, чтобы видеть предстоящие платежи вместе. События с отметкой «По плану» ещё не исполнены.</p>
+    <div className="calendar-product-filter"><div><h2>Какие платежи показать?</h2><p>Общий график или обязательства по одному продукту.</p></div><label><span className="sr-only">Продукт в календаре</span><select aria-label="Продукт в календаре" value={product} onChange={event => setSearch(current => { const next = new URLSearchParams(current); if (event.target.value === "all") next.delete("product"); else next.set("product", event.target.value); return next; })}><option value="all">Все продукты</option>{bankLoans.map((loan, index) => <option key={loan.loan_id} value={`loan:${loan.loan_id}`}>Действующий кредит {index + 1} · {formatMoney(loan.outstanding_principal || "0")}</option>)}{calendar.data?.accounts.map(account => <option key={account.application_id} value={`app:${account.application_id}`}>{account.product_id === "overdraft" ? "Овердрафт" : "Оборотный кредит"} · {formatMoney(account.amount)} · {account.application_id.slice(0, 6)}</option>)}</select></label></div>
+    <p className="max-w-3xl text-sm text-muted-foreground">{product === "all" ? "Здесь собраны графики действующих продуктов. Добавьте поступления и расходы выбранного плана, чтобы видеть предстоящие платежи вместе." : "Показан график выбранного продукта. Чтобы вернуться к общему календарю, выберите «Все продукты»."} События с отметкой «По плану» ещё не исполнены.</p>
     {calendar.error && <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">{getErrorMessage(calendar.error)}<Button variant="outline" onClick={() => void calendar.refetch()}><RefreshCw />Повторить загрузку</Button></div>}
     {calendar.isLoading && <p role="status" className="text-sm text-muted-foreground">Загружаем платежи и поступления…</p>}
     <Card><CardContent className="space-y-5 pt-6">
@@ -68,7 +59,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
         <div className="flex flex-wrap gap-2"><Button variant="ghost" size="sm" onClick={() => { setMonth(today.slice(0, 7)); setDate(today); }}>Сегодня</Button>
           {nextPayment && <Button variant="outline" size="sm" onClick={() => { setMonth(nextPayment.date.slice(0, 7)); setDate(nextPayment.date); }}>К ближайшему платежу</Button>}</div>
       </div>
-      {plans.length > 0 && <label className="block max-w-xl text-sm font-semibold">Показать поступления и расходы
+      {product === "all" && plans.length > 0 && <label className="block max-w-xl text-sm font-semibold">Показать поступления и расходы
         <select className="mt-2 block min-h-11 w-full rounded-xl border border-input bg-background p-3 text-sm font-normal" value={planId} onChange={event => setPlan(event.target.value)}>
           <option value="">Только графики полученных кредитов</option>
           {plans.map(item => <option key={item.application_id} value={item.application_id}>{item.application_id === initialPlanId ? "Самостоятельный подбор" : item.application_id === assistantPlanId ? "Диалог с ассистентом" : item.state === "disbursed" || item.state === "limit_opened" ? "Полученное финансирование" : "Другая заявка"}{item.amount ? ` · ${formatMoney(item.amount)}` : ""}{item.state === "draft" ? " · черновик" : ""}</option>)}

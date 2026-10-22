@@ -7,7 +7,7 @@ import {
   RefreshCw,
 } from "lucide-react";
 import { getErrorMessage } from "@/shared/api/client";
-import { formatMoney } from "@/shared/lib/format";
+import { Link } from "react-router";
 import { Button } from "@/shared/ui/button";
 import {
   Card,
@@ -109,27 +109,16 @@ function ProductCard({ product }: { product: Product }) {
         </CardDescription>
       </CardHeader>
       <CardContent className="product-content">
-        <dl className="product-figures">
+        <dl className="product-mechanics">
           <div>
-            <dt>{loan ? "Сумма кредита" : "Доступный лимит"}</dt>
-            <dd>до {formatMoney(product.maximum_amount)}</dd>
+            <dt>Когда подходит</dt>
+            <dd>{loan ? "Для закупок и текущих расходов" : "Когда расходы раньше выручки"}</dd>
           </div>
           <div>
-            <dt>Ставка в год</dt>
-            <dd>
-              {Number(product.annual_rate_percent).toLocaleString("ru-RU")}
-              <span>%</span>
-            </dd>
+            <dt>Как возвращать</dt>
+            <dd>{loan ? "Платежами по графику" : "Поступлениями на счёт"}</dd>
           </div>
         </dl>
-        <div className="product-term">
-          <span>{loan ? "На срок" : "Погашение долга"}</span>
-          <b>
-            {loan
-              ? `${product.terms.join(" / ")} мес.`
-              : `до ${product.max_debt_days} дней`}
-          </b>
-        </div>
         <details className="product-details">
           <summary>
             <span>
@@ -143,30 +132,12 @@ function ProductCard({ product }: { product: Product }) {
             />
           </summary>
           <div className="product-details-content">
-            <p>{product.name}</p>
-            <dl>
-              <div>
-                <dt>{loan ? "Сумма" : "Лимит"}</dt>
-                <dd>
-                  {formatMoney(product.minimum_amount)} —{" "}
-                  {formatMoney(product.maximum_amount)}
-                </dd>
-              </div>
-              <div>
-                <dt>{loan ? "Сроки кредита" : "Срок соглашения"}</dt>
-                <dd>
-                  {loan
-                    ? `${product.terms.join(", ")} мес.`
-                    : `${product.agreement_months} мес.`}
-                </dd>
-              </div>
-            </dl>
-            <p className="product-details-note">
-              Откройте кабинет, чтобы проверить условия по данным бизнеса и
-              сравнить варианты.
-            </p>
+            <p>{loan
+              ? "Деньги выдаются одной суммой под задачу бизнеса. Возврат идёт по графику; погашенную часть кредита нельзя использовать повторно."
+              : "Овердрафт помогает оплатить расходы при временной нехватке денег на счёте. Поступления на счёт уменьшают задолженность."}</p>
           </div>
         </details>
+        <Link className="product-cabinet-link" to="/cabinet?mode=manual">Подобрать условия в кабинете<ArrowUpRight size={17} aria-hidden="true" /></Link>
       </CardContent>
     </Card>
   );

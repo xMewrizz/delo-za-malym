@@ -58,6 +58,9 @@ class PortfolioTests(unittest.TestCase):
         base_debt = sum(Decimal(loan["monthly_payment"]) for loan in baseline["financials"]["existing_loans"])
         self.assertEqual(Decimal(metrics["existing_monthly_debt_service"]), base_debt + Decimal(new_loans[0]["monthly_payment"]))
         calendar = self.client.get("/api/calendar").json()
+        bank_payments = [item for item in calendar["events"] if item["kind"] == "existing_loan_payment"]
+        self.assertTrue(bank_payments)
+        self.assertTrue(all(item["loan_id"] in {loan["loan_id"] for loan in baseline["financials"]["existing_loans"]} for item in bank_payments))
         payments = [item for item in calendar["events"] if item["application_id"] == first["application"]["application_id"] and item["direction"] == "outflow"]
         self.assertEqual(len(payments), 12)
         self.assertTrue(all(item["forecast"] for item in payments))

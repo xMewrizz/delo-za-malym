@@ -49,7 +49,7 @@ class CreditProcess:
         profile, _ = demo.profile(self.clock())
         for loan in profile["financials"].get("existing_loans", []):
             for row in loan.get("schedule", []):
-                result["events"].append({"event_id": f"bank:{loan['loan_id']}:{row['date']}", "application_id": "",
+                result["events"].append({"event_id": f"bank:{loan['loan_id']}:{row['date']}", "application_id": "", "loan_id": loan["loan_id"],
                     "date": row["date"], "amount": row["total_payment"], "direction": "outflow", "kind": "existing_loan_payment",
                     "title": "Платёж по действующему кредиту", "forecast": True})
         result["events"].sort(key=lambda item: (item["date"], item["event_id"]))

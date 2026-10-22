@@ -372,7 +372,7 @@ export function ExplorationPanel({
                     Показать движение по дням
                   </summary>
                   <div className="mt-3 overflow-x-auto rounded-xl border border-border">
-                    <table className="w-full min-w-[690px] text-left text-xs">
+                    <table aria-label="Движение денег по дням при использовании овердрафта" className="w-full min-w-[690px] text-left text-xs">
                       <thead className="bg-secondary">
                         <tr>
                           <th className="p-3">Дата</th>

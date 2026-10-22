@@ -131,7 +131,7 @@ export function CollectedData({
         </h2>
       </div>
       <dl className="collected-facts grid grid-cols-2 gap-3">
-        <div className="collected-fact">
+        <div className="collected-fact" key={`purpose-${need.purpose}-${need.financing_pattern}`}>
           <dt>Задача</dt>
           <dd>
             {need.purpose === "working_capital"
@@ -166,7 +166,7 @@ export function CollectedData({
           )}
         </div>
         {need.term_months && (
-          <div className="collected-fact">
+          <div className="collected-fact" key={`term-${need.term_months}`}>
             <dt>Срок</dt>
             <dd>{need.term_months} мес.</dd>
           </div>

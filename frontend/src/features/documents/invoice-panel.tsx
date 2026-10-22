@@ -96,7 +96,7 @@ export function InvoicePanel({
           </p>
         </div>
         {editable && (
-          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold">
+          <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-ring">
             <FileUp className="size-4 text-primary" />
             {upload.isPending ? "Читаем счёт…" : "Загрузить PDF"}
             <input

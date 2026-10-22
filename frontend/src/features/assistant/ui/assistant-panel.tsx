@@ -45,10 +45,18 @@ export function AssistantPanel({
 }) {
   const [mobilePanel, setMobilePanel] = useState<"conversation" | "workspace">("conversation");
   const panelNavigation = useRef<HTMLDivElement>(null);
+  const conversationHeading = useRef<HTMLHeadingElement>(null);
+  const workspaceHeading = useRef<HTMLHeadingElement>(null);
+  const previousPanel = useRef(mobilePanel);
+  useEffect(() => {
+    if (previousPanel.current !== mobilePanel && window.matchMedia?.("(max-width: 900px)").matches) {
+      (mobilePanel === "conversation" ? conversationHeading : workspaceHeading).current?.focus({ preventScroll: true });
+      panelNavigation.current?.scrollIntoView({ block: "start" });
+    }
+    previousPanel.current = mobilePanel;
+  }, [mobilePanel]);
   function showPanel(panel: "conversation" | "workspace") {
     setMobilePanel(panel);
-    if (window.matchMedia?.("(max-width: 900px)").matches)
-      panelNavigation.current?.scrollIntoView({ block: "start" });
   }
   const queryClient = useQueryClient();
   const [activeChatId, setActiveChatId] = useSavedDraft<string | null>(
@@ -261,7 +269,7 @@ export function AssistantPanel({
       <Card className="assistant-conversation gap-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-3">
-            <h2 className="flex items-center gap-2 text-xl font-extrabold">
+            <h2 ref={conversationHeading} tabIndex={-1} className="flex items-center gap-2 text-xl font-extrabold">
               <MessageCircle className="text-primary" /> Ассистент
             </h2>
             <Button
@@ -442,6 +450,8 @@ export function AssistantPanel({
         </CardContent>
       </Card>
       <div className="assistant-working-area space-y-5">
+        <h2 ref={workspaceHeading} tabIndex={-1} className="sr-only">Данные и предложения</h2>
+        <div className="assistant-update-status" data-busy={busy || preview.isFetching}><i aria-hidden="true" /><span>{busy ? "Обсуждаем задачу — данные появятся здесь" : preview.isFetching ? "Обновляем предварительный расчёт" : "Данные из разговора · обновляются после ответа"}</span></div>
         <CollectedData
           view={projected}
           proposal={pending}

@@ -3,7 +3,9 @@
 import json
 from contextlib import contextmanager
 from contextvars import ContextVar
-from time import monotonic
+from time import monotonic, sleep
+from datetime import datetime, timezone
+from email.utils import parsedate_to_datetime
 import logging
 from dataclasses import dataclass
 from http.client import HTTPException
@@ -67,15 +69,51 @@ class Reply:
 
 
 _deadline = ContextVar("llm_deadline", default=None)
+_attempt_records = ContextVar("llm_attempt_records", default=None)
 
 
 @contextmanager
 def request_budget(seconds):
-    token = _deadline.set(monotonic() + seconds)
+    parent = _deadline.get()
+    deadline = monotonic() + seconds
+    token = _deadline.set(min(parent, deadline) if parent is not None else deadline)
     try:
         yield
     finally:
         _deadline.reset(token)
+
+
+@contextmanager
+def capture_attempts():
+    """Optional per-call diagnostics, without prompts, provider bodies or keys."""
+    records = []
+    token = _attempt_records.set(records)
+    try:
+        yield records
+    finally:
+        _attempt_records.reset(token)
+
+
+class LLMTransientError(RuntimeError):
+    def __init__(self, reason, *, status=None, retry_after=None):
+        self.reason, self.status, self.retry_after = reason, status, retry_after
+        messages = {
+            "timeout": "Истекло HTTP_TIMEOUT_SECONDS при ожидании LLM API.",
+            "connection_error": "LLM API недоступен. Проверьте сервер модели и LLM_API_BASE_URL.",
+            "http_error": f"LLM API вернул HTTP {status}. Проверьте состояние сервера модели.",
+        }
+        super().__init__(messages[reason])
+
+
+def retry_after_seconds(value):
+    if value is None:
+        return 0.5
+    if value.strip().isdigit():
+        return int(value.strip())
+    try:
+        return max(0, (parsedate_to_datetime(value) - datetime.now(timezone.utc)).total_seconds())
+    except (TypeError, ValueError, OverflowError):
+        return 0.5
 
 
 class LLMRateLimit(RuntimeError):
@@ -144,7 +182,46 @@ class LLMClient:
         if estimated_input + reserve > context_size:
             logger.info("LLM context preflight rejected: estimated_input=%s reserve=%s context=%s", estimated_input, reserve, context_size)
             raise LLMContextLimit("Диалог не помещается в контекст модели с запасом на ответ. Начните новый диалог; сохранённая заявка останется.")
-        data = self._request("/chat/completions", payload)
+        return self._complete(payload, context_size)
+
+    def _complete(self, payload, context_size):
+        # Only generation is repeated. Tool execution and chat persistence live
+        # outside this method and therefore cannot be replayed by this retry.
+        with request_budget(self.config.http_timeout_seconds):
+            deadline = _deadline.get()
+            for attempt in (1, 2):
+                started = monotonic()
+                remaining = deadline - started
+                if remaining <= 0:
+                    raise LLMTransientError("timeout")
+                try:
+                    # Reserve time for one retry, including when the first
+                    # attempt times out. Nested budgets never extend the turn.
+                    with request_budget(remaining / (3 - attempt)):
+                        data = self._request("/chat/completions", payload)
+                        reply = self._parse_response(data, context_size)
+                except RuntimeError as exc:
+                    reason = exc.reason if isinstance(exc, (LLMTransientError, LLMProtocolError)) else type(exc).__name__
+                    records = _attempt_records.get()
+                    if records is not None:
+                        records.append({"attempt": attempt, "outcome": "error", "reason": reason,
+                                        "upstream_status": getattr(exc, "status", None),
+                                        "seconds": round(monotonic() - started, 3)})
+                    retryable = isinstance(exc, LLMTransientError) or (
+                        isinstance(exc, LLMProtocolError) and exc.reason == "empty_response")
+                    delay = exc.retry_after if isinstance(exc, LLMTransientError) and exc.retry_after is not None else 0.5
+                    if not retryable or attempt == 2 or delay > 2 or deadline - monotonic() <= delay:
+                        raise
+                    logger.warning("LLM request retry: reason=%s attempt=2 max_attempts=2", reason)
+                    sleep(delay)
+                else:
+                    records = _attempt_records.get()
+                    if records is not None:
+                        records.append({"attempt": attempt, "outcome": "success",
+                                        "seconds": round(monotonic() - started, 3)})
+                    return reply
+
+    def _parse_response(self, data, context_size):
         try:
             choice = data["choices"][0]
             message = choice["message"]
@@ -202,9 +279,12 @@ class LLMClient:
             with urlopen(request, timeout=timeout) as response:
                 data = json.load(response)
         except HTTPError as exc:
+            retry_after = retry_after_seconds(exc.headers.get("Retry-After") if exc.headers else None)
             exc.close()
             if exc.code == 429:
                 raise LLMRateLimit("Достигнут лимит запросов сервера модели. Повторите позже или продолжите через форму.") from None
+            if exc.code in {408, 500, 502, 503, 504}:
+                raise LLMTransientError("http_error", status=exc.code, retry_after=retry_after) from None
             descriptions = {
                 401: "Проверьте LLM_API_KEY.",
                 403: "Сервер запретил доступ к API.",
@@ -215,11 +295,10 @@ class LLMClient:
             hint = descriptions.get(exc.code, "Проверьте состояние сервера модели.")
             raise RuntimeError(f"LLM API вернул HTTP {exc.code}. {hint}") from None
         except TimeoutError:
-            raise RuntimeError("Истекло HTTP_TIMEOUT_SECONDS при ожидании LLM API.") from None
-        except (URLError, ConnectionError, HTTPException):
-            raise RuntimeError(
-                "LLM API недоступен. Проверьте сервер модели и LLM_API_BASE_URL."
-            ) from None
+            raise LLMTransientError("timeout") from None
+        except (URLError, ConnectionError, HTTPException) as exc:
+            reason = "timeout" if isinstance(getattr(exc, "reason", None), TimeoutError) else "connection_error"
+            raise LLMTransientError(reason) from None
         except (ValueError, UnicodeError):
             raise LLMProtocolError("invalid_json") from None
         if not isinstance(data, dict):

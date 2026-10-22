@@ -259,7 +259,7 @@ class CabinetToolsTests(unittest.TestCase):
             with self.subTest(text=text):
                 model.client.reset_mock()
                 model.client.chat.return_value = Reply(json.dumps({"text": "Проверьте данные", "changes": changes,
-                    "overdraft_plan": None, "question": "Есть ли ещё детали?"}, ensure_ascii=False), "stop")
+                    "overdraft_plan": None, "question": None}, ensure_ascii=False), "stop")
                 turn = model.reply_with_tools([{"role": "user", "content": text}],
                                              process=self.process, record=self.record, now=self.now)
                 self.assertEqual(turn.reply.intent, "propose_changes")
@@ -267,6 +267,17 @@ class CabinetToolsTests(unittest.TestCase):
                 self.assertEqual(turn.tools, ())
                 model.client.chat.assert_called_once()
                 self.assertNotIn("tools", model.client.chat.call_args.kwargs)
+                self.assertEqual(self.load(), self.record)
+
+    def test_fact_collection_rejects_model_owned_questions_instead_of_repairing_them(self):
+        model = self.model()
+        for question in ({"field": "need.financing_pattern", "choices": ["cash_gap"]}, "Как возвращать?"):
+            with self.subTest(question=question):
+                model.client.chat.return_value = Reply(json.dumps({"text": "Проверьте данные", "changes": {},
+                    "overdraft_plan": None, "question": question}), "stop")
+                with self.assertRaises(AssistantResponseError):
+                    model.reply_with_tools([{"role": "user", "content": "Мне нужны именно 500 тысяч на закупку. Меньше не хватит."}],
+                        process=self.process, record=self.record, now=self.now)
                 self.assertEqual(self.load(), self.record)
 
     def test_fact_extractor_still_rejects_bank_fields_and_unknown_purpose(self):

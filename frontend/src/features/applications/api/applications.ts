@@ -65,6 +65,9 @@ const financials = z
         z
           .object({
             loan_id: z.string(),
+            application_id: z.string().optional(),
+            maturity_date: z.string().optional(),
+            schedule: z.array(z.object({ date: z.string(), total_payment: money }).passthrough()).optional(),
             monthly_payment: money.nullable().optional(),
             outstanding_principal: money.nullable().optional(),
           })

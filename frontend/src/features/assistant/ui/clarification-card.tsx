@@ -1,6 +1,6 @@
-import { useState, type FormEvent } from "react";
+import { useId, useState, type FormEvent } from "react";
 import { Button } from "@/shared/ui/button";
-import { Input } from "@/shared/ui/input";
+import { FormField } from "@/shared/ui/form-field";
 import type { Clarification } from "../api/chat";
 
 export function ClarificationCard({
@@ -15,6 +15,7 @@ export function ClarificationCard({
   onFreeText: () => void;
 }) {
   const [value, setValue] = useState("");
+  const id = useId();
   function submit(event: FormEvent) {
     event.preventDefault();
     if (value.trim() && !busy) onAnswer({ value: value.trim() });
@@ -22,9 +23,9 @@ export function ClarificationCard({
   return (
     <section
       className="clarification-card"
-      aria-labelledby="clarification-title"
+      aria-labelledby={`${id}-title`}
     >
-      <h3 id="clarification-title" className="text-sm font-bold">
+      <h3 id={`${id}-title`} className="text-sm font-bold">
         {card.title}
       </h3>
       <div className="mt-3 flex flex-wrap gap-2">
@@ -41,9 +42,11 @@ export function ClarificationCard({
         ))}
       </div>
       {card.input_type && (
-        <form onSubmit={submit} className="mt-3 flex gap-2">
-          <Input
-            aria-label={
+        <form onSubmit={submit} className="mt-3 flex items-end gap-2">
+          <div className="min-w-0 flex-1"><FormField
+            id={`${id}-answer`}
+            aria-label={card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата"}
+            label={
               card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата"
             }
             type={card.input_type === "date" ? "date" : "text"}
@@ -51,8 +54,8 @@ export function ClarificationCard({
             value={value}
             onChange={(event) => setValue(event.target.value)}
             disabled={busy}
-            placeholder="Своя сумма, ₽"
-          />
+            placeholder={card.input_type === "money" ? "Например, 150 000" : undefined}
+          /></div>
           <Button type="submit" size="sm" disabled={busy || !value.trim()}>
             Ответить
           </Button>

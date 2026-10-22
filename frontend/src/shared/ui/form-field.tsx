@@ -13,11 +13,14 @@ export function FormField({
   id,
   label,
   hint,
+  error,
+  "aria-describedby": describedBy,
   ...props
 }: ComponentProps<typeof Input> & {
   id: string;
   label: string;
   hint?: string;
+  error?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -28,8 +31,11 @@ export function FormField({
         id={id}
         className="h-11 rounded-xl border-input bg-background px-3"
         {...props}
+        aria-invalid={error ? true : props["aria-invalid"]}
+        aria-describedby={[describedBy, hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined}
       />
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p>}
+      {error && <p id={`${id}-error`} role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
@@ -42,6 +48,7 @@ export function ChoiceField({
   options,
   hint,
   disabled,
+  error,
 }: {
   id: string;
   label: string;
@@ -50,6 +57,7 @@ export function ChoiceField({
   options: { value: string; label: string }[];
   hint?: ReactNode;
   disabled?: boolean;
+  error?: string;
 }) {
   return (
     <div className="space-y-2">
@@ -65,6 +73,8 @@ export function ChoiceField({
       >
         <SelectTrigger
           id={id}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={[hint && `${id}-hint`, error && `${id}-error`].filter(Boolean).join(" ") || undefined}
           className="h-11 w-full rounded-xl border-input bg-background px-3 text-left"
         >
           <SelectValue />
@@ -81,7 +91,8 @@ export function ChoiceField({
           ))}
         </SelectContent>
       </Select>
-      {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+      {hint && <p id={`${id}-hint`} className="text-xs text-muted-foreground">{hint}</p>}
+      {error && <p id={`${id}-error`} role="alert" className="text-xs text-destructive">{error}</p>}
     </div>
   );
 }
