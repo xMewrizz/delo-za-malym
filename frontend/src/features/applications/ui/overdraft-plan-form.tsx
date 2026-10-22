@@ -1,51 +1,27 @@
-import { useState, type FormEvent } from "react";
+import { useState, type Dispatch, type SetStateAction, type FormEvent } from "react";
 import { Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
-import { useSavedDraft } from "@/shared/lib/saved-draft";
 import { formatMoney } from "@/shared/lib/format";
 import type { ApplicationView } from "../api/applications";
+import { useCashFlowDraft } from "../model/use-cash-flow-draft";
 import {
   buildOverdraftPlan,
-  draftFromPlan,
+  planPeriod,
+  type PlanDraft,
   type PlanRow,
 } from "../model/overdraft-plan";
 
-export function OverdraftPlanForm({
-  view,
-  busy,
-  onSave,
-  forceVisible = false,
-  submitLabel = "Сохранить денежный план",
-}: {
+export function CashFlowFields({ view, draft, setDraft, bankCash }: {
   view: ApplicationView;
-  busy: boolean;
-  onSave: (changes: Record<string, unknown>) => void;
-  forceVisible?: boolean;
-  submitLabel?: string;
+  draft: PlanDraft;
+  setDraft: Dispatch<SetStateAction<PlanDraft>>;
+  bankCash?: string | null;
 }) {
-  const bankCash =
-    view.client_data.bank_financials?.cash_balance ??
-    view.application.financials.cash_balance;
-  const [draft, setDraft] = useSavedDraft(
-    `delo-plan:${view.application.application_id}:${view.application.application_version}`,
-    {
-      ...draftFromPlan(view.application.product_details),
-      openingCash: bankCash || "0.00",
-    },
-  );
-  const [error, setError] = useState("");
-  const loans = view.application.financials.existing_loans || [];
-  const show =
-    view.application.need.preferred_product === "overdraft" ||
-    view.application.need.financing_pattern === "cash_gap" ||
-    Boolean(view.application.product_details?.overdraft);
-  const loanMode =
-    view.application.need.preferred_product === "working_capital_loan" ||
-    view.application.need.financing_pattern === "gradual_repayment";
-  if (!show && !forceVisible) return null;
-
+  const allLoans = view.application.financials.existing_loans || [];
+  const loans = allLoans.filter(loan => !loan.schedule);
+  const period = planPeriod(draft);
   function add(direction: "inflow" | "outflow") {
     setDraft((current) => ({
       ...current,
@@ -54,7 +30,7 @@ export function OverdraftPlanForm({
         ...current.rows,
         {
           id: crypto.randomUUID(),
-          date: current.end,
+          date: planPeriod(current).end,
           direction,
           amount: "",
           loanId: "",
@@ -71,101 +47,17 @@ export function OverdraftPlanForm({
       ),
     }));
   }
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    try {
-      const plan = buildOverdraftPlan(
-        { ...draft, openingCash: bankCash || "0.00" },
-        loans.map((loan) => loan.loan_id),
-      );
-      onSave({
-        product_details: { overdraft: plan },
-        ...(!view.application.need.purpose
-          ? { "need.purpose": "working_capital" }
-          : {}),
-        ...(!view.application.need.financing_pattern
-          ? {
-              "need.financing_pattern": loanMode
-                ? "gradual_repayment"
-                : "cash_gap",
-            }
-          : {}),
-      });
-      setError("");
-    } catch (cause) {
-      setError(
-        cause instanceof Error ? cause.message : "Проверьте денежный план.",
-      );
-    }
-  }
-
-  return (
-    <Card className="gap-0 border-border bg-card/70">
-      <CardHeader className="pb-5">
-        <p className="text-xs font-bold uppercase tracking-widest text-primary">
-          {loanMode ? "Кредит на оборотные цели" : "Овердрафт"}
-        </p>
-        <h3 className="text-xl font-extrabold tracking-tight">
-          План поступлений и расходов
-        </h3>
-        <p className="text-xs leading-relaxed text-muted-foreground">
-          {loanMode
-            ? "Добавьте известные поступления и расходы. Покажем остаток с учётом получения кредита и его платежей за этот период."
-            : "Укажите, когда деньги уйдут и вернутся на счёт. Рассчитаем использованный лимит, проценты и погашение по дням."}
-        </p>
-      </CardHeader>
-      <CardContent>
-        <form onSubmit={submit} className="space-y-5">
-          <fieldset disabled={busy} className="space-y-5 disabled:opacity-70">
-            <div className="grid gap-4 sm:grid-cols-2">
-              <FormField
-                id="plan-start"
-                label="Начало периода"
-                type="date"
-                value={draft.start}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    start: event.target.value,
-                    debtConfirmed: false,
-                  }))
-                }
-              />
-              <FormField
-                id="plan-end"
-                label="Конец периода"
-                type="date"
-                value={draft.end}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    end: event.target.value,
-                    debtConfirmed: false,
-                  }))
-                }
-              />
+  return <div className="space-y-5">
+              {allLoans.some(loan => loan.schedule) && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground">Платежи по действующим кредитам добавим автоматически по графикам банка. Их можно посмотреть в платёжном календаре.</p>}
               <p className="self-center text-sm text-muted-foreground">
                 Остаток из данных банка:{" "}
                 <strong className="text-foreground">
                   {formatMoney(bankCash || "0")}
                 </strong>
               </p>
-              <FormField
-                id="plan-reserve"
-                label="Неприкосновенный резерв, ₽"
-                inputMode="decimal"
-                value={draft.reserve}
-                onChange={(event) =>
-                  setDraft((current) => ({
-                    ...current,
-                    reserve: event.target.value,
-                  }))
-                }
-              />
-            </div>
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h4 className="font-bold">Операции</h4>
+                <h4 className="font-bold">Предстоящие платежи и поступления</h4>
                 <div className="flex flex-wrap gap-2">
                   <Button
                     type="button"
@@ -189,7 +81,7 @@ export function OverdraftPlanForm({
               </div>
               {draft.rows.length === 0 && (
                 <p className="rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
-                  Добавьте ожидаемый расход и поступление для погашения.
+                  Добавьте платёж, на который нужны деньги, и ожидаемое поступление.
                 </p>
               )}
               {draft.rows.map((row, index) => (
@@ -199,7 +91,7 @@ export function OverdraftPlanForm({
                 >
                   <div className="mb-4 flex items-center justify-between gap-3">
                     <p className="text-sm font-bold">
-                      {row.direction === "inflow" ? "Поступление" : "Расход"}{" "}
+                      {row.direction === "inflow" ? "Ожидаемое поступление" : "Предстоящий платёж"}{" "}
                       {index + 1}
                     </p>
                     <Button
@@ -207,6 +99,7 @@ export function OverdraftPlanForm({
                       variant="ghost"
                       size="icon"
                       aria-label={`Убрать операцию ${index + 1}`}
+                      disabled={row.id.startsWith("bank-payment:")}
                       onClick={() =>
                         setDraft((current) => ({
                           ...current,
@@ -223,7 +116,8 @@ export function OverdraftPlanForm({
                   <div className="grid gap-4 sm:grid-cols-2">
                     <FormField
                       id={`operation-date-${row.id}`}
-                      label="Дата"
+                      label={row.direction === "inflow" ? "Когда поступят деньги" : "Когда нужно заплатить"}
+                      readOnly={row.id.startsWith("bank-payment:")}
                       type="date"
                       value={row.date}
                       onChange={(event) =>
@@ -232,7 +126,8 @@ export function OverdraftPlanForm({
                     />
                     <FormField
                       id={`operation-amount-${row.id}`}
-                      label="Сумма, ₽"
+                      label={row.direction === "inflow" ? "Сколько поступит, ₽" : "Сколько нужно заплатить, ₽"}
+                      readOnly={row.id.startsWith("bank-payment:")}
                       inputMode="decimal"
                       value={row.amount}
                       onChange={(event) =>
@@ -274,6 +169,128 @@ export function OverdraftPlanForm({
                 или подтверждаю, что их в нём нет.
               </label>
             )}
+    <details className="rounded-xl border border-border p-4">
+      <summary className="cursor-pointer text-sm font-semibold">Резерв и период расчёта</summary>
+      <p className="my-3 text-xs text-muted-foreground">Период определяем по датам платежей и поступлений. Здесь его можно расширить и оставить запас денег на счёте.</p>
+            <div className="grid gap-4 sm:grid-cols-2">
+              <FormField
+                id="plan-start"
+                label="Начало периода"
+                type="date"
+                value={period.start}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    start: event.target.value,
+                    automaticPeriod: false,
+                    debtConfirmed: false,
+                  }))
+                }
+              />
+              <FormField
+                id="plan-end"
+                label="Конец периода"
+                type="date"
+                value={period.end}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    end: event.target.value,
+                    automaticPeriod: false,
+                    debtConfirmed: false,
+                  }))
+                }
+              />
+              <FormField
+                id="plan-reserve"
+                label="Неприкосновенный резерв, ₽"
+                inputMode="decimal"
+                value={draft.reserve}
+                onChange={(event) =>
+                  setDraft((current) => ({
+                    ...current,
+                    reserve: event.target.value,
+                  }))
+                }
+              />
+            </div>
+      {!draft.automaticPeriod && <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(current => ({ ...current, automaticPeriod: true }))}>Определить период по датам</Button>}
+    </details>
+  </div>;
+}
+
+export function OverdraftPlanForm({
+  view,
+  busy,
+  onSave,
+  forceVisible = false,
+  submitLabel = "Сохранить платежи и поступления",
+}: {
+  view: ApplicationView;
+  busy: boolean;
+  onSave: (changes: Record<string, unknown>) => void;
+  forceVisible?: boolean;
+  submitLabel?: string;
+}) {
+  const { draft, setDraft, bankCash } = useCashFlowDraft(view);
+  const [error, setError] = useState("");
+  const loans = view.application.financials.existing_loans || [];
+  const show =
+    view.application.need.preferred_product === "overdraft" ||
+    view.application.need.financing_pattern === "cash_gap" ||
+    Boolean(view.application.product_details?.overdraft);
+  const loanMode =
+    view.application.need.preferred_product === "working_capital_loan" ||
+    view.application.need.financing_pattern === "gradual_repayment";
+  if (!show && !forceVisible) return null;
+
+  function submit(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    try {
+      const plan = buildOverdraftPlan(
+        { ...draft, openingCash: bankCash || "0.00" },
+        loans.filter(loan => !loan.schedule).map((loan) => loan.loan_id),
+      );
+      onSave({
+        product_details: { overdraft: plan },
+        ...(!view.application.need.purpose
+          ? { "need.purpose": "working_capital" }
+          : {}),
+        ...(!view.application.need.financing_pattern
+          ? {
+              "need.financing_pattern": loanMode
+                ? "gradual_repayment"
+                : "cash_gap",
+            }
+          : {}),
+      });
+      setError("");
+    } catch (cause) {
+      setError(
+        cause instanceof Error ? cause.message : "Проверьте денежный план.",
+      );
+    }
+  }
+
+  return (
+    <Card className="gap-0 border-border bg-card/70">
+      <CardHeader className="pb-5">
+        <p className="text-xs font-bold uppercase tracking-widest text-primary">
+          {loanMode ? "Кредит на оборотные цели" : "Овердрафт"}
+        </p>
+        <h3 className="text-xl font-extrabold tracking-tight">
+          Когда нужно заплатить и когда поступят деньги?
+        </h3>
+        <p className="text-xs leading-relaxed text-muted-foreground">
+          {loanMode
+            ? "Добавьте известные поступления и расходы. Покажем остаток с учётом получения кредита и его платежей за этот период."
+            : "Укажите ближайший платёж и ожидаемое поступление. Учтём остаток на счёте, определим нехватку и стоимость финансирования до возврата денег."}
+        </p>
+      </CardHeader>
+      <CardContent>
+        <form onSubmit={submit} className="space-y-5">
+          <fieldset disabled={busy} className="space-y-5 disabled:opacity-70">
+            <CashFlowFields view={view} draft={draft} setDraft={setDraft} bankCash={bankCash} />
             {error && (
               <p role="alert" className="text-sm text-destructive">
                 {error}

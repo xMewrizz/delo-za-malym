@@ -162,7 +162,7 @@ export function LoanOptionDetails({
               >
                 <div>
                   <p className="mb-2 text-xs font-bold">
-                    {scenario ? "Исходный план" : "По вашему денежному плану"}
+                    {scenario ? "С текущими датами поступлений" : "С учётом ваших платежей и поступлений"}
                   </p>
                   <CashFlowChart days={flow.daily} />
                   <p className="mt-2 text-xs">

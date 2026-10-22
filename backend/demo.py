@@ -44,6 +44,21 @@ def scenario_data(product: str, scenario_id: str, now: datetime):
 
 def profile(now: datetime):
     application, simulator = scenario_data("working_capital_loan", "01_approved", now)
+    # График существующего кредита приходит из демонстрационного банковского профиля.
+    for loan in application["financials"].get("existing_loans", []):
+        maturity = date.fromisoformat(loan["maturity_date"])
+        current = now.date().replace(day=15)
+        if current < now.date():
+            month = shifted_month(current.strftime("%Y-%m"), 1)
+            current = date.fromisoformat(month + "-15")
+        schedule = []
+        while current <= maturity:
+            schedule.append({"date": current.isoformat(), "total_payment": loan["monthly_payment"]})
+            month = shifted_month(current.strftime("%Y-%m"), 1)
+            current = date.fromisoformat(month + "-15")
+        loan["schedule"] = schedule
+    simulator["known_loans"] = deepcopy(application["financials"].get("existing_loans", []))
+    simulator["bank_financials"] = deepcopy(application["financials"])
     return {"client_id": "demo-client", "company_name": "ООО «Север»", "business": application["business"],
             "financials": application["financials"]}, simulator
 

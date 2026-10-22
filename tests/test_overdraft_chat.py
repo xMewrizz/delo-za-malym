@@ -241,7 +241,7 @@ class OverdraftChatTests(unittest.TestCase):
         response = self.client.post(self.path + "/proposals/" + proposal["proposal_id"] + "/edit", json={
             "base_chat_version": self.view["chat"]["chat_version"], "base_application_version": 1,
             "changes": {key: value for key, value in proposal["changes"].items() if key != PLAN_PATH},
-            "overdraft_plan": {"transactions": [{"transaction_id": "debt", "direction": "outflow", "date": "2026-10-25",
+            "overdraft_plan": {"transactions": [{"transaction_id": "debt", "direction": "outflow", "date": loan["schedule"][0]["date"],
                 "amount": loan["monthly_payment"], "loan_id": loan["loan_id"]}], "debt_payments_confirmed": True}})
         self.assertEqual(response.status_code, 200, response.text)
         self.view = response.json()

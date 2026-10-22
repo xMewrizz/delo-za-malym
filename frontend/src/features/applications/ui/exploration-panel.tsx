@@ -140,13 +140,13 @@ export function ExplorationPanel({
               {latest ? "А если?" : "Ваше финансирование"}
             </p>
             <h3 className="text-xl font-extrabold tracking-tight">
-              {latest ? "Сравните варианты" : "Подбор вариантов"}
+              Подходящие предложения
             </h3>
           </div>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          Отдельный расчёт не меняет заявку. Подходящий вариант можно применить
-          после подтверждения.
+          Сравните сумму, платежи и стоимость. Выберите условия, затем проверьте
+          собранную заявку перед отправкой.
         </p>
       </CardHeader>
       <CardContent>
@@ -193,7 +193,7 @@ export function ExplorationPanel({
                     value: "working_capital_loan",
                     label: "Кредит на оборотные цели",
                   },
-                  { value: "overdraft", label: "Овердрафт по денежному плану" },
+                  { value: "overdraft", label: "Овердрафт до поступления денег" },
                 ]}
               />
               {product === "working_capital_loan" ? (
@@ -259,9 +259,8 @@ export function ExplorationPanel({
               ) : (
                 <div className="space-y-4">
                   <p className="rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
-                    Для овердрафта расчёт использует денежный план, сохранённый в
-                    заявке. Если плана нет, вы увидите, какие данные нужно
-                    добавить.
+                    Учтём остаток на счёте и указанные даты платежей и поступлений.
+                    Если сведений не хватает, покажем, что нужно уточнить.
                   </p>
                   {inflows.length > 0 && (
                     <div className="grid gap-4 sm:grid-cols-2">
@@ -329,7 +328,7 @@ export function ExplorationPanel({
             )}
             {latest.product_id === "overdraft" && latest.result.calculation && (
               <div className="rounded-[20px] border border-primary/20 bg-background p-5">
-                <p className="text-sm font-bold">Денежный план по дням</p>
+                <p className="text-sm font-bold">Сколько нужно занять до поступления денег</p>
                 <dl className="mt-4 grid gap-4 text-xs sm:grid-cols-3">
                   <div>
                     <dt className="text-muted-foreground">Нужный лимит</dt>
@@ -344,7 +343,7 @@ export function ExplorationPanel({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Проценты по плану</dt>
+                    <dt className="text-muted-foreground">Проценты за использование</dt>
                     <dd className="mt-1 text-lg font-extrabold">
                       {formatMoneyPrecise(
                         latest.result.calculation.total_interest,
@@ -354,8 +353,8 @@ export function ExplorationPanel({
                 </dl>
                 <p className="mt-4 text-xs text-muted-foreground">
                   {latest.result.calculation.feasible
-                    ? "План укладывается в рассчитанный лимит и показывает погашение."
-                    : "План требует уточнения; смотрите причины ниже."}
+                    ? "Лимита хватает на платежи, а ожидаемые поступления позволяют вернуть долг."
+                    : "Нужно уточнить платежи или поступления; причины указаны ниже."}
                 </p>
                 <details className="mt-4">
                   <summary className="cursor-pointer text-xs font-bold text-primary">
@@ -450,7 +449,7 @@ export function ExplorationPanel({
                     {option.term_months ? option.term_months + " мес. · " : ""}
                     {option.monthly_payment
                       ? "Платёж " + formatMoney(option.monthly_payment)
-                      : "По денежному плану"}
+                      : "Возврат из поступлений на счёт"}
                   </p>
                   {option.total_repayment && (
                     <p className="mt-1 text-xs text-muted-foreground">

@@ -178,6 +178,27 @@
   gap: 0.6rem;
   margin: 1.5rem 0;
 }
+.manual-steps {
+  list-style: none;
+  padding: 0;
+}
+.manual-steps li {
+  min-width: 0;
+}
+.manual-step-label {
+  display: flex;
+  align-items: center;
+  min-height: 2.75rem;
+  padding: 0.5rem 1rem;
+  border-radius: 0.75rem;
+  color: var(--muted-foreground);
+  font-size: 0.875rem;
+}
+.manual-step-current {
+  background: var(--primary);
+  color: var(--primary-foreground);
+  font-weight: 600;
+}
 .assistant-layout {
   display: grid;
   grid-template-columns: minmax(19rem, 0.9fr) minmax(0, 1.1fr);
@@ -328,8 +349,15 @@
   .cabinet-modes > button:last-child {
     margin-left: 0;
   }
-  .manual-steps > button {
+  .manual-steps li > button {
     padding-inline: 0.75rem;
+  }
+  .manual-steps li {
+    flex: 1 1 100%;
+  }
+  .manual-steps li > button, .manual-step-label {
+    width: 100%;
+    justify-content: flex-start;
   }
 }
 @media (prefers-reduced-motion: reduce) {

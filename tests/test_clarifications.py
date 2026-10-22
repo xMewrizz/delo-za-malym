@@ -213,7 +213,7 @@ class ClarificationTests(unittest.TestCase):
                     self.assertNotIn("description", operation)
                 self.assertEqual(self.client.get(self.path).json(), base)
 
-    def test_full_month_cannot_be_confirmed_without_regular_loan_payment(self):
+    def test_full_month_includes_bank_schedule_without_repeated_payment_question(self):
         self.start_plan()
         plan = deepcopy(self.pending()["changes"][PLAN_PATH])
         plan.update(start_date="2026-11-01", end_date="2026-11-30")
@@ -225,8 +225,12 @@ class ClarificationTests(unittest.TestCase):
         # Сохраняем отдельный актуальный диалог над этим планом.
         self.view = self.client.post("/api/chats", json={"application_id": self.view["chat"]["application_id"]}).json()
         self.path = "/api/chats/" + self.view["chat"]["chat_id"]
-        self.assertNotIn("debt_reviewed", [choice["choice_id"] for choice in self.view["clarification"]["choices"]])
-        self.assertIn("loan_1", [choice["choice_id"] for choice in self.view["clarification"]["choices"]])
+        self.assertIsNone(self.view["clarification"])
+        saved = self.view["record"]["application"]["product_details"]["overdraft"]
+        bank_payments = [row for row in saved["transactions"] if row["transaction_id"].startswith("bank-payment:")]
+        self.assertEqual(len(bank_payments), 1)
+        self.assertEqual(bank_payments[0]["date"], "2026-11-15")
+        self.assertEqual(bank_payments[0]["amount"], "35000.00")
 
 
 if __name__ == "__main__":

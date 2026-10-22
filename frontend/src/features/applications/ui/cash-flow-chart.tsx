@@ -34,7 +34,7 @@ export function CashFlowChart({ days }: { days: FlowDay[] }) {
   return (
     <figure className="cash-flow-chart">
       <figcaption className="text-sm font-bold">
-        Остаток денег по датам
+        Как изменится остаток денег
       </figcaption>
       <svg
         viewBox="0 0 700 195"

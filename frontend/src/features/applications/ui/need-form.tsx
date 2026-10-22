@@ -6,6 +6,9 @@ import { originFor } from "@/shared/lib/field-source";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
 import { readSaved, useSavedDraft } from "@/shared/lib/saved-draft";
 import type { ApplicationView } from "../api/applications";
+import { CashFlowFields } from "./overdraft-plan-form";
+import { useCashFlowDraft } from "../model/use-cash-flow-draft";
+import { buildOverdraftPlan } from "../model/overdraft-plan";
 import {
   buildNeedChanges,
   draftFromApplication,
@@ -46,6 +49,11 @@ export function NeedForm({
     }
   }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
+  const cashFlow = useCashFlowDraft(view, true);
+  const [includePayments, setIncludePayments] = useSavedDraft(
+    `delo-include-payments:${view.application.application_id}`,
+    Boolean(view.application.product_details?.overdraft),
+  );
   const nextIsPlan =
     draft.preferredProduct === "overdraft" ||
     draft.financingPattern === "cash_gap";
@@ -55,7 +63,16 @@ export function NeedForm({
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
     try {
-      onSave(buildNeedChanges(draft));
+      const changes = buildNeedChanges(draft);
+      if (continueToNextStep && (nextIsPlan || includePayments)) {
+        changes["product_details.overdraft"] = buildOverdraftPlan(
+          { ...cashFlow.draft, openingCash: cashFlow.bankCash || "0.00" },
+          (view.application.financials.existing_loans || []).filter(loan => !loan.schedule).map(loan => loan.loan_id),
+        );
+      } else if (continueToNextStep && view.application.product_details?.overdraft) {
+        changes["product_details.overdraft"] = null;
+      }
+      onSave(changes);
       setError("");
     } catch (cause) {
       setError(
@@ -142,24 +159,25 @@ export function NeedForm({
           <div>
             <FormField
               id="need-amount"
-              label="Нужная сумма, ₽"
+              label={nextIsPlan ? "Желаемый лимит, ₽" : "Нужная сумма, ₽"}
               value={draft.requestedAmount}
               onChange={(event) => set("requestedAmount", event.target.value)}
               inputMode="decimal"
               placeholder="Например, 500 000"
+              hint={nextIsPlan ? "Можно не указывать: рассчитаем нехватку по платежам и остатку на счёте." : undefined}
             />
             <FieldOrigin
               source={originFor(view.field_sources, "need.requested_amount")}
             />
           </div>
-          <FormField
+          {!nextIsPlan && <FormField
             id="need-term"
             label="Срок, месяцев"
             value={draft.termMonths}
             onChange={(event) => set("termMonths", event.target.value)}
             inputMode="numeric"
             placeholder="Например, 12"
-          />
+          />}
           <ChoiceField
             id="need-pattern"
             label="Как планируете возвращать"
@@ -211,6 +229,22 @@ export function NeedForm({
             />
           </div>
         </details>
+        {continueToNextStep && (
+          <section className="space-y-4 border-t border-border pt-5" aria-label="Предстоящие платежи и поступления">
+            {nextIsPlan ? (
+              <div>
+                <h3 className="text-lg font-bold">Когда нужно заплатить и когда поступят деньги?</h3>
+                <p className="mt-2 text-sm text-muted-foreground">Учтём остаток на счёте и определим, сколько нужно занять до поступления денег и когда получится вернуть.</p>
+              </div>
+            ) : (
+              <label className="flex cursor-pointer items-start gap-3 text-sm">
+                <input type="checkbox" className="mt-1 size-4 accent-primary" checked={includePayments} onChange={event => setIncludePayments(event.target.checked)} />
+                <span><strong className="block">Показать, как кредит повлияет на остаток денег</strong><span className="mt-1 block text-muted-foreground">По желанию: добавьте предстоящие расходы и поступления. Учтём их вместе с платежами по новому кредиту.</span></span>
+              </label>
+            )}
+            {(nextIsPlan || includePayments) && <CashFlowFields view={view} {...cashFlow} />}
+          </section>
+        )}
         {error && (
           <p
             role="alert"
@@ -228,9 +262,7 @@ export function NeedForm({
           <Button type="submit" disabled={busy}>
             {!continueToNextStep && <Save aria-hidden="true" />}
             {continueToNextStep
-              ? nextIsPlan
-                ? "Продолжить к денежному плану"
-                : "Продолжить к вариантам"
+              ? "Посмотреть подходящие предложения"
               : "Сохранить черновик"}
             <ArrowRight aria-hidden="true" />
           </Button>

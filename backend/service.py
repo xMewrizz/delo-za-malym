@@ -9,6 +9,7 @@ from . import demo
 from .client_data import bank_financials, client_data, preserves_bank_values
 from .store import Store
 from .sources import source_value
+from .portfolio import belongs_to_client, issued_loans, with_loans, include_scheduled_payments, calendar_data
 
 
 class ProcessError(Exception):
@@ -37,6 +38,55 @@ def event(record, kind, now, **details):
 class CreditProcess:
     def __init__(self, store: Store, clock):
         self.store, self.clock = store, clock
+
+    def profile(self):
+        profile, _ = demo.profile(self.clock())
+        profile["financials"] = with_loans(profile["financials"], issued_loans(self.store.list()))
+        return profile
+
+    def calendar(self):
+        result = calendar_data(self.store.list(), self.clock())
+        profile, _ = demo.profile(self.clock())
+        for loan in profile["financials"].get("existing_loans", []):
+            for row in loan.get("schedule", []):
+                result["events"].append({"event_id": f"bank:{loan['loan_id']}:{row['date']}", "application_id": "",
+                    "date": row["date"], "amount": row["total_payment"], "direction": "outflow", "kind": "existing_loan_payment",
+                    "title": "Платёж по действующему кредиту", "forecast": True})
+        result["events"].sort(key=lambda item: (item["date"], item["event_id"]))
+        return result
+
+    def sync_portfolio(self, connection=None):
+        if connection is None:
+            with self.store.connect(write=True) as connection:
+                return self.sync_portfolio(connection)
+        records = self.store.records(connection)
+        loans = issued_loans(records)
+        for record in records:
+            if not belongs_to_client(record) or record["state"]["status"] not in EDITABLE_STATES:
+                continue
+            known = bank_financials(record)
+            updated = with_loans(known, loans)
+            if updated == known:
+                continue
+            record["simulator"]["bank_financials"] = updated
+            record["simulator"]["known_loans"] = deepcopy(updated["existing_loans"])
+            application = record["application"]
+            application["financials"]["existing_loans"] = deepcopy(updated["existing_loans"])
+            if updated.get("cash_balance") is not None:
+                application["financials"]["cash_balance"] = updated["cash_balance"]
+            details = application.get("product_details") or {}
+            if details.get("overdraft"):
+                details["overdraft"]["opening_cash_balance"] = updated.get("cash_balance") or "0.00"
+                details["overdraft"] = include_scheduled_payments(details["overdraft"], updated["existing_loans"])
+            application["application_version"] += 1
+            application["confirmation"] = None
+            record["field_sources"] = {path: source for path, source in record.get("field_sources", {}).items()
+                if source_value(application, path) == source["value"]}
+            record["state"].update(application_version=application["application_version"], latest_assessment_id=None, selected_offer_id=None)
+            record.update(checks=None, result=None, readiness=None, recommendation=None, fulfilled_conditions={})
+            set_state(record, "draft", "data_collection", "complete_profile", "Обязательства обновились. Пересчитайте предложения перед отправкой", self.clock())
+            event(record, "bank_obligations_updated", self.clock())
+            self.store.save(connection, record)
 
     @staticmethod
     def public(record):
@@ -88,6 +138,14 @@ class CreditProcess:
         set_state(record, "draft", "data_collection", "complete_profile", "Укажите потребность в финансировании", now)
         event(record, "application_created", now, scenario=scenario)
         with self.store.connect(write=True) as connection:
+            if not scenario:
+                loans = issued_loans(self.store.records(connection))
+                application["financials"] = with_loans(application["financials"], loans)
+                simulator["bank_financials"] = with_loans(simulator["bank_financials"], loans)
+                simulator["known_loans"] = deepcopy(application["financials"]["existing_loans"])
+                details = application.get("product_details") or {}
+                if details.get("overdraft"):
+                    details["overdraft"] = include_scheduled_payments(details["overdraft"], application["financials"]["existing_loans"])
             self.store.save(connection, record)
         return self.public(record)
 
@@ -109,6 +167,8 @@ class CreditProcess:
             self._version(record, version)
             operation(record, self.clock())
             self.store.save(connection, record)
+            if record.get("completion"):
+                self.sync_portfolio(connection)
         return self.public(record)
 
     def patch(self, application_id, version, changes):
@@ -133,6 +193,9 @@ class CreditProcess:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
         self._check_bank_financials(known, record["application"].get("financials"))
+        details = record["application"].get("product_details") or {}
+        if details.get("overdraft"):
+            details["overdraft"] = include_scheduled_payments(details["overdraft"], record["application"]["financials"].get("existing_loans", []))
         record["field_sources"] = {path: source for path, source in record.get("field_sources", {}).items()
                                    if source_value(record["application"], path) == source["value"]}
         record["simulator"].setdefault("bank_financials", known)

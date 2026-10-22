@@ -44,6 +44,25 @@
         }
       }
     },
+    "/api/calendar": {
+      "get": {
+        "tags": [
+          "Данные клиента"
+        ],
+        "summary": "Get Calendar",
+        "operationId": "get_calendar_api_calendar_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/products": {
       "get": {
         "tags": [

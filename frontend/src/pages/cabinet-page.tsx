@@ -4,6 +4,8 @@ import { FolderOpen, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { useLocation, useSearchParams } from "react-router";
 import { AssistantPanel, chatKeys, getChat } from "@/features/assistant";
 import { InvoicePanel } from "@/features/documents";
+import { PaymentCalendar } from "@/features/calendar/payment-calendar";
+import { calendarKey } from "@/features/calendar/keys";
 import {
   applicationKeys,
   applicationQueries,
@@ -28,12 +30,13 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
 import "./cabinet-page.css";
 
-type Mode = "manual" | "assistant" | "applications";
+type Mode = "manual" | "assistant" | "applications" | "calendar";
 type Contexts = { manual: string | null; assistant: string | null };
 const modeNames: Record<Mode, string> = {
   manual: "Подобрать продукт",
   assistant: "С ИИ-ассистентом",
   applications: "Заявки",
+  calendar: "Платёжный календарь",
 };
 function savedContexts(): Contexts {
   const value = readSaved<Partial<Contexts>>("delo-react-contexts", {});
@@ -158,6 +161,11 @@ export function CabinetPage() {
           : view,
     );
     void queryClient.invalidateQueries({ queryKey: applicationKeys.list });
+    void queryClient.invalidateQueries({ queryKey: calendarKey });
+    if (view.completion) {
+      void queryClient.invalidateQueries({ queryKey: applicationKeys.all });
+      void queryClient.invalidateQueries({ queryKey: applicationKeys.profile });
+    }
   }
   function navigate(next: Mode, id?: string) {
     activeMode.current = next;
@@ -181,7 +189,7 @@ export function CabinetPage() {
   const action = useMutation({
     mutationFn: (task: {
       run: () => Promise<ApplicationView>;
-      source: Mode;
+      source: Exclude<Mode, "calendar">;
       applied?: boolean;
       onSaved?: () => void;
       id: string;
@@ -206,7 +214,7 @@ export function CabinetPage() {
       }
     },
   });
-  function actionsFor(view: ApplicationView, source: Mode): ApplicationActions {
+  function actionsFor(view: ApplicationView, source: Exclude<Mode, "calendar">): ApplicationActions {
     const id = view.application.application_id,
       version = view.application.application_version;
     const run = (request: () => Promise<ApplicationView>, extra = {}) =>
@@ -244,6 +252,7 @@ export function CabinetPage() {
       "Ваши заявки",
       "Выбранные условия, отправка и ход рассмотрения.",
     ],
+    calendar: ["Платёжный календарь", "Поступления, расходы и платежи по всем полученным кредитам."],
   }[mode];
   return (
     <section className="cabinet-page" aria-labelledby="cabinet-title">
@@ -268,7 +277,7 @@ export function CabinetPage() {
             {modeNames[name]}
           </Button>
         ))}
-        {mode !== "applications" && (
+        {(mode === "manual" || mode === "assistant") && (
           <Button
             className="ml-auto"
             variant="ghost"
@@ -280,6 +289,7 @@ export function CabinetPage() {
           </Button>
         )}
       </nav>
+      {mode === "calendar" && <PaymentCalendar initialPlanId={contexts.manual} assistantPlanId={contexts.assistant} />}
       {error && (
         <div
           role="alert"

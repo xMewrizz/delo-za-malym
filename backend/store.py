@@ -58,9 +58,13 @@ class Store:
              record["state"]["updated_at"]),
         )
 
+    @staticmethod
+    def records(connection):
+        return [json.loads(row[0]) for row in connection.execute("SELECT payload FROM applications ORDER BY updated_at DESC, application_id")]
+
     def list(self):
         with self.connect() as connection:
-            return [json.loads(row[0]) for row in connection.execute("SELECT payload FROM applications ORDER BY updated_at DESC, application_id")]
+            return self.records(connection)
 
     @staticmethod
     def get_chat(connection, chat_id):

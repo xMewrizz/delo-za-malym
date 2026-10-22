@@ -34,7 +34,16 @@ export type PlanDraft = {
   reserve: string;
   rows: PlanRow[];
   debtConfirmed: boolean;
+  automaticPeriod?: boolean;
 };
+
+export function planPeriod(draft: PlanDraft) {
+  if (!draft.automaticPeriod) return { start: draft.start, end: draft.end };
+  const dates = [draft.start, ...draft.rows.map((row) => row.date)]
+    .filter((date) => /^\d{4}-\d{2}-\d{2}$/.test(date))
+    .sort();
+  return { start: dates[0] || draft.start, end: dates.at(-1) || draft.end };
+}
 
 export function draftFromPlan(
   details: Record<string, unknown> | undefined,
@@ -61,10 +70,12 @@ export function draftFromPlan(
     })),
     debtConfirmed:
       value?.debt_payments_confirmed ?? Boolean(value?.existing_debt_payments),
+    automaticPeriod: !value,
   };
 }
 
 export function buildOverdraftPlan(draft: PlanDraft, loanIds: string[]) {
+  draft = { ...draft, ...planPeriod(draft) };
   if (!draft.start || !draft.end || draft.start > draft.end)
     throw new Error("Укажите корректный период плана.");
   if (draft.rows.length === 0)

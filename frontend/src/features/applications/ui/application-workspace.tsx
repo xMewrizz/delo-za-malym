@@ -58,6 +58,7 @@ const eventNames: Record<string, string> = {
   offer_signed: "Подписан договор",
   application_cancelled: "Заявка отменена",
   recommendations_calculated: "Подобран продукт",
+  bank_obligations_updated: "Учтён новый кредит: требуется пересчёт предложений",
   invoice_uploaded: "Загружен счёт поставщика",
   invoice_reviewed: "Проверены данные счёта",
 };
@@ -103,14 +104,7 @@ export function ApplicationWorkspace({
     need.preferred_product === "overdraft" ||
     need.financing_pattern === "cash_gap";
   const saveNeed = (changes: Record<string, unknown>) =>
-    actions.save(changes, () =>
-      setStep(
-        changes["need.preferred_product"] === "overdraft" ||
-          changes["need.financing_pattern"] === "cash_gap"
-          ? "plan"
-          : "options",
-      ),
-    );
+    actions.save(changes, () => setStep("options"));
   return (
     <div className="space-y-5">
       <details className="rounded-2xl border border-border bg-card p-4">
@@ -151,74 +145,20 @@ export function ApplicationWorkspace({
       </details>
       {selection ? (
         <>
-          <nav
-            className="manual-steps"
-            aria-label="Шаги самостоятельного подбора"
-          >
-            {(
-              [
-                ["need", "1. Потребность"],
-                [
-                  "plan",
-                  wantsPlan
-                    ? "2. Денежный план"
-                    : "2. Денежный план · по желанию",
-                ],
-                ["options", "3. Варианты"],
-              ] as [typeof step, string][]
-            ).map(([name, title]) => (
-              <Button
-                variant={step === name ? "default" : "outline"}
-                key={name}
-                aria-current={step === name ? "step" : undefined}
-                disabled={busy}
-                onClick={() => setStep(name)}
-              >
-                {title}
-              </Button>
-            ))}
-          </nav>
-          {renderDocuments?.((target) => {
-            if (target === "planned_expense") setStep("plan");
-          })}
-          {step === "need" && (
+          <SelectionSteps current={step === "options" ? "options" : "need"} busy={busy}
+            onNeed={() => setStep("need")} onOptions={() => setStep("options")} />
+          {renderDocuments?.(() => setStep("need"))}
+          {step !== "options" && (
             <Card>
               <CardHeader>
-                <h2 className="text-xl font-extrabold">
-                  Для какой задачи нужны деньги?
-                </h2>
-                <p className="text-sm text-muted-foreground">
-                  Расскажите о потребности. Данные бизнеса повторно вводить не
-                  нужно.
-                </p>
+                <h2 className="text-xl font-extrabold">На что нужны деньги?</h2>
+                <p className="text-sm text-muted-foreground">Укажите задачу и ответьте на уточнения. Данные бизнеса уже известны банку.</p>
               </CardHeader>
               <CardContent>
-                <NeedForm
-                  continueToNextStep
-                  key={`${id}:${version}`}
-                  view={view}
-                  busy={busy || !editable}
-                  onSave={saveNeed}
-                />
+                <NeedForm continueToNextStep key={`${id}:${version}`} view={view}
+                  busy={busy || !editable} onSave={saveNeed} />
               </CardContent>
             </Card>
-          )}
-          {step === "plan" && (
-            <>
-              <OverdraftPlanForm
-                submitLabel="Продолжить к вариантам"
-                forceVisible
-                key={`${id}:plan:${version}`}
-                view={view}
-                busy={busy || !editable}
-                onSave={(changes) =>
-                  actions.save(changes, () => setStep("options"))
-                }
-              />
-              <Button variant="outline" onClick={() => setStep("need")}>
-                Вернуться к потребности
-              </Button>
-            </>
           )}
           {step === "options" && (
             <>
@@ -239,7 +179,7 @@ export function ApplicationWorkspace({
                         {need.requested_amount
                           ? formatMoney(need.requested_amount)
                           : wantsPlan
-                            ? "Определим по денежному плану"
+                            ? "Рассчитаем по платежам и остатку"
                             : "Нужно указать"}
                       </dd>
                     </div>
@@ -272,18 +212,8 @@ export function ApplicationWorkspace({
                     disabled={busy}
                     onClick={() => setStep("need")}
                   >
-                    Изменить потребность
+                    Изменить задачу
                   </Button>
-                  {wantsPlan && (
-                    <Button
-                      className="ml-2 mt-4"
-                      variant="outline"
-                      disabled={busy}
-                      onClick={() => setStep("plan")}
-                    >
-                      Изменить денежный план
-                    </Button>
-                  )}
                 </CardContent>
               </Card>
               <FinancialSupplement
@@ -387,6 +317,7 @@ export function ApplicationWorkspace({
         </>
       ) : (
         <>
+          {status === "draft" && <SelectionSteps current="review" busy={busy} />}
           {renderDocuments?.(() => undefined)}
           <Card>
             <CardHeader>
@@ -530,4 +461,24 @@ export function ApplicationWorkspace({
       )}
     </div>
   );
+}
+
+function SelectionSteps({ current, busy, onNeed, onOptions }: {
+  current: "need" | "options" | "review";
+  busy: boolean;
+  onNeed?: () => void;
+  onOptions?: () => void;
+}) {
+  const steps = [
+    { id: "need", title: "1. На что нужны деньги", action: onNeed },
+    { id: "options", title: "2. Подходящие предложения", action: onOptions },
+    { id: "review", title: "3. Проверка и отправка", action: undefined },
+  ];
+  return <nav aria-label="Шаги подбора и оформления"><ol className="manual-steps">
+    {steps.map(item => <li key={item.id}>
+      {item.action ? <Button className="h-auto min-h-11 whitespace-normal text-left" variant={current === item.id ? "default" : "outline"}
+        aria-current={current === item.id ? "step" : undefined} disabled={busy} onClick={item.action}>{item.title}</Button>
+        : <span className={`manual-step-label ${current === item.id ? "manual-step-current" : ""}`} aria-current={current === item.id ? "step" : undefined}>{item.title}</span>}
+    </li>)}
+  </ol></nav>;
 }

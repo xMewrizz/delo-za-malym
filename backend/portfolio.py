@@ -1,0 +1,135 @@
+"""Выданные кредиты клиента, их обязательства и события платёжного календаря."""
+
+from copy import deepcopy
+from decimal import Decimal
+from datetime import date, timezone, timedelta
+import re
+
+PREFIX = "cabinet-loan:"
+
+
+def belongs_to_client(record):
+    # Изолированные сценарии проверяют разные финансовые профили, не общий счёт.
+    created = next((item for item in record.get("events", []) if item["type"] == "application_created"), {})
+    return not created.get("details", {}).get("scenario")
+
+
+def issued_loans(records):
+    loans = []
+    for record in records:
+        completion = record.get("completion") or {}
+        if not belongs_to_client(record) or completion.get("type") != "disbursement":
+            continue
+        schedule = completion.get("schedule") or []
+        if not schedule:
+            continue
+        loans.append({
+            "loan_id": PREFIX + completion["operation_id"],
+            "application_id": record["application"]["application_id"],
+            "outstanding_principal": completion["amount"],
+            "monthly_payment": str(max(Decimal(row["total_payment"]) for row in schedule)),
+            "maturity_date": schedule[-1]["date"],
+            "schedule": deepcopy(schedule),
+        })
+    return sorted(loans, key=lambda loan: loan["loan_id"])
+
+
+def with_loans(financials, loans):
+    result = deepcopy(financials)
+    previous = [loan for loan in result.get("existing_loans") or [] if loan["loan_id"].startswith(PREFIX)]
+    if result.get("cash_balance") is not None:
+        result["cash_balance"] = str(Decimal(result["cash_balance"])
+            - sum((Decimal(loan["outstanding_principal"]) for loan in previous), Decimal("0.00"))
+            + sum((Decimal(loan["outstanding_principal"]) for loan in loans), Decimal("0.00")))
+    result["existing_loans"] = [loan for loan in result.get("existing_loans") or []
+                                if not loan["loan_id"].startswith(PREFIX)] + deepcopy(loans)
+    return result
+
+
+def include_scheduled_payments(plan, loans):
+    """Банковский график включается в план один раз; ручные платежи остаются."""
+    if not isinstance(plan, dict) or not isinstance(plan.get("start_date"), str) or not isinstance(plan.get("end_date"), str):
+        return plan
+    result = deepcopy(plan)
+    transactions = result.get("transactions", [])
+    links = result.get("existing_debt_payments") or []
+    if not isinstance(transactions, list) or not all(isinstance(row, dict) and isinstance(row.get("transaction_id"), str) for row in transactions):
+        return plan
+    if not isinstance(links, list) or not all(isinstance(link, dict) and isinstance(link.get("loan_id"), str) and isinstance(link.get("transaction_id"), str) for link in links):
+        return plan
+    managed_ids = {loan["loan_id"] for loan in loans if loan.get("schedule")}
+    removed = {link["transaction_id"] for link in links if link["loan_id"] in managed_ids or link["loan_id"].startswith(PREFIX)}
+    result["transactions"] = [row for row in result.get("transactions", [])
+                               if row["transaction_id"] not in removed and not row["transaction_id"].startswith("bank-payment:")]
+    result["existing_debt_payments"] = [link for link in links if link["loan_id"] not in managed_ids and not link["loan_id"].startswith(PREFIX)]
+    for loan in loans:
+        if loan["loan_id"] not in managed_ids:
+            continue
+        for row in loan.get("schedule", []):
+            if result["start_date"] <= row["date"] <= result["end_date"]:
+                identifier = f"bank-payment:{loan['loan_id']}:{row['date']}"
+                result["transactions"].append({"transaction_id": identifier, "date": row["date"],
+                    "direction": "outflow", "amount": row["total_payment"]})
+                result["existing_debt_payments"].append({"loan_id": loan["loan_id"], "transaction_id": identifier})
+    return result
+
+
+def calendar_operation(row):
+    if not isinstance(row, dict) or not isinstance(row.get("transaction_id"), str) or row.get("direction") not in ("inflow", "outflow"):
+        return False
+    if not isinstance(row.get("amount"), str) or not re.fullmatch(r"[0-9]{1,12}\.[0-9]{2}", row["amount"]):
+        return False
+    try:
+        return date.fromisoformat(row["date"]).isoformat() == row["date"] and Decimal(row["amount"]) > 0
+    except (KeyError, ValueError, TypeError):
+        return False
+
+
+def calendar_data(records, now):
+    events, plans, accounts = [], [], []
+    for record in records:
+        if not belongs_to_client(record):
+            continue
+        identifier = record["application"]["application_id"]
+        completion = record.get("completion") or {}
+        plan = (record["application"].get("product_details") or {}).get("overdraft")
+        if isinstance(plan, dict) and isinstance(plan.get("transactions"), list) and plan["transactions"]:
+            links = plan.get("existing_debt_payments") or []
+            linked = {link.get("transaction_id") for link in links if isinstance(link, dict) and isinstance(link.get("transaction_id"), str)} if isinstance(links, list) else set()
+            plans.append({"application_id": identifier, "state": record["state"]["status"],
+                "amount": record["application"]["need"].get("requested_amount"),
+                "events": [{"event_id": f"plan:{identifier}:{row['transaction_id']}", "application_id": identifier,
+                    "date": row["date"], "amount": row["amount"], "direction": row["direction"],
+                    "kind": "planned_inflow" if row["direction"] == "inflow" else "planned_expense",
+                    "title": "Ожидаемое поступление" if row["direction"] == "inflow" else "Предстоящий расход",
+                    "forecast": True}
+                    for row in plan["transactions"] if calendar_operation(row) and row["transaction_id"] not in linked]})
+        if not completion:
+            continue
+        overdraft = completion["type"] == "limit_opening"
+        accounts.append({"application_id": identifier, "product_id": completion["product_id"],
+            "amount": completion["amount"], "opened_at": completion["completed_at"],
+            "outstanding_principal": "0.00" if overdraft else completion["amount"]})
+        events.append({"event_id": completion["operation_id"], "application_id": identifier,
+            "date": completion["completed_at"][:10], "amount": completion["amount"],
+            "direction": "none" if overdraft else "inflow", "kind": "limit_opened" if overdraft else "loan_received",
+            "title": "Открыт лимит овердрафта" if overdraft else "Кредит получен", "forecast": False})
+        for index, row in enumerate(completion.get("schedule") or []):
+            events.append({"event_id": f"{completion['operation_id']}:payment:{index}", "application_id": identifier,
+                "date": row["date"], "amount": row["total_payment"], "direction": "outflow",
+                "kind": "loan_final_payment" if index == len(completion["schedule"]) - 1 else "loan_payment",
+                "title": "Последний платёж по кредиту" if index == len(completion["schedule"]) - 1 else "Платёж по кредиту",
+                "forecast": True})
+        if overdraft:
+            calculation = (record.get("result") or {}).get("overdraft_calculation") or {}
+            calculation = calculation.get("calculation", calculation)
+            for row in calculation.get("daily", []):
+                for field, title, kind, direction in (("drawn", "Использование овердрафта", "overdraft_draw", "inflow"),
+                    ("principal_repaid", "Погашение овердрафта", "overdraft_repayment", "outflow"),
+                    ("interest_paid", "Проценты по овердрафту", "overdraft_interest", "outflow")):
+                    if Decimal(row.get(field) or "0") > 0:
+                        events.append({"event_id": f"{completion['operation_id']}:{kind}:{row['date']}", "application_id": identifier,
+                            "date": row["date"], "amount": row[field], "direction": direction, "kind": kind,
+                            "title": title, "forecast": True})
+    return {"today": now.astimezone(timezone(timedelta(hours=3))).date().isoformat(),
+            "events": sorted(events, key=lambda item: (item["date"], item["event_id"])), "plans": plans, "accounts": accounts}

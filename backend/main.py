@@ -40,6 +40,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @asynccontextmanager
     async def lifespan(app):
         store.initialize()
+        process.sync_portfolio()
         yield
 
     app = FastAPI(title="Дело за малым", version="0.1.0", lifespan=lifespan,
@@ -91,7 +92,11 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     @app.get("/api/profile", tags=["Данные клиента"])
     def get_profile():
-        return demo.profile(clock())[0]
+        return process.profile()
+
+    @app.get("/api/calendar", tags=["Данные клиента"])
+    def get_calendar():
+        return process.calendar()
 
     @app.get("/api/products", tags=["Данные клиента"])
     def products():

@@ -54,6 +54,11 @@ describe("overdraft plan payload", () => {
       buildOverdraftPlan({ ...sample, debtConfirmed: false }, ["loan-1"]),
     ).toThrow("Подтвердите");
   });
+  it("extends the automatic period when a receipt is later than the initial date", () => {
+    const plan = buildOverdraftPlan({ ...sample, end: sample.start, automaticPeriod: true }, []);
+    expect(plan.start_date).toBe("2026-11-01");
+    expect(plan.end_date).toBe("2026-11-11");
+  });
   it("rejects operation outside the period", () => {
     expect(() =>
       buildOverdraftPlan(
