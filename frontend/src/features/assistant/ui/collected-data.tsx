@@ -124,13 +124,13 @@ export function CollectedData({
           {loading
             ? "Обновляем расчёт…"
             : rows.success && rows.data.length
-              ? "Собираем денежный план"
+              ? "Уточняем платежи и поступления"
               : need.requested_amount
                 ? "Подбираем финансирование"
                 : "Сначала разберём вашу задачу"}
         </h2>
       </div>
-      <dl className="grid gap-3 sm:grid-cols-2">
+      <dl className="collected-facts grid grid-cols-2 gap-3">
         <div className="collected-fact">
           <dt>Задача</dt>
           <dd>

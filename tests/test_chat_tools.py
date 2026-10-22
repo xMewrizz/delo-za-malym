@@ -282,6 +282,27 @@ class CabinetToolsTests(unittest.TestCase):
                                            process=self.process, record=self.record, now=self.now)
                 self.assertEqual(self.load(), self.record)
 
+    def test_why_question_with_amount_uses_calculation_context_instead_of_fact_collection(self):
+        from backend.workspace import ProductWorkspace
+        ProductWorkspace(self.process).explore(self.id, 1, "working_capital_loan")
+        record = self.load()
+        messages = build_messages({"messages": []}, record,
+            "Почему на 12 месяцев не подходит? Сумму 500 тысяч менять не хочу.", [], now=self.now)
+        context = json.loads(messages[1]["content"].split("\n", 1)[1])
+        self.assertTrue(context["comparison"]["is_current"])
+        self.assertEqual(context["comparison"]["baseline"]["monthly_payment"], "47279.80")
+        self.assertNotIn("schedule", context["comparison"]["baseline"])
+        with patch.dict(os.environ, {"LLM_MODEL": "test", "AGENT_TOOLS_ENABLED": "true"}):
+            model = ModelAssistant()
+        model.client = Mock()
+        model.extract_facts = Mock(side_effect=AssertionError("Вопрос не должен заново заполнять заявку"))
+        model.client.chat.return_value = Reply('{"text":"Сравним платёж с доступными условиями.","intent":"answer_question","changes":{}}', "stop")
+        turn = model.reply_with_tools(messages, process=self.process, record=record, now=self.now)
+        self.assertEqual(turn.reply.intent, "answer_question")
+        model.extract_facts.assert_not_called()
+        self.assertIn("tools", model.client.chat.call_args.kwargs)
+        self.assertEqual(self.load(), record)
+
     def test_search_is_public_and_missing_key_does_not_disable_calculations(self):
         result = self.tools.execute("web_search", '{"query":"поддержка малого бизнеса site:corpmsp.ru"}')
         self.assertTrue(result["ok"])

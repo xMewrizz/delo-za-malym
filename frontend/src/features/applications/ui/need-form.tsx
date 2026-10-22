@@ -49,6 +49,7 @@ export function NeedForm({
     }
   }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
+  const [chooseProduct, setChooseProduct] = useState(Boolean(draft.preferredProduct));
   const cashFlow = useCashFlowDraft(view, true);
   const [includePayments, setIncludePayments] = useSavedDraft(
     `delo-include-payments:${view.application.application_id}`,
@@ -64,6 +65,8 @@ export function NeedForm({
     event.preventDefault();
     try {
       const changes = buildNeedChanges(draft);
+      if (continueToNextStep && !draft.purpose) throw new Error("Выберите задачу: например, закупку товара или оплату до поступления выручки.");
+      if (continueToNextStep && !nextIsPlan && !draft.requestedAmount.trim()) throw new Error("Укажите, сколько денег нужно на задачу.");
       if (continueToNextStep && (nextIsPlan || includePayments)) {
         changes["product_details.overdraft"] = buildOverdraftPlan(
           { ...cashFlow.draft, openingCash: cashFlow.bankCash || "0.00" },
@@ -91,7 +94,8 @@ export function NeedForm({
           <div className="flex flex-wrap gap-2">
             <Button
               type="button"
-              variant="outline"
+              variant={draft.financingPattern === "gradual_repayment" ? "secondary" : "outline"}
+              aria-pressed={draft.financingPattern === "gradual_repayment"}
               size="sm"
               onClick={() =>
                 setDraft((current) => ({
@@ -106,7 +110,8 @@ export function NeedForm({
             </Button>
             <Button
               type="button"
-              variant="outline"
+              variant={draft.financingPattern === "cash_gap" ? "secondary" : "outline"}
+              aria-pressed={draft.financingPattern === "cash_gap"}
               size="sm"
               onClick={() =>
                 setDraft((current) => ({
@@ -123,12 +128,10 @@ export function NeedForm({
               type="button"
               variant="outline"
               size="sm"
-              onClick={() =>
-                setDraft((current) => ({
-                  ...current,
-                  preferredProduct: "working_capital_loan",
-                }))
-              }
+              onClick={() => {
+                setChooseProduct(true);
+                setDraft(current => ({ ...current, purpose: current.purpose || "working_capital", preferredProduct: "working_capital_loan" }));
+              }}
             >
               Я знаю продукт
             </Button>
@@ -142,6 +145,7 @@ export function NeedForm({
             onValueChange={(value) => set("purpose", value)}
             options={purposes}
           />
+          {chooseProduct && (
           <ChoiceField
             id="need-product"
             label="Предпочитаемый продукт"
@@ -156,6 +160,7 @@ export function NeedForm({
             ]}
             hint="Если не знаете, подберём после сохранения."
           />
+          )}
           <div>
             <FormField
               id="need-amount"
@@ -188,6 +193,12 @@ export function NeedForm({
               { value: "cash_gap", label: "После поступления денег" },
             ]}
           />
+        </div>
+        <details className="rounded-xl border border-border p-4">
+          <summary className="cursor-pointer text-sm font-semibold">
+            Дополнительно: сроки, собственные средства и сумма поменьше
+          </summary>
+          <div className="mt-4 grid gap-5 sm:grid-cols-2">
           <ChoiceField
             id="need-recurring"
             label="Как часто нужны деньги"
@@ -198,12 +209,7 @@ export function NeedForm({
               { value: "true", label: "Регулярная потребность" },
             ]}
           />
-        </div>
-        <details className="rounded-xl border border-border p-4">
-          <summary className="cursor-pointer text-sm font-semibold">
-            Дополнительно: сроки, собственные средства и сумма поменьше
-          </summary>
-          <div className="mt-4 grid gap-5 sm:grid-cols-2">
+
             <FormField
               id="need-minimum"
               label="Минимальная достаточная сумма, ₽"

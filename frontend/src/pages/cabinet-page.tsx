@@ -53,6 +53,8 @@ export function CabinetPage() {
   const queryClient = useQueryClient(),
     [search, setSearch] = useSearchParams();
   const location = useLocation();
+  const modeNavigation = useRef<HTMLElement>(null);
+  const [allApplications, setAllApplications] = useState(false);
   const requestedMode =
     search.get("mode") ||
     (search.has("application")
@@ -134,6 +136,13 @@ export function CabinetPage() {
     ) || [];
   const selectedId =
     search.get("application") || applications[0]?.application_id || null;
+  const recentApplications = allApplications ? applications : applications.filter((item, index) => index < 6 || item.application_id === selectedId);
+  const previousLocation = useRef(search.toString());
+  useEffect(() => {
+    if (previousLocation.current !== search.toString())
+      modeNavigation.current?.scrollIntoView({ block: "start" });
+    previousLocation.current = search.toString();
+  }, [search]);
   const manual = useQuery({
     ...applicationQueries.detail(contexts.manual || ""),
     enabled: Boolean(contexts.manual),
@@ -266,7 +275,7 @@ export function CabinetPage() {
           <p>{copy[1]}</p>
         </div>
       </div>
-      <nav className="cabinet-modes" aria-label="Способ подбора и заявки">
+      <nav ref={modeNavigation} className="cabinet-modes" aria-label="Способ подбора и заявки">
         {(Object.keys(modeNames) as Mode[]).map((name) => (
           <Button
             key={name}
@@ -382,6 +391,11 @@ export function CabinetPage() {
       </div>
       {mode === "applications" && (
         <div className="cabinet-grid">
+          {Boolean(applications.length) && <label className="application-mobile-picker text-sm font-semibold">Открытая заявка
+            <select aria-label="Выбрать заявку" className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm font-normal" value={selectedId || ""} onChange={event => navigate("applications", event.target.value)}>
+              {applications.map(item => <option key={item.application_id} value={item.application_id}>{item.need.preferred_product === "overdraft" ? "Овердрафт" : "Кредит"}{item.need.requested_amount ? ` · ${formatMoney(item.need.requested_amount)}` : ""} · {stateName(item.state.status)} · {item.application_id.slice(0, 6)}</option>)}
+            </select>
+          </label>}
           <aside className="cabinet-sidebar">
             <Card>
               <CardContent className="space-y-4 pt-6">
@@ -403,7 +417,7 @@ export function CabinetPage() {
                   </p>
                 )}
                 <div className="cabinet-application-list">
-                  {applications.map((item) => (
+                  {recentApplications.map((item) => (
                     <button
                       className="cabinet-application-item"
                       key={item.application_id}
@@ -424,11 +438,12 @@ export function CabinetPage() {
                           : ""}
                       </strong>
                       <span className="mt-1 text-xs text-muted-foreground">
-                        {stateName(item.state.status)}
+                        {stateName(item.state.status)} · {item.application_id.slice(0, 6)}
                       </span>
                     </button>
                   ))}
                 </div>
+                {applications.length > 6 && <Button variant="ghost" size="sm" className="mt-3" onClick={() => setAllApplications(current => !current)}>{allApplications ? "Только последние" : `Все заявки · ${applications.length}`}</Button>}
                 {!applications.length && !list.isFetching && (
                   <p className="text-sm text-muted-foreground">
                     Выберите условия в подборе — заявка появится здесь.

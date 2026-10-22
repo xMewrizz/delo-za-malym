@@ -19,7 +19,7 @@ async function until(condition: () => unknown, label: string) {
     await act(async () => {
       await wait(20);
     });
-    if (condition()) return;
+    if (await condition()) return;
   }
   throw new Error(
     `Timeout: ${label}; ${document.body.textContent?.slice(-2000)}`,
@@ -144,9 +144,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-amount", "500000");
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
-    await until(() => button("Показать варианты"), "saved manual need");
-    await click("Показать варианты");
     await until(() => button("Выбрать условия"), "real loan options");
+    expect(requests.filter(path => path.endsWith(`/applications/${manualId}/explorations`))).toHaveLength(1);
     await click("Выбрать условия");
     await until(() => button("Перейти к заявке"), "apply confirmation");
     await click("Перейти к заявке");
@@ -255,6 +254,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       `${base}/api/applications/${assistantId}`,
     ).then((response) => response.json());
     expect(before.application.application_version).toBe(1);
+    await click("Проверить собранные данные");
+    expect(document.querySelector(".assistant-layout")?.getAttribute("data-mobile-panel")).toBe("workspace");
+    await input('[aria-label="Сообщение ассистенту"]', "Неотправленный вопрос");
+    await click("Диалог");
+    expect(document.querySelector(".assistant-layout")?.getAttribute("data-mobile-panel")).toBe("conversation");
+    expect(document.querySelector<HTMLTextAreaElement>('[aria-label="Сообщение ассистенту"]')?.value).toBe("Неотправленный вопрос");
     await click("Подтвердить данные и подобрать");
     await until(() => button("Выбрать условия"), "confirmed overdraft option");
     const after = await nativeFetch(
@@ -450,13 +455,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     if (debtConfirmation) await act(async () => debtConfirmation.click());
     await click("Посмотреть подходящие предложения");
     await until(() => button("Показать варианты"), "cash gap options step");
-    expect(button("2. Подходящие предложения")?.getAttribute("aria-current")).toBe("step");
+    await until(() => button("2. Подходящие предложения")?.getAttribute("aria-current") === "step", "cash gap calculation completed");
     expect(document.body.textContent).toContain("Рассчитаем: Овердрафт");
     expect(document.querySelector("#compare-amount")).toBeNull();
     const settings = document.querySelector("#compare-product")!.closest("details")!;
     expect(settings.open).toBe(false);
     expect(visible(button("Показать варианты")!)).toBe(true);
-    await click("Показать варианты");
     await until(() => button("Выбрать условия"), "real overdraft options");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     const read = () => nativeFetch(`${base}/api/applications/${id}`)
@@ -467,10 +471,22 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     expect(view.application.product_details.overdraft.end_date).toBe(date(7));
     expect(view.explorations.at(-1).product_id).toBe("overdraft");
     expect(view.explorations.at(-1).result.options[0].amount).toBe("150000.00");
+    expect(view.explorations).toHaveLength(1);
     expect(requests.slice(initialRequests).some((url) => url.includes("/chats"))).toBe(false);
 
     await click("Изменить задачу");
     await until(() => button("Закупить товар"), "edit saved need");
+    const receiptDate = [...document.querySelectorAll<HTMLInputElement>('[id^="operation-date-"]')][1];
+    await input(`#${receiptDate.id}`, date(8));
+    const confirmation = [...document.querySelectorAll<HTMLInputElement>('input[type="checkbox"]')]
+      .find(item => item.parentElement?.textContent?.includes("Я учёл в расходах"));
+    if (confirmation) await act(async () => confirmation.click());
+    await click("Посмотреть подходящие предложения");
+    await until(() => button("Выбрать условия") && (document.body.textContent || "").includes("Последний расчёт"), "recalculated edited dates");
+    await until(async () => (await read()).application.application_version === 3, "saved new receipt date");
+    expect((await read()).application.product_details.overdraft.end_date).toBe(date(8));
+    await click("Изменить задачу");
+    await until(() => button("Закупить товар"), "edit after date correction");
     await click("Закупить товар");
     await input("#need-amount", "500000");
     await input("#need-term", "12");

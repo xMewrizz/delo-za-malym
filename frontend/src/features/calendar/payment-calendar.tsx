@@ -41,7 +41,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
   const month = chosenMonth || today.slice(0, 7);
   const [chosenPlan, setPlan] = useState<string | null>(null);
   const plans = calendar.data?.plans.filter(plan => plan.state !== "cancelled") || [];
-  const planId = chosenPlan ?? (plans.some(plan => plan.application_id === initialPlanId) ? initialPlanId : plans[0]?.application_id) ?? "";
+  const planId = chosenPlan ?? (plans.some(plan => plan.application_id === initialPlanId) ? initialPlanId : "") ?? "";
   const plan = plans.find(item => item.application_id === planId);
   const events = [...calendar.data?.events || [], ...plan?.events || []]
     .sort((left, right) => left.date.localeCompare(right.date) || left.event_id.localeCompare(right.event_id));

@@ -1,5 +1,5 @@
 import { ArrowRight, Building2, RefreshCw } from "lucide-react";
-import type { ReactNode } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { formatMoney } from "@/shared/lib/format";
 import { useSavedDraft } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
@@ -103,8 +103,20 @@ export function ApplicationWorkspace({
   const wantsPlan =
     need.preferred_product === "overdraft" ||
     need.financing_pattern === "cash_gap";
+  const calculateAfterSave = useRef(false);
+  const stepsRef = useRef<HTMLDivElement>(null);
+  const previousStep = useRef(step);
+  useEffect(() => {
+    if (previousStep.current !== step) stepsRef.current?.scrollIntoView({ block: "start" });
+    previousStep.current = step;
+  }, [step]);
+  useEffect(() => {
+    if (!calculateAfterSave.current || busy) return;
+    calculateAfterSave.current = false;
+    actions.explore(need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
+  }, [step, busy, actions, wantsPlan, need.preferred_product]);
   const saveNeed = (changes: Record<string, unknown>) =>
-    actions.save(changes, () => setStep("options"));
+    actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
   return (
     <div className="space-y-5">
       <details className="rounded-2xl border border-border bg-card p-4">
@@ -142,12 +154,15 @@ export function ApplicationWorkspace({
         <p className="mt-3 text-xs text-muted-foreground">
           Кредитная история: {historyName}.
         </p>
+        {Boolean(bank?.existing_loans?.length) && <div className="mt-4 space-y-2 border-t border-border pt-3">
+          <p className="text-sm font-semibold">Учтены платежи по действующим кредитам: {formatMoney(String((bank?.existing_loans || []).reduce((sum, loan) => sum + Number(loan.monthly_payment || 0), 0)))} в месяц</p>
+          {bank?.existing_loans?.map((loan, index) => <p key={loan.loan_id} className="text-xs text-muted-foreground">Кредит {index + 1}: остаток {formatMoney(loan.outstanding_principal || "0")}, платёж {formatMoney(loan.monthly_payment || "0")} в месяц.</p>)}
+        </div>}
       </details>
       {selection ? (
         <>
-          <SelectionSteps current={step === "options" ? "options" : "need"} busy={busy}
-            onNeed={() => setStep("need")} onOptions={() => setStep("options")} />
-          {renderDocuments?.(() => setStep("need"))}
+          <div ref={stepsRef} className="selection-step-anchor"><SelectionSteps current={step === "options" ? "options" : "need"} busy={busy}
+            onNeed={() => setStep("need")} onOptions={need.purpose ? () => setStep("options") : undefined} /></div>
           {step !== "options" && (
             <Card>
               <CardHeader>
@@ -162,6 +177,7 @@ export function ApplicationWorkspace({
           )}
           {step === "options" && (
             <>
+              {busy && <p role="status" className="rounded-xl bg-primary/10 p-4 text-sm text-primary">Подбираем подходящие условия…</p>}
               <Card>
                 <CardHeader>
                   <h2 className="text-xl font-extrabold">Ваш запрос</h2>
@@ -314,6 +330,7 @@ export function ApplicationWorkspace({
               )}
             </>
           )}
+          {renderDocuments?.(() => setStep("need"))}
         </>
       ) : (
         <>

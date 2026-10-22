@@ -11,6 +11,7 @@ import { describeIssue, outcomeName, productName } from "../model/presentation";
 import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
 import { LoanOptionDetails } from "./loan-option-details";
+import { z } from "zod";
 
 type ProductId = "working_capital_loan" | "overdraft";
 
@@ -81,6 +82,11 @@ export function ExplorationPanel({
   const baselineDays = flowDaysSchema.safeParse(latest?.result.baseline_daily);
   const current =
     latest?.application_version === view.application.application_version;
+  const baseline = z.object({ monthly_payment: z.string() }).safeParse(latest?.result.baseline);
+  const options = latest?.result.options || [];
+  const capacity = options.find(option => typeof option.available_monthly_payment === "string")?.available_monthly_payment;
+  const changedTerm = current && need.term_months && options.length > 0 &&
+    !options.some(option => option.term_months === need.term_months && option.amount === need.requested_amount);
 
   function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -137,7 +143,7 @@ export function ExplorationPanel({
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-primary">
-              {latest ? "А если?" : "Ваше финансирование"}
+              Сравнение условий
             </p>
             <h3 className="text-xl font-extrabold tracking-tight">
               Подходящие предложения
@@ -304,6 +310,9 @@ export function ExplorationPanel({
               Последний расчёт · {productName(latest.product_id)}{" "}
               {current ? "" : "· для предыдущей версии заявки"}
             </p>
+            {changedTerm && baseline.success && typeof capacity === "string" && Number(baseline.data.monthly_payment) > Number(capacity) && (
+              <p className="rounded-xl bg-primary/10 p-4 text-sm">На запрошенные {need.term_months} мес. платёж составил бы {formatMoney(baseline.data.monthly_payment)} в месяц. С учётом действующих кредитов доступно до {formatMoney(capacity)}. Ниже — условия с посильным платежом.</p>
+            )}
             {days.success && days.data.length > 0 && (
               <div
                 className={
@@ -337,7 +346,7 @@ export function ExplorationPanel({
                     </dd>
                   </div>
                   <div>
-                    <dt className="text-muted-foreground">Использовано</dt>
+                    <dt className="text-muted-foreground">Потребуется использовать</dt>
                     <dd className="mt-1 text-lg font-extrabold">
                       {formatMoney(latest.result.calculation.total_drawn)}
                     </dd>
@@ -353,7 +362,9 @@ export function ExplorationPanel({
                 </dl>
                 <p className="mt-4 text-xs text-muted-foreground">
                   {latest.result.calculation.feasible
-                    ? "Лимита хватает на платежи, а ожидаемые поступления позволяют вернуть долг."
+                    ? Number(latest.result.calculation.required_limit) === 0
+                      ? "По этому плану недостатка денег нет: кредит для этих платежей не нужен."
+                      : "По денежному плану ожидаемых поступлений хватило бы на возврат расчётного долга и процентов."
                     : "Нужно уточнить платежи или поступления; причины указаны ниже."}
                 </p>
                 <details className="mt-4">
@@ -442,6 +453,7 @@ export function ExplorationPanel({
                   <p className="text-xs font-bold text-primary">
                     {productName(option.product_id)}
                   </p>
+                  {Array.isArray(option.labels) && <div className="mt-2 flex flex-wrap gap-1">{option.labels.filter((label): label is string => typeof label === "string").map(label => <span key={label} className="rounded-lg bg-primary/10 px-2 py-1 text-xs text-primary">{label}</span>)}</div>}
                   <p className="mt-1 text-2xl font-extrabold tracking-tight">
                     {formatMoney(option.amount)}
                   </p>
@@ -451,6 +463,7 @@ export function ExplorationPanel({
                       ? "Платёж " + formatMoney(option.monthly_payment)
                       : "Возврат из поступлений на счёт"}
                   </p>
+                  {typeof option.total_interest === "string" && <p className="mt-1 text-xs text-muted-foreground">Переплата: {formatMoney(option.total_interest)}</p>}
                   {option.total_repayment && (
                     <p className="mt-1 text-xs text-muted-foreground">
                       Всего к возврату: {formatMoney(option.total_repayment)}

@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
+import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, MessageCircle, Plus, RefreshCw } from "lucide-react";
 import {
@@ -43,6 +43,13 @@ export function AssistantPanel({
     onUpdated: (chat: ChatView) => void,
   ) => ReactNode;
 }) {
+  const [mobilePanel, setMobilePanel] = useState<"conversation" | "workspace">("conversation");
+  const panelNavigation = useRef<HTMLDivElement>(null);
+  function showPanel(panel: "conversation" | "workspace") {
+    setMobilePanel(panel);
+    if (window.matchMedia?.("(max-width: 900px)").matches)
+      panelNavigation.current?.scrollIntoView({ block: "start" });
+  }
   const queryClient = useQueryClient();
   const [activeChatId, setActiveChatId] = useSavedDraft<string | null>(
     `delo-chat:${applicationId}`,
@@ -244,7 +251,13 @@ export function AssistantPanel({
     });
   }
   return (
-    <div className="assistant-layout">
+    <div className="assistant-layout" data-mobile-panel={mobilePanel}>
+      <div className="assistant-mobile-navigation" ref={panelNavigation}>
+        <div className="assistant-panel-switch" role="group" aria-label="Диалог и собранные данные">
+          <Button variant={mobilePanel === "conversation" ? "default" : "outline"} aria-pressed={mobilePanel === "conversation"} onClick={() => showPanel("conversation")}>Диалог</Button>
+          <Button variant={mobilePanel === "workspace" ? "default" : "outline"} aria-pressed={mobilePanel === "workspace"} onClick={() => showPanel("workspace")}>Данные и предложения{pending ? " · обновлены" : ""}</Button>
+        </div>
+      </div>
       <Card className="assistant-conversation gap-0">
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-3">
@@ -377,6 +390,9 @@ export function AssistantPanel({
               onFreeText={() => messageBox.current?.focus()}
             />
           )}
+          {pending && !chat.data?.clarification && (
+            <Button className="assistant-mobile-review" variant="outline" onClick={() => showPanel("workspace")}>Проверить собранные данные</Button>
+          )}
           {userTurns >= limit && (
             <p className="text-sm text-muted-foreground">
               Достигнут лимит сообщений. Начните новый диалог — подтверждённые
@@ -426,7 +442,6 @@ export function AssistantPanel({
         </CardContent>
       </Card>
       <div className="assistant-working-area space-y-5">
-        {chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
         <CollectedData
           view={projected}
           proposal={pending}
@@ -495,6 +510,7 @@ export function AssistantPanel({
             onApply={actions.apply}
           />
         )}
+        {chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
       </div>
     </div>
   );
