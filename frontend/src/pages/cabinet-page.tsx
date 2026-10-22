@@ -28,6 +28,8 @@ import { readSaved } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
+import { ThemeToggle } from "@/shared/ui/theme-toggle";
+import { financingName } from "@/shared/lib/product-directions";
 import "./cabinet-page.css";
 import "./cabinet-workspace.css";
 import { CabinetNavigation, type CabinetMode } from "./cabinet-navigation";
@@ -264,7 +266,7 @@ export function CabinetPage() {
   const activeDetail =
     mode === "manual" ? manual : mode === "assistant" ? assistant : detail;
   const copy = {
-    overview: ["Хороший день для больших планов", "Ваш бизнес, финансирование и ближайшие шаги — перед глазами."],
+    overview: ["Пульс вашего бизнеса", "Деньги, обязательства и следующий шаг. В одном пространстве."],
     business: ["Данные вашего бизнеса", "Сведения, которые уже есть у банка. Без повторного ввода и лишних анкет."],
     portfolio: ["Моё финансирование", "Полученные кредиты, открытые лимиты и обязательства вашего бизнеса."],
     manual: [
@@ -285,7 +287,7 @@ export function CabinetPage() {
     <section className="cabinet-page" aria-labelledby="cabinet-title">
       <CabinetNavigation mode={mode} company={profile.data?.company_name} applications={applications.length} navigate={navigate} />
       <div className="workspace-body">
-      <div className="workspace-topbar"><p>Личный кабинет<span>/</span>{mode === "assistant" ? "Получить финансирование" : mode === "manual" ? "Получить финансирование" : modeNames[mode]}</p><span className="workspace-profile-avatar">С</span></div>
+      <div className="workspace-topbar"><p>Личный кабинет<span>/</span>{mode === "assistant" ? "Получить финансирование" : mode === "manual" ? "Получить финансирование" : modeNames[mode]}</p><div className="workspace-topbar-actions"><ThemeToggle /><span className="workspace-profile-avatar" aria-label={profile.data?.company_name || "Ваш бизнес"}>С</span></div></div>
       <div ref={modeNavigation} className="cabinet-heading">
         <div>
           <p className="cabinet-eyebrow">
@@ -417,7 +419,7 @@ export function CabinetPage() {
         <div className="cabinet-grid">
           {Boolean(applications.length) && <label className="application-mobile-picker text-sm font-semibold">Открытая заявка
             <select aria-label="Выбрать заявку" className="mt-2 min-h-11 w-full rounded-xl border border-border bg-background p-3 text-sm font-normal" value={selectedId || ""} onChange={event => navigate("applications", event.target.value)}>
-              {applications.map(item => <option key={item.application_id} value={item.application_id}>{item.need.preferred_product === "overdraft" ? "Овердрафт" : "Кредит"}{item.need.requested_amount ? ` · ${formatMoney(item.need.requested_amount)}` : ""} · {stateName(item.state.status)} · {item.application_id.slice(0, 6)}</option>)}
+              {applications.map(item => <option key={item.application_id} value={item.application_id}>{financingName(item.need.preferred_product)}{item.need.requested_amount ? ` · ${formatMoney(item.need.requested_amount)}` : ""} · {stateName(item.state.status)} · {item.application_id.slice(0, 6)}</option>)}
             </select>
           </label>}
           <aside className="cabinet-sidebar">
@@ -454,9 +456,7 @@ export function CabinetPage() {
                       }
                     >
                       <strong>
-                        {item.need.preferred_product === "overdraft"
-                          ? "Овердрафт"
-                          : "Кредит"}
+                        {financingName(item.need.preferred_product)}
                         {item.need.requested_amount
                           ? ` · ${formatMoney(item.need.requested_amount)}`
                           : ""}

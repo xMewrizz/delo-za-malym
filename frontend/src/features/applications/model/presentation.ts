@@ -1,5 +1,6 @@
-export const productName = (id: string) =>
-  id === "overdraft" ? "Овердрафт" : "Кредит на оборотные цели";
+import { financingName } from "@/shared/lib/product-directions";
+
+export const productName = financingName;
 
 const stateNames: Record<string, string> = {
   draft: "Черновик",

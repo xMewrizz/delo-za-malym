@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { financingName } from "@/shared/lib/product-directions";
 import { useQuery } from "@tanstack/react-query";
 import { ChevronLeft, ChevronRight, RefreshCw } from "lucide-react";
 import { Link, useSearchParams } from "react-router";
@@ -45,7 +46,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
   const days = Array.from({ length: count }, (_, index) => `${month}-${String(index + 1).padStart(2, "0")}`);
   const nextPayment = events.find(event => event.date >= today && event.direction === "outflow" && !event.kind.startsWith("planned_"));
   return <div className="space-y-5">
-    <div className="calendar-product-filter"><div><h2>Какие платежи показать?</h2><p>Общий график или обязательства по одному продукту.</p></div><label><span className="sr-only">Продукт в календаре</span><select aria-label="Продукт в календаре" value={product} onChange={event => setSearch(current => { const next = new URLSearchParams(current); if (event.target.value === "all") next.delete("product"); else next.set("product", event.target.value); return next; })}><option value="all">Все продукты</option>{bankLoans.map((loan, index) => <option key={loan.loan_id} value={`loan:${loan.loan_id}`}>Действующий кредит {index + 1} · {formatMoney(loan.outstanding_principal || "0")}</option>)}{calendar.data?.accounts.map(account => <option key={account.application_id} value={`app:${account.application_id}`}>{account.product_id === "overdraft" ? "Овердрафт" : "Оборотный кредит"} · {formatMoney(account.amount)} · {account.application_id.slice(0, 6)}</option>)}</select></label></div>
+    <div className="calendar-product-filter"><div><h2>Какие платежи показать?</h2><p>Общий график или обязательства по одному продукту.</p></div><label><span className="sr-only">Продукт в календаре</span><select aria-label="Продукт в календаре" value={product} onChange={event => setSearch(current => { const next = new URLSearchParams(current); if (event.target.value === "all") next.delete("product"); else next.set("product", event.target.value); return next; })}><option value="all">Все продукты</option>{bankLoans.map((loan, index) => <option key={loan.loan_id} value={`loan:${loan.loan_id}`}>Действующий кредит {index + 1} · {formatMoney(loan.outstanding_principal || "0")}</option>)}{calendar.data?.accounts.map(account => <option key={account.application_id} value={`app:${account.application_id}`}>{financingName(account.product_id)} · {formatMoney(account.amount)} · {account.application_id.slice(0, 6)}</option>)}</select></label></div>
     <p className="max-w-3xl text-sm text-muted-foreground">{product === "all" ? "Здесь собраны графики действующих продуктов. Добавьте поступления и расходы выбранного плана, чтобы видеть предстоящие платежи вместе." : "Показан график выбранного продукта. Чтобы вернуться к общему календарю, выберите «Все продукты»."} События с отметкой «По плану» ещё не исполнены.</p>
     {calendar.error && <div role="alert" className="flex flex-wrap items-center gap-3 text-sm text-destructive">{getErrorMessage(calendar.error)}<Button variant="outline" onClick={() => void calendar.refetch()}><RefreshCw />Повторить загрузку</Button></div>}
     {calendar.isLoading && <p role="status" className="text-sm text-muted-foreground">Загружаем платежи и поступления…</p>}
@@ -93,7 +94,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
     </CardContent></Card>
     {Boolean(calendar.data?.accounts.length) && <Card><CardContent className="pt-6"><h2 className="text-lg font-bold">Полученное финансирование</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">
       {calendar.data?.accounts.map(account => <Link key={account.application_id} className="rounded-xl border border-border p-4 hover:border-primary" to={`/cabinet?mode=applications&application=${account.application_id}`}>
-        <strong>{account.product_id === "overdraft" ? "Лимит овердрафта" : "Кредит на оборотные цели"} · {formatMoney(account.amount)}</strong>
+        <strong>{financingName(account.product_id)} · {formatMoney(account.amount)}</strong>
         <p className="mt-2 text-sm text-muted-foreground">{account.product_id === "overdraft" ? "Лимит открыт. Использование и погашение показаны как прогноз." : "Учтён при расчёте новых заявок. Платежи показаны по договорному графику."}</p>
       </Link>)}
     </div></CardContent></Card>}

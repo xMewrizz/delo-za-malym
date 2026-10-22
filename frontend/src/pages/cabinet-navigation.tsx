@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { ArrowLeft, ArrowUpRight, Building2, CalendarDays, CircleHelp, CreditCard, FolderOpen, LayoutDashboard, Menu, Plus, Sparkles, X } from "lucide-react";
 import { Link } from "react-router";
+import { BrandLogo } from "@/shared/ui/brand-logo";
 
 export type CabinetMode = "overview" | "business" | "manual" | "assistant" | "applications" | "portfolio" | "calendar";
 const sections = [
@@ -21,7 +22,7 @@ export function CabinetNavigation({ mode, company, applications, navigate }: { m
     if (open && next === mode) requestAnimationFrame(() => document.getElementById("cabinet-title")?.focus());
   }
   return <aside className="workspace-navigation" data-menu-open={open} onKeyDown={event => { if (event.key === "Escape" && open) { setOpen(false); menuButton.current?.focus(); } }}>
-    <div className="workspace-brand-row"><Link to="/" aria-label="Дело за малым — главная"><img src="/brand/logo.svg" alt="Дело за малым." width="224" height="44" /></Link><button ref={menuButton} type="button" className="workspace-menu-toggle" aria-label={open ? "Закрыть меню" : "Открыть меню"} aria-expanded={open} aria-controls="workspace-sections" onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button></div>
+    <div className="workspace-brand-row"><Link to="/" aria-label="Дело за малым — главная"><BrandLogo width={210} /></Link><button ref={menuButton} type="button" className="workspace-menu-toggle" aria-label={open ? "Закрыть меню" : "Открыть меню"} aria-expanded={open} aria-controls="workspace-sections" onClick={() => setOpen(!open)}>{open ? <X /> : <Menu />}</button></div>
     <div className="workspace-nav-body" id="workspace-sections">
       <div className="workspace-company"><span className="company-avatar">С</span><div><strong>{company || "Ваш бизнес"}</strong><span>Бизнес-кабинет</span></div></div>
       <p className="workspace-nav-caption">ВАШЕ ДЕЛО</p>

@@ -2,7 +2,10 @@ import { ArrowUpRight } from 'lucide-react'
 import { useEffect } from 'react'
 import { Link, Outlet, useLocation } from 'react-router'
 import { Button } from '@/shared/ui/button'
+import { BrandLogo } from '@/shared/ui/brand-logo'
+import { ThemeToggle } from '@/shared/ui/theme-toggle'
 import './layout.css'
+import './neon-design.css'
 
 const copyrightYear = new Date().getFullYear()
 
@@ -10,7 +13,7 @@ export function AppLayout() {
   const { pathname, hash } = useLocation();
   const isCabinet = pathname === '/cabinet';
   useEffect(() => {
-    if (!hash) { if (!isCabinet) window.scrollTo({ top: 0 }); return; }
+    if (!hash) { window.scrollTo({ top: 0, behavior: 'instant' }); return; }
     const frame = requestAnimationFrame(() => document.getElementById(decodeURIComponent(hash.slice(1)))?.scrollIntoView({ block: 'start' }));
     return () => cancelAnimationFrame(frame);
   }, [pathname, hash, isCabinet]);
@@ -21,7 +24,7 @@ export function AppLayout() {
       <header className="app-header">
         <div className="app-container app-header-inner">
           <Link to="/" className="app-brand" aria-label="Дело за малым — главная">
-            <img src="/brand/logo.svg" alt="Дело за малым." width="248" height="48" />
+            <BrandLogo />
           </Link>
           <nav className="app-navigation" aria-label="О проекте и возможностях">
             <a href="/#capabilities">Возможности</a>
@@ -29,7 +32,7 @@ export function AppLayout() {
             <Link to="/project">О проекте</Link>
             <Link to="/project#documentation">Документация</Link>
           </nav>
-          <Button asChild variant="secondary" className="app-header-action"><Link to="/cabinet">Войти в кабинет<ArrowUpRight aria-hidden="true" /></Link></Button>
+          <div className="header-actions"><ThemeToggle /><Button asChild variant="secondary" className="app-header-action"><Link to="/cabinet">Войти в кабинет<ArrowUpRight aria-hidden="true" /></Link></Button></div>
         </div>
       </header>
       <main id="main-content" tabIndex={-1} className="app-container app-main">
@@ -38,7 +41,7 @@ export function AppLayout() {
       <footer className="app-footer">
         <div className="app-container">
           <div className="app-footer-top">
-            <Link to="/" className="app-brand"><img src="/brand/logo.svg" alt="Дело за малым." width="248" height="48" /></Link>
+            <Link to="/" className="app-brand"><BrandLogo /></Link>
             <p>Вы занимаетесь делом.<br /><span>Мы помогаем с возможностями.</span></p>
             <a href="/#products" className="app-footer-link">Выбрать финансирование<ArrowUpRight size={18} aria-hidden="true" /></a>
           </div>
