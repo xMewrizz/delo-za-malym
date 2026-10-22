@@ -1,4 +1,4 @@
-import { useEffect, useRef, type FormEvent } from "react";
+import { useEffect, useRef, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, MessageCircle, Plus, RefreshCw } from "lucide-react";
 import {
@@ -32,11 +32,16 @@ export function AssistantPanel({
   record,
   actions,
   onRecordUpdated,
+  renderDocuments,
 }: {
   applicationId: string;
   record: ApplicationView;
   actions: ApplicationActions;
   onRecordUpdated: (view: ApplicationView) => void;
+  renderDocuments?: (
+    chat: ChatView,
+    onUpdated: (chat: ChatView) => void,
+  ) => ReactNode;
 }) {
   const queryClient = useQueryClient();
   const [activeChatId, setActiveChatId] = useSavedDraft<string | null>(
@@ -99,22 +104,29 @@ export function AssistantPanel({
       });
   }, [record.application.application_version, chat.data, queryClient]);
   const send = useMutation({
-    mutationFn: async ({ text, id }: { text: string; id: string }) => {
-      const current = chat.data || (await createChat(applicationId));
-      if (!chat.data) accept(current);
-      return sendMessage(
-        current.chat.chat_id,
-        current.chat.chat_version,
-        id,
-        text,
-      );
+    mutationFn: ({
+      text,
+      id,
+      chatId,
+      version,
+    }: {
+      text: string;
+      id: string;
+      chatId: string;
+      version: number;
+    }) => sendMessage(chatId, version, id, text),
+    onMutate: (sent) => {
+      setMessage((current) => (current.trim() === sent.text ? "" : current));
     },
     onSuccess: (view, sent) => {
       accept(view);
       setMessage((current) => (current.trim() === sent.text ? "" : current));
       sendIdentity.current = { text: "", id: "" };
     },
-    onError: recover,
+    onError: (error, sent) => {
+      setMessage((current) => (current.trim() ? current : sent.text));
+      recover(error);
+    },
   });
   const resolve = useMutation({
     mutationFn: ({ id, confirm }: { id: string; confirm: boolean }) => {
@@ -194,9 +206,10 @@ export function AssistantPanel({
   const editable = !["cancelled", "disbursed", "limit_opened"].includes(
     record.state.status,
   );
+  const sendError = send.variables?.chatId === chatId ? send.error : null;
   const error =
     create.error ||
-    send.error ||
+    sendError ||
     resolve.error ||
     answer.error ||
     edit.error ||
@@ -206,16 +219,29 @@ export function AssistantPanel({
   const userTurns =
     chat.data?.chat.messages.filter((item) => item.role === "user").length || 0;
   const limit = chat.data?.assistant.max_turns || 40;
+  const outgoing =
+    send.variables?.chatId === chatId &&
+    (send.isPending || send.isError) &&
+    !chat.data?.chat.messages.some(
+      (item) => item.request_id === send.variables?.id,
+    )
+      ? send.variables
+      : null;
   useEffect(() => {
     if (log.current) log.current.scrollTop = log.current.scrollHeight;
   }, [chat.data?.chat.chat_version, send.isPending]);
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = message.trim();
-    if (!text || busy || !editable || userTurns >= limit) return;
+    if (!text || busy || !editable || !chat.data || userTurns >= limit) return;
     if (sendIdentity.current.text !== text)
       sendIdentity.current = { text, id: crypto.randomUUID() };
-    send.mutate({ text, id: sendIdentity.current.id });
+    send.mutate({
+      text,
+      id: sendIdentity.current.id,
+      chatId: chat.data.chat.chat_id,
+      version: chat.data.chat.chat_version,
+    });
   }
   return (
     <div className="assistant-layout">
@@ -228,6 +254,7 @@ export function AssistantPanel({
             <Button
               variant="outline"
               size="icon"
+              className="assistant-icon-control"
               title="Новый диалог"
               aria-label="Новый диалог"
               disabled={busy || !editable}
@@ -295,7 +322,7 @@ export function AssistantPanel({
             {chat.isFetching && (
               <p className="text-xs text-muted-foreground">Загружаем диалог…</p>
             )}
-            {!chat.data?.chat.messages.length && (
+            {!chat.data?.chat.messages.length && !outgoing && (
               <p className="m-auto max-w-64 text-center text-sm text-muted-foreground">
                 Например: «Завтра нужно заплатить поставщику 450 тысяч. Через
                 неделю покупатель перечислит 500 тысяч».
@@ -312,12 +339,35 @@ export function AssistantPanel({
                 <p className="whitespace-pre-wrap">{item.text}</p>
               </div>
             ))}
+            {outgoing && (
+              <div className="assistant-message assistant-message-user assistant-message-outgoing">
+                <p className="mb-1 text-xs font-bold opacity-60">Вы</p>
+                <p className="whitespace-pre-wrap">{outgoing.text}</p>
+                <p className="mt-2 text-xs opacity-75">
+                  {send.isPending ? "Ожидаем ответа" : "Ответ не получен"}
+                </p>
+              </div>
+            )}
             {send.isPending && (
               <p role="status" className="text-sm text-primary">
                 Собираем данные и готовим ответ…
               </p>
             )}
           </div>
+          {sendError && send.variables && (
+            <Button
+              variant="outline"
+              disabled={
+                busy ||
+                !editable ||
+                (sendError instanceof ApiError && sendError.status === 409)
+              }
+              onClick={() => send.mutate(send.variables!)}
+            >
+              <RefreshCw />
+              Повторить запрос
+            </Button>
+          )}
           {chat.data?.clarification && editable && (
             <ClarificationCard
               key={chat.data.clarification.question_id}
@@ -340,6 +390,16 @@ export function AssistantPanel({
               value={message}
               onChange={(event) => setMessage(event.target.value)}
               maxLength={8000}
+              onKeyDown={(event) => {
+                if (
+                  event.key === "Enter" &&
+                  !event.shiftKey &&
+                  !event.nativeEvent.isComposing
+                ) {
+                  event.preventDefault();
+                  event.currentTarget.form?.requestSubmit();
+                }
+              }}
               placeholder="Расскажите о задаче…"
               className="min-h-20 resize-none"
               disabled={!editable}
@@ -347,17 +407,26 @@ export function AssistantPanel({
             <Button
               type="submit"
               size="icon"
+              className="assistant-icon-control"
               aria-label="Отправить сообщение"
               disabled={
-                busy || !message.trim() || !editable || userTurns >= limit
+                busy ||
+                !message.trim() ||
+                !editable ||
+                !chat.data ||
+                userTurns >= limit
               }
             >
               <ArrowUp />
             </Button>
           </form>
+          <p className="text-xs text-muted-foreground">
+            Enter — отправить · Shift + Enter — новая строка
+          </p>
         </CardContent>
       </Card>
       <div className="assistant-working-area space-y-5">
+        {chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
         <CollectedData
           view={projected}
           proposal={pending}
@@ -420,6 +489,9 @@ export function AssistantPanel({
             view={record}
             busy={busy || !editable}
             onExplore={actions.explore}
+            onSavePlan={(plan) =>
+              actions.save({ "product_details.overdraft": plan })
+            }
             onApply={actions.apply}
           />
         )}

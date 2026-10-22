@@ -10,6 +10,8 @@ import {
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
+import { FieldOrigin } from "@/shared/ui/field-origin";
+import { originFor } from "@/shared/lib/field-source";
 import type { Proposal, ProposalPreview } from "../api/chat";
 
 const rowsSchema = z.array(
@@ -148,6 +150,12 @@ export function CollectedData({
               ? formatMoney(need.requested_amount)
               : "Уточняем"}
           </dd>
+          <FieldOrigin
+            source={
+              originFor(proposal?.field_sources, "need.requested_amount") ||
+              originFor(view.field_sources, "need.requested_amount")
+            }
+          />
           {proposal && (
             <Correction
               label="Сумма"
@@ -194,6 +202,18 @@ export function CollectedData({
                   <strong className="block text-lg">
                     {row.amount ? formatMoney(row.amount) : "Уточняем сумму"}
                   </strong>
+                  <FieldOrigin
+                    source={
+                      originFor(
+                        proposal?.field_sources,
+                        `plan/${encodeURIComponent(row.transaction_id)}/amount`,
+                      ) ||
+                      originFor(
+                        view.field_sources,
+                        `plan/${encodeURIComponent(row.transaction_id)}/amount`,
+                      )
+                    }
+                  />
                 </div>
                 <time dateTime={row.date || undefined}>
                   {row.date

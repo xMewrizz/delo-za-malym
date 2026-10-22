@@ -48,7 +48,7 @@ class ChatService:
             if proposal and proposal["status"] == "pending":
                 proposal["conflicts"] = self.conflicts(proposal, record)
                 if PLAN_PATH in proposal["changes"]:
-                    proposal["plan_issues"] = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock())
+                    proposal["plan_issues"] = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock(), proposal["changes"])
         pending = pending_proposal(chat)
         clarification = None if pending and self.conflicts(pending, record) else next_clarification(chat, record, self.clock())
         return {"chat": public, "record": self.process.public(record), "assistant": self.settings(),
@@ -78,6 +78,8 @@ class ChatService:
         proposal = {"proposal_id": str(uuid4()), "application_id": record["application"]["application_id"],
                     "base_application_version": version, "base_values": base_values, "review_fields": review_fields,
                     "changes": deepcopy(changes), "status": "pending"}
+        if pending and pending.get("field_sources"):
+            proposal["field_sources"] = deepcopy(pending["field_sources"])
         if PLAN_PATH in changes:
             proposal["dependencies"] = deepcopy((pending or {}).get("dependencies", {}))
             for path in ("financials.cash_balance", "financials.existing_loans"):
@@ -159,11 +161,11 @@ class ChatService:
         changes = deepcopy(proposal["changes"])
         issues = []
         if PLAN_PATH in changes:
-            issues = plan_issues(record, changes[PLAN_PATH], self.clock())
+            issues = plan_issues(record, changes[PLAN_PATH], self.clock(), changes)
             changes[PLAN_PATH] = engine_plan(changes[PLAN_PATH])
         self.process.patch_record(projection, changes, self.clock())
         need = projection["application"]["need"]
-        product = "overdraft" if PLAN_PATH in changes else need.get("preferred_product") or (
+        product = need.get("preferred_product") or (
             "overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
         self.workspace.explore_record(projection, self.clock(), product)
         result = projection["explorations"][-1]["result"]
@@ -248,7 +250,7 @@ class ChatService:
                   "mode": self.assistant.mode, "model": self.assistant.model,
                   "tools": list(tools)}
         if reply.overdraft_plan is not None:
-            issues = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock())
+            issues = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock(), proposal["changes"])
             answer["text"] = "Собрал будущие операции. Проверьте суммы и даты в карточке."
             answer["question"] = issues[0]["message"] if issues else None
         # Не держим блокировку SQLite, пока модель генерирует ответ.
@@ -301,13 +303,18 @@ class ChatService:
                     raise ProcessError("version_conflict", "Некоторые предложенные поля уже изменены в форме. Проверьте и сохраните исправленный черновик.")
                 changes = deepcopy(proposal["changes"])
                 if PLAN_PATH in changes:
-                    issues = plan_issues(record, changes[PLAN_PATH], self.clock())
+                    issues = plan_issues(record, changes[PLAN_PATH], self.clock(), changes)
                     if issues:
                         raise ProcessError("plan_incomplete", issues[0]["message"], 422)
                     changes[PLAN_PATH] = engine_plan(changes[PLAN_PATH])
                 self.process.patch_record(record, changes, self.clock())
+                from .sources import attach_sources
+                attach_sources(record, proposal.get("field_sources", {}))
+                need = record["application"]["need"]
                 if PLAN_PATH in changes:
-                    self.workspace.explore_record(record, self.clock(), "overdraft")
+                    product = need.get("preferred_product") or ("overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
+                    if product == "overdraft" or need.get("requested_amount") is not None:
+                        self.workspace.explore_record(record, self.clock(), product)
                 elif (record["application"]["need"].get("purpose") == "working_capital"
                       and record["application"]["need"].get("requested_amount") is not None
                       and record["application"]["need"].get("financing_pattern") != "cash_gap"
@@ -332,7 +339,8 @@ class ChatService:
             if previous and new_ids and not new_ids & saved_ids and not update.removed_transaction_ids and "mode" not in update.model_fields_set:
                 update = update.model_copy(update={"mode": "replace"})
         changes[PLAN_PATH] = merge_plan(record, previous, update, self.clock())
-        for field, default in (("purpose", "working_capital"), ("financing_pattern", "cash_gap")):
+        preferred = changes.get("need.preferred_product", record["application"]["need"].get("preferred_product"))
+        for field, default in (("purpose", "working_capital"), ("financing_pattern", "gradual_repayment" if preferred == "working_capital_loan" else "cash_gap")):
             if changes.get("need." + field, record["application"]["need"].get(field)) is None:
                 changes["need." + field] = default
 
@@ -366,7 +374,7 @@ class ChatService:
                 ("financials.cash_balance", "financials.existing_loans")} if PLAN_PATH in changes else {}
             for message in chat["messages"]:
                 if message.get("proposal") is proposal:
-                    issues = plan_issues(record, changes[PLAN_PATH], self.clock()) if PLAN_PATH in changes else []
+                    issues = plan_issues(record, changes[PLAN_PATH], self.clock(), changes) if PLAN_PATH in changes else []
                     message["question"] = issues[0]["message"] if issues else None
             chat["chat_version"] += 1
             self.store.save_chat(connection, chat)

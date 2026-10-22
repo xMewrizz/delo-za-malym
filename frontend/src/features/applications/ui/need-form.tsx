@@ -1,12 +1,15 @@
-import { useState, type FormEvent } from "react";
+import { useEffect, useMemo, useState, type FormEvent } from "react";
 import { ArrowRight, Save } from "lucide-react";
 import { Button } from "@/shared/ui/button";
+import { FieldOrigin } from "@/shared/ui/field-origin";
+import { originFor } from "@/shared/lib/field-source";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
-import { useSavedDraft } from "@/shared/lib/saved-draft";
+import { readSaved, useSavedDraft } from "@/shared/lib/saved-draft";
 import type { ApplicationView } from "../api/applications";
 import {
   buildNeedChanges,
   draftFromApplication,
+  mergeNeedDraft,
   type NeedDraft,
 } from "../model/need";
 
@@ -22,16 +25,30 @@ export function NeedForm({
   view,
   busy,
   onSave,
+  continueToNextStep = false,
 }: {
   view: ApplicationView;
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
+  continueToNextStep?: boolean;
 }) {
+  const base = useMemo(() => draftFromApplication(view), [view]),
+    snapshotKey = `delo-need-source:${view.application.application_id}`;
   const [draft, setDraft] = useSavedDraft<NeedDraft>(
     `delo-need:${view.application.application_id}:${view.application.application_version}`,
-    draftFromApplication(view),
+    mergeNeedDraft(base, readSaved(snapshotKey, null)),
   );
+  useEffect(() => {
+    try {
+      localStorage.setItem(snapshotKey, JSON.stringify({ base, draft }));
+    } catch {
+      /* Storage can be unavailable. */
+    }
+  }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
+  const nextIsPlan =
+    draft.preferredProduct === "overdraft" ||
+    draft.financingPattern === "cash_gap";
   const set = (key: keyof NeedDraft, value: string) =>
     setDraft((current) => ({ ...current, [key]: value }));
 
@@ -122,14 +139,19 @@ export function NeedForm({
             ]}
             hint="Если не знаете, подберём после сохранения."
           />
-          <FormField
-            id="need-amount"
-            label="Нужная сумма, ₽"
-            value={draft.requestedAmount}
-            onChange={(event) => set("requestedAmount", event.target.value)}
-            inputMode="decimal"
-            placeholder="Например, 500 000"
-          />
+          <div>
+            <FormField
+              id="need-amount"
+              label="Нужная сумма, ₽"
+              value={draft.requestedAmount}
+              onChange={(event) => set("requestedAmount", event.target.value)}
+              inputMode="decimal"
+              placeholder="Например, 500 000"
+            />
+            <FieldOrigin
+              source={originFor(view.field_sources, "need.requested_amount")}
+            />
+          </div>
           <FormField
             id="need-term"
             label="Срок, месяцев"
@@ -200,12 +222,16 @@ export function NeedForm({
         <div className="flex flex-wrap items-center justify-between gap-3 border-t border-border pt-5">
           <p className="max-w-md text-xs text-muted-foreground">
             Профиль компании и известные банку финансовые данные уже
-            подставлены. Изменения заявки сохраняются только после нажатия
-            кнопки.
+            подставлены. Заявка отправится только после отдельного
+            подтверждения.
           </p>
           <Button type="submit" disabled={busy}>
-            <Save aria-hidden="true" />
-            Сохранить черновик
+            {!continueToNextStep && <Save aria-hidden="true" />}
+            {continueToNextStep
+              ? nextIsPlan
+                ? "Продолжить к денежному плану"
+                : "Продолжить к вариантам"
+              : "Сохранить черновик"}
             <ArrowRight aria-hidden="true" />
           </Button>
         </div>

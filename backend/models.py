@@ -67,6 +67,32 @@ class ApplicationView(BaseModel):
     submitted_versions: list[dict[str, Any]]
     explorations: list[dict[str, Any]] = Field(default_factory=list)
     imports: list[dict[str, Any]] = Field(default_factory=list)
+    documents: list[dict[str, Any]] = Field(default_factory=list)
+    field_sources: dict[str, Any] = Field(default_factory=dict)
+
+
+class UseInvoice(ConfirmedAction):
+    document_revision: StrictInt = Field(ge=1)
+    target: Literal["loan_amount", "planned_expense", "evidence"]
+    amount: str
+    due_date: str | None = None
+    transaction_id: str | None = Field(default=None, min_length=1, max_length=100)
+    replace_existing: StrictBool = False
+    base_chat_version: StrictInt | None = Field(default=None, ge=1)
+
+    @field_validator("amount")
+    @classmethod
+    def invoice_money(cls, value):
+        if not re.fullmatch(r"[0-9]{1,12}\.[0-9]{2}", value) or float(value) <= 0:
+            raise ValueError("Нужна положительная сумма с двумя знаками после точки.")
+        return value
+
+    @field_validator("due_date")
+    @classmethod
+    def invoice_date(cls, value):
+        if value is not None and date.fromisoformat(value).isoformat() != value:
+            raise ValueError("Нужна дата YYYY-MM-DD.")
+        return value
 
 
 class CreateChat(RequestModel):

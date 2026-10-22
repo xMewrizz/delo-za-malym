@@ -63,6 +63,354 @@
         }
       }
     },
+    "/api/applications/{application_id}/explorations/{exploration_id}/options/{option_id}/cash-flow": {
+      "get": {
+        "summary": "Loan Cash Forecast",
+        "operationId": "loan_cash_forecast_api_applications__application_id__explorations__exploration_id__options__option_id__cash_flow_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "exploration_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Exploration Id"
+            }
+          },
+          {
+            "name": "option_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Option Id"
+            }
+          },
+          {
+            "name": "base_application_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Base Application Version"
+            }
+          },
+          {
+            "name": "transaction_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string",
+                  "minLength": 1,
+                  "maxLength": 100
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Transaction Id"
+            }
+          },
+          {
+            "name": "delay_days",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "integer",
+                  "maximum": 30,
+                  "minimum": 1
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Delay Days"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/documents": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Upload Invoice",
+        "operationId": "upload_invoice_api_applications__application_id__documents_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "filename",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 200,
+              "title": "Filename"
+            }
+          },
+          {
+            "name": "base_application_version",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "minimum": 1,
+              "title": "Base Application Version"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        },
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/pdf": {
+              "schema": {
+                "type": "string",
+                "format": "binary"
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/documents/{document_id}/file": {
+      "get": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Invoice Original",
+        "operationId": "invoice_original_api_applications__application_id__documents__document_id__file_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/documents/{document_id}/use": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Use Invoice",
+        "operationId": "use_invoice_api_applications__application_id__documents__document_id__use_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseInvoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/chats/{chat_id}/documents/{document_id}/use": {
+      "post": {
+        "tags": [
+          "Документы"
+        ],
+        "summary": "Propose Invoice",
+        "operationId": "propose_invoice_api_chats__chat_id__documents__document_id__use_post",
+        "parameters": [
+          {
+            "name": "chat_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Chat Id"
+            }
+          },
+          {
+            "name": "document_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Document Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/UseInvoice"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object",
+                  "additionalProperties": true,
+                  "title": "Response Propose Invoice Api Chats  Chat Id  Documents  Document Id  Use Post"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/chat/config": {
       "get": {
         "tags": [
@@ -1734,6 +2082,19 @@
             },
             "type": "array",
             "title": "Imports"
+          },
+          "documents": {
+            "items": {
+              "additionalProperties": true,
+              "type": "object"
+            },
+            "type": "array",
+            "title": "Documents"
+          },
+          "field_sources": {
+            "additionalProperties": true,
+            "type": "object",
+            "title": "Field Sources"
           }
         },
         "type": "object",
@@ -2372,6 +2733,88 @@
           "changes"
         ],
         "title": "UpdateApplication"
+      },
+      "UseInvoice": {
+        "properties": {
+          "base_application_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Application Version"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          },
+          "document_revision": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Document Revision"
+          },
+          "target": {
+            "type": "string",
+            "enum": [
+              "loan_amount",
+              "planned_expense",
+              "evidence"
+            ],
+            "title": "Target"
+          },
+          "amount": {
+            "type": "string",
+            "title": "Amount"
+          },
+          "due_date": {
+            "anyOf": [
+              {
+                "type": "string"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Due Date"
+          },
+          "transaction_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Transaction Id"
+          },
+          "replace_existing": {
+            "type": "boolean",
+            "title": "Replace Existing",
+            "default": false
+          },
+          "base_chat_version": {
+            "anyOf": [
+              {
+                "type": "integer",
+                "minimum": 1.0
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Base Chat Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_application_version",
+          "confirmed",
+          "document_revision",
+          "target",
+          "amount"
+        ],
+        "title": "UseInvoice"
       },
       "ValidationError": {
         "properties": {

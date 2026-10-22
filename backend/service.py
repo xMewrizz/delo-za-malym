@@ -8,6 +8,7 @@ from credit_engine import assess_application, assess_overdraft, calculate_loan, 
 from . import demo
 from .client_data import bank_financials, client_data, preserves_bank_values
 from .store import Store
+from .sources import source_value
 
 
 class ProcessError(Exception):
@@ -42,6 +43,7 @@ class CreditProcess:
         return deepcopy({key: record.get(key) for key in
                          ("application", "state", "checks", "result", "readiness", "recommendation", "signature", "completion", "events", "submitted_versions")} |
                         {key: record.get(key, []) for key in ("explorations", "imports")} |
+                        {"documents": record.get("documents", []), "field_sources": record.get("field_sources", {})} |
                         {"client_data": client_data(record)})
 
     def get(self, application_id):
@@ -131,6 +133,8 @@ class CreditProcess:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
         self._check_bank_financials(known, record["application"].get("financials"))
+        record["field_sources"] = {path: source for path, source in record.get("field_sources", {}).items()
+                                   if source_value(record["application"], path) == source["value"]}
         record["simulator"].setdefault("bank_financials", known)
         record["application"]["application_version"] += 1
         record["application"]["confirmation"] = None
@@ -287,7 +291,10 @@ class CreditProcess:
                                     "product_id": offer["product_id"], "completed_at": now.isoformat(), "mode": "simulated",
                                     "type": "limit_opening" if overdraft else "disbursement"}
             if not overdraft:
-                record["completion"]["schedule"] = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]["schedule"]
+                from credit_engine.cashflow import payment_calendar
+                from .overdraft_chat import local_now
+                schedule = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]["schedule"]
+                record["completion"]["schedule"] = payment_calendar(schedule, local_now(now).date())
             set_state(record, "limit_opened" if overdraft else "disbursed", "completion", "none",
                       "Лимит открыт" if overdraft else "Кредит выдан", now)
             event(record, "limit_opened" if overdraft else "credit_disbursed", now, operation_id=record["completion"]["operation_id"], mode="simulated")

@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { FolderOpen, Plus, RefreshCw, Sparkles } from "lucide-react";
 import { useLocation, useSearchParams } from "react-router";
 import { AssistantPanel, chatKeys, getChat } from "@/features/assistant";
+import { InvoicePanel } from "@/features/documents";
 import {
   applicationKeys,
   applicationQueries,
@@ -318,6 +319,13 @@ export function CabinetPage() {
             <ApplicationWorkspace
               key={manual.data.application.application_id}
               mode="selection"
+              renderDocuments={(onUsed) => (
+                <InvoicePanel
+                  view={manual.data!}
+                  onUpdated={update}
+                  onUsed={onUsed}
+                />
+              )}
               view={manual.data}
               profile={profile.data}
               busy={action.isPending}
@@ -341,6 +349,14 @@ export function CabinetPage() {
             applicationId={assistant.data.application.application_id}
             record={assistant.data}
             onRecordUpdated={update}
+            renderDocuments={(chat, onChatUpdated) => (
+              <InvoicePanel
+                view={chat.record}
+                chat={chat}
+                onUpdated={update}
+                onChatUpdated={onChatUpdated}
+              />
+            )}
             actions={actionsFor(assistant.data, "assistant")}
           />
         ) : (
@@ -419,6 +435,16 @@ export function CabinetPage() {
                 profile={profile.data}
                 busy={action.isPending}
                 actions={actionsFor(detail.data, "applications")}
+                renderDocuments={() =>
+                  Array.isArray(detail.data?.documents) &&
+                  detail.data.documents.length > 0 ? (
+                    <InvoicePanel
+                      readOnly
+                      view={detail.data!}
+                      onUpdated={update}
+                    />
+                  ) : null
+                }
               />
             ) : (
               !selectedId && (

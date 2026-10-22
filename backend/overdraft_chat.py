@@ -69,7 +69,7 @@ def merge_plan(record, previous, update, now):
     return plan
 
 
-def plan_issues(record, plan, now):
+def plan_issues(record, plan, now, changes=None):
     result = calculate_overdraft(engine_plan(plan), "3000000.00")
     issues = [{"field": issue.field.replace("scenario", PLAN_PATH, 1), "message": issue.message}
               for issue in result.issues]
@@ -85,7 +85,9 @@ def plan_issues(record, plan, now):
     if plan.get("start_date") and plan["start_date"] < today:
         issues.append({"field": PLAN_PATH + ".start_date", "message": "План начинается в прошлом. Уточните даты будущих операций."})
     directions = {item.get("direction") for item in plan["transactions"]}
-    for direction, label in (("outflow", "расход"), ("inflow", "поступление для погашения")):
+    need = {**record["application"]["need"], **{key[5:]: value for key, value in (changes or {}).items() if key.startswith("need.")}}
+    required = () if need.get("preferred_product") == "working_capital_loan" or need.get("financing_pattern") == "gradual_repayment" else (("outflow", "расход"), ("inflow", "поступление для погашения"))
+    for direction, label in required:
         if direction not in directions:
             issues.append({"field": PLAN_PATH + ".transactions", "message": "Добавьте ожидаемое " + label + "."})
     loans = {loan["loan_id"] for loan in record["application"]["financials"].get("existing_loans") or []

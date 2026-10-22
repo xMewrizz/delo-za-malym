@@ -281,10 +281,10 @@ export function OfferResults({
                   Посмотреть график платежей
                 </summary>
                 <div className="mt-3 max-h-72 overflow-auto rounded-xl bg-background">
-                  <table className="w-full min-w-[440px] text-left text-xs">
+                  <table className="w-full text-left text-xs">
                     <thead>
                       <tr className="border-b border-border">
-                        <th className="p-3">Месяц</th>
+                        <th className="p-3">Дата</th>
                         <th className="p-3">Платёж</th>
                         <th className="p-3">Остаток</th>
                       </tr>
@@ -293,7 +293,11 @@ export function OfferResults({
                       {view.completion.schedule.map((row, index) => (
                         <tr key={index} className="border-b border-border/70">
                           <td className="p-3">
-                            {String(row.month_number || index + 1)}
+                            {typeof row.date === "string"
+                              ? new Date(
+                                  row.date + "T12:00:00",
+                                ).toLocaleDateString("ru-RU")
+                              : `Месяц ${String(row.month_number || index + 1)}`}
                           </td>
                           <td className="p-3">
                             {typeof row.total_payment === "string"

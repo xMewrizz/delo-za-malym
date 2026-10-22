@@ -10,6 +10,7 @@ import { normalizeMoneyInput } from "../model/need";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
 import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
+import { LoanOptionDetails } from "./loan-option-details";
 
 type ProductId = "working_capital_loan" | "overdraft";
 
@@ -19,6 +20,7 @@ export function ExplorationPanel({
   onExplore,
   onApply,
   compact = false,
+  onSavePlan,
 }: {
   view: ApplicationView;
   busy: boolean;
@@ -29,12 +31,25 @@ export function ExplorationPanel({
   ) => void;
   onApply: (explorationId: string, optionId: string) => void;
   compact?: boolean;
+  onSavePlan?: (plan: Record<string, unknown>) => void;
 }) {
-  const [product, setProduct] = useState<ProductId>(
-    view.application.need.preferred_product === "overdraft"
-      ? "overdraft"
-      : "working_capital_loan",
-  );
+  const need = view.application.need;
+  const productContext = JSON.stringify([
+    view.application.application_id,
+    need.preferred_product,
+    need.financing_pattern,
+  ]);
+  const [productOverride, setProductOverride] = useState<{
+    context: string;
+    product: ProductId;
+  } | null>(null);
+  const product: ProductId =
+    productOverride?.context === productContext
+      ? productOverride.product
+      : need.preferred_product === "overdraft" ||
+          (!need.preferred_product && need.financing_pattern === "cash_gap")
+        ? "overdraft"
+        : "working_capital_loan";
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("");
   const [minTerm, setMinTerm] = useState("6");
@@ -122,10 +137,10 @@ export function ExplorationPanel({
           </span>
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-primary">
-              А если?
+              {latest ? "А если?" : "Ваше финансирование"}
             </p>
             <h3 className="text-xl font-extrabold tracking-tight">
-              Сравните варианты
+              {latest ? "Сравните варианты" : "Подбор вариантов"}
             </h3>
           </div>
         </div>
@@ -135,129 +150,155 @@ export function ExplorationPanel({
         </p>
       </CardHeader>
       <CardContent>
-        <details open={!compact}>
-          <summary className="mb-4 cursor-pointer text-sm font-bold">
-            Параметры сравнения
-          </summary>
-          <form
-            onSubmit={submit}
-            className="space-y-5 rounded-[22px] border border-border bg-background p-5"
-          >
-            <ChoiceField
-              id="compare-product"
-              label="Продукт"
-              value={product}
-              onValueChange={(value) => setProduct(value as ProductId)}
-              options={[
-                {
-                  value: "working_capital_loan",
-                  label: "Кредит на оборотные цели",
-                },
-                { value: "overdraft", label: "Овердрафт по денежному плану" },
-              ]}
-            />
-            {product === "working_capital_loan" ? (
-              <>
-                <div className="grid gap-4 sm:grid-cols-2">
-                  <FormField
-                    id="compare-amount"
-                    label="Сумма для сравнения, ₽"
-                    value={amount}
-                    onChange={(event) => setAmount(event.target.value)}
-                    placeholder="Как в заявке"
-                    inputMode="decimal"
-                  />
-                  <FormField
-                    id="compare-payment"
-                    label="Комфортный платёж до, ₽"
-                    value={payment}
-                    onChange={(event) => setPayment(event.target.value)}
-                    placeholder="Без ограничения"
-                    inputMode="decimal"
-                  />
-                  <FormField
-                    id="compare-min"
-                    label="Срок от, мес."
-                    value={minTerm}
-                    onChange={(event) => setMinTerm(event.target.value)}
-                    inputMode="numeric"
-                  />
-                  <FormField
-                    id="compare-max"
-                    label="Срок до, мес."
-                    value={maxTerm}
-                    onChange={(event) => setMaxTerm(event.target.value)}
-                    inputMode="numeric"
-                  />
-                </div>
-                <ChoiceField
-                  id="compare-priority"
-                  label="Что важнее"
-                  value={priority}
-                  onValueChange={setPriority}
-                  options={[
-                    { value: "preserve_amount", label: "Сохранить сумму" },
-                    { value: "lowest_payment", label: "Уменьшить платёж" },
-                    {
-                      value: "lowest_total_cost",
-                      label: "Уменьшить переплату",
-                    },
-                  ]}
-                />
-                <label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
-                  <input
-                    type="checkbox"
-                    checked={preserveAmount}
-                    onChange={(event) =>
-                      setPreserveAmount(event.target.checked)
-                    }
-                    className="mt-0.5 size-4 accent-primary"
-                  />
-                  Не уменьшать запрошенную сумму без подтверждённого минимума
-                </label>
-              </>
-            ) : (
-              <div className="space-y-4">
-                <p className="rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
-                  Для овердрафта расчёт использует денежный план, сохранённый в
-                  заявке. Если плана нет, вы увидите, какие данные нужно
-                  добавить.
-                </p>
-                {inflows.length > 0 && (
+        <form
+          onSubmit={submit}
+          className="space-y-5 rounded-[22px] border border-border bg-background p-5"
+        >
+          <p className="text-sm font-semibold">
+            Рассчитаем: {productName(product)}
+          </p>
+          <p className="text-xs text-muted-foreground">
+            {product === "overdraft"
+              ? "Лимит и проценты определим по сохранённым поступлениям и расходам."
+              : amount.trim()
+                ? `Сумма для сравнения: ${amount} ₽. Исходный запрос не меняется.`
+                : "Сумма уже взята из вашего запроса. Покажем доступные сроки и платежи."}
+          </p>
+          {product === "working_capital_loan" && payment.trim() && (
+            <p className="text-xs text-muted-foreground">
+              Ограничение платежа: до {payment} ₽ в месяц.
+            </p>
+          )}
+          {product === "overdraft" && delayId && (
+            <p className="text-xs text-muted-foreground">
+              В сравнении поступление переносится на {delayDays} дн.
+              Исходные даты не меняются.
+            </p>
+          )}
+          <details open={!compact}>
+            <summary className="cursor-pointer text-sm font-bold">
+              Настроить сравнение
+            </summary>
+            <fieldset disabled={busy} className="mt-4 space-y-5">
+              <ChoiceField
+                id="compare-product"
+                label="Продукт"
+                value={product}
+                onValueChange={(value) => {
+                  if (value === "overdraft" || value === "working_capital_loan")
+                    setProductOverride({ context: productContext, product: value });
+                }}
+                options={[
+                  {
+                    value: "working_capital_loan",
+                    label: "Кредит на оборотные цели",
+                  },
+                  { value: "overdraft", label: "Овердрафт по денежному плану" },
+                ]}
+              />
+              {product === "working_capital_loan" ? (
+                <>
                   <div className="grid gap-4 sm:grid-cols-2">
-                    <ChoiceField
-                      id="delay-inflow"
-                      label="А если покупатель заплатит позже?"
-                      value={delayId}
-                      onValueChange={setDelayId}
-                      options={inflows.map((row) => ({
-                        value: row.transaction_id,
-                        label: `${formatMoney(row.amount)} · ${new Date(row.date + "T12:00:00").toLocaleDateString("ru-RU")}`,
-                      }))}
-                      hint="Без выбора сохраняем исходные даты."
+                    <FormField
+                      id="compare-amount"
+                      label="Сумма для сравнения, ₽"
+                      value={amount}
+                      onChange={(event) => setAmount(event.target.value)}
+                      placeholder="Как в заявке"
+                      inputMode="decimal"
                     />
                     <FormField
-                      id="delay-days"
-                      label="На сколько дней позже"
+                      id="compare-payment"
+                      label="Комфортный платёж до, ₽"
+                      value={payment}
+                      onChange={(event) => setPayment(event.target.value)}
+                      placeholder="Без ограничения"
+                      inputMode="decimal"
+                    />
+                    <FormField
+                      id="compare-min"
+                      label="Срок от, мес."
+                      value={minTerm}
+                      onChange={(event) => setMinTerm(event.target.value)}
                       inputMode="numeric"
-                      value={delayDays}
-                      onChange={(event) => setDelayDays(event.target.value)}
+                    />
+                    <FormField
+                      id="compare-max"
+                      label="Срок до, мес."
+                      value={maxTerm}
+                      onChange={(event) => setMaxTerm(event.target.value)}
+                      inputMode="numeric"
                     />
                   </div>
-                )}
-              </div>
-            )}
-            {error && (
-              <p role="alert" className="text-sm text-destructive">
-                {error}
-              </p>
-            )}
-            <Button type="submit" disabled={busy}>
-              Показать варианты
-              <ArrowUpRight aria-hidden="true" />
-            </Button>
-          </form>
-        </details>
+                  <ChoiceField
+                    id="compare-priority"
+                    label="Что важнее"
+                    value={priority}
+                    onValueChange={setPriority}
+                    options={[
+                      { value: "preserve_amount", label: "Сохранить сумму" },
+                      { value: "lowest_payment", label: "Уменьшить платёж" },
+                      {
+                        value: "lowest_total_cost",
+                        label: "Уменьшить переплату",
+                      },
+                    ]}
+                  />
+                  <label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
+                    <input
+                      type="checkbox"
+                      checked={preserveAmount}
+                      onChange={(event) =>
+                        setPreserveAmount(event.target.checked)
+                      }
+                      className="mt-0.5 size-4 accent-primary"
+                    />
+                    Не уменьшать запрошенную сумму без подтверждённого минимума
+                  </label>
+                </>
+              ) : (
+                <div className="space-y-4">
+                  <p className="rounded-xl bg-secondary p-4 text-xs leading-relaxed text-muted-foreground">
+                    Для овердрафта расчёт использует денежный план, сохранённый в
+                    заявке. Если плана нет, вы увидите, какие данные нужно
+                    добавить.
+                  </p>
+                  {inflows.length > 0 && (
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <ChoiceField
+                        id="delay-inflow"
+                        label="А если покупатель заплатит позже?"
+                        value={delayId}
+                        onValueChange={setDelayId}
+                        options={inflows.map((row) => ({
+                          value: row.transaction_id,
+                          label: `${formatMoney(row.amount)} · ${new Date(row.date + "T12:00:00").toLocaleDateString("ru-RU")}`,
+                        }))}
+                        hint="Без выбора сохраняем исходные даты."
+                      />
+                      <FormField
+                        id="delay-days"
+                        label="На сколько дней позже"
+                        inputMode="numeric"
+                        value={delayDays}
+                        onChange={(event) => setDelayDays(event.target.value)}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </fieldset>
+          </details>
+          {error && (
+            <p role="alert" className="text-sm text-destructive">
+              {error}
+            </p>
+          )}
+          <Button type="submit" disabled={busy}>
+            Показать варианты
+            <ArrowUpRight aria-hidden="true" />
+          </Button>
+        </form>
         {latest && (
           <div className="mt-5 space-y-3">
             <p className="text-xs font-semibold text-muted-foreground">
@@ -397,7 +438,7 @@ export function ExplorationPanel({
               {(latest.result.options || []).map((option) => (
                 <div
                   key={option.option_id || option.offer_id}
-                  className="rounded-[20px] border border-border bg-background p-5"
+                  className="exploration-option rounded-[20px] border border-border bg-background p-5"
                 >
                   <p className="text-xs font-bold text-primary">
                     {productName(option.product_id)}
@@ -429,6 +470,17 @@ export function ExplorationPanel({
                       Без поручительства и залога
                     </p>
                   )}
+                  {option.product_id === "working_capital_loan" &&
+                    option.option_id && (
+                      <LoanOptionDetails
+                        key={`${latest.exploration_id}:${option.option_id}`}
+                        view={view}
+                        explorationId={latest.exploration_id}
+                        option={option}
+                        current={current}
+                        onSavePlan={onSavePlan}
+                      />
+                    )}
                   {current && option.option_id && (
                     <div className="mt-5">
                       <ConfirmAction

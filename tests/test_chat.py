@@ -236,6 +236,25 @@ class ChatTests(unittest.TestCase):
 
 
 class ModelAdapterTests(unittest.TestCase):
+    def test_default_context_fits_first_cabinet_turn_with_tools_and_output_reserve(self):
+        with TemporaryDirectory() as directory, patch.dict(os.environ):
+            os.environ.pop("LLM_CONTEXT_SIZE", None)
+            os.environ.update(LLM_MODEL="test", LLM_RESPONSE_FORMAT="json_object",
+                              LLM_MAX_OUTPUT_TOKENS="4096", AGENT_TOOLS_ENABLED="true")
+            model = ModelAssistant()
+            app = create_app(Path(directory) / "first-turn.sqlite3", assistant=model)
+            app.state.chats.store.initialize()
+            view = app.state.chats.create()
+            response = {"choices": [{"message": {"content": json.dumps({
+                "text": "Какой срок нужен?", "intent": "ask_clarification", "changes": {},
+                "question": "Какой срок нужен?"}, ensure_ascii=False)}, "finish_reason": "stop"}]}
+            with patch.object(model.client, "_request", return_value=response) as request:
+                result = app.state.chats.send(view["chat"]["chat_id"], 1,
+                                             "Что такое поручительство?", str(uuid4()))
+            request.assert_called_once()
+            self.assertEqual(result["chat"]["messages"][-1]["text"], "Какой срок нужен?")
+            self.assertEqual(result["record"]["application"]["application_version"], 1)
+
     def test_reasoning_prefix_is_never_returned_and_json_stays_strict(self):
         from scr.delo_za_malyn.Models.Llm.client import Reply
         body = '{"text":"Готово","intent":"answer_question","changes":{}}'

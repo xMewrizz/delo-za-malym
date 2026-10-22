@@ -12,6 +12,32 @@ export type NeedDraft = {
   recurring: string;
 };
 
+export function mergeNeedDraft(
+  current: NeedDraft,
+  previous: unknown,
+): NeedDraft {
+  const result = { ...current };
+  if (
+    !previous ||
+    typeof previous !== "object" ||
+    !("base" in previous) ||
+    !("draft" in previous)
+  )
+    return result;
+  const { base, draft } = previous;
+  if (!base || typeof base !== "object" || !draft || typeof draft !== "object")
+    return result;
+  for (const key of Object.keys(result) as (keyof NeedDraft)[]) {
+    const saved = (draft as Record<string, unknown>)[key];
+    if (
+      typeof saved === "string" &&
+      current[key] === (base as Record<string, unknown>)[key]
+    )
+      result[key] = saved;
+  }
+  return result;
+}
+
 export function draftFromApplication(view: ApplicationView): NeedDraft {
   const need = view.application.need;
   return {

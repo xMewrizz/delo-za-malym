@@ -1,7 +1,7 @@
 {$STAND_SITE:http://localhost} {
     encode gzip
     request_body {
-        max_size 1MB
+        max_size 3MB
     }
     header {
         X-Content-Type-Options nosniff

@@ -55,10 +55,11 @@ def next_clarification(chat, record, now):
                     choice(key, label, plan_update={"transactions": [{"transaction_id": identifier, "date": (today + timedelta(days=days)).isoformat()}]})
                     for key, label, days in dates], input_type="date", transaction_id=identifier)
         directions = {row.get("direction") for row in plan.get("transactions", [])}
-        for direction, title in [("outflow", "Сколько нужно заплатить до поступления денег?"), ("inflow", "Какое поступление ожидаете для погашения?")]:
+        ordinary = need.get("preferred_product") == "working_capital_loan" or need.get("financing_pattern") == "gradual_repayment"
+        for direction, title in ([] if ordinary else [("outflow", "Сколько нужно заплатить до поступления денег?"), ("inflow", "Какое поступление ожидаете для погашения?")]):
             if direction not in directions:
                 return card(PLAN_PATH + ".new_operation", title, input_type="money", direction=direction)
-        issues = plan_issues(record, plan, now)
+        issues = plan_issues(record, plan, now, (pending or {}).get("changes"))
         active = [loan for loan in record["application"]["financials"].get("existing_loans") or [] if Decimal(loan.get("outstanding_principal") or "0") > 0]
         regular_missing = any(issue.get("code") == "incomplete_debt_payment_plan" for issue in issues)
         if active and (not plan.get("debt_payments_confirmed", plan.get("existing_debt_payments") is not None) or regular_missing):
@@ -71,6 +72,8 @@ def next_clarification(chat, record, now):
                                       plan_update={"_add_loan": loan["loan_id"]}))
             title = "Добавьте регулярный платёж за полный месяц плана" if regular_missing else "Платежи по текущим кредитам за эти даты учтены?"
             return card(PLAN_PATH + ".existing_debt_payments", title, choices)
+        if ordinary and need.get("requested_amount") is None:
+            return card("need.requested_amount", "Сколько хотите занять?", input_type="money")
         return None
 
     if need.get("purpose") is None:

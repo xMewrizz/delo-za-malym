@@ -9,7 +9,9 @@ import csv
 import json
 from io import StringIO
 
-from fastapi import FastAPI
+from fastapi import FastAPI, Query, Request
+from starlette.concurrency import run_in_threadpool
+from urllib.parse import quote
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -21,7 +23,9 @@ from .assistant import configured_assistant
 from .chat import ChatService
 from .models import (AnswerClarification, ApplicationView, ChatMessage, ChatVersion, ConfirmChatProposal, CreateChat,
                      ConfirmedAction, CreateApplication, OfferAction, SelectOffer, UpdateApplication, VersionAction,
-                     EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport)
+                     EditChatProposal, ExploreOptions, ApplyOption, ImportCSV, ConfirmImport, EditImport, UseInvoice)
+from .documents import InvoiceDocuments
+from .invoice_pdf import MAX_BYTES
 from .service import CreditProcess, ProcessError
 from .store import Store
 from .workspace import ProductWorkspace
@@ -108,6 +112,45 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
 
     chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products, workspace=workspace)
     app.state.chats = chats
+    documents = InvoiceDocuments(process, chats)
+    app.state.documents = documents
+
+    @app.get("/api/applications/{application_id}/explorations/{exploration_id}/options/{option_id}/cash-flow")
+    def loan_cash_forecast(application_id: str, exploration_id: str, option_id: str, base_application_version: int = Query(ge=1),
+                           transaction_id: str | None = Query(default=None, min_length=1, max_length=100),
+                           delay_days: int | None = Query(default=None, ge=1, le=30)):
+        if (transaction_id is None) != (delay_days is None):
+            raise ProcessError("invalid_delay", "Для переноса укажите поступление и количество дней.", 422)
+        return workspace.cashflow(application_id, base_application_version, exploration_id, option_id,
+                                  delay={"transaction_id": transaction_id, "days": delay_days} if transaction_id else None)
+
+    @app.post("/api/applications/{application_id}/documents", response_model=ApplicationView, tags=["Документы"],
+              openapi_extra={"requestBody": {"required": True, "content": {"application/pdf": {"schema": {"type": "string", "format": "binary"}}}}})
+    async def upload_invoice(application_id: str, request: Request, filename: str = Query(min_length=1, max_length=200),
+                             base_application_version: int = Query(ge=1)):
+        content = bytearray()
+        async for chunk in request.stream():
+            content.extend(chunk)
+            if len(content) > MAX_BYTES:
+                raise ProcessError("document_too_large", "PDF должен быть не больше 2 МБ.", 413)
+        return await run_in_threadpool(documents.upload, application_id, base_application_version, filename, bytes(content))
+
+    @app.get("/api/applications/{application_id}/documents/{document_id}/file", tags=["Документы"])
+    def invoice_original(application_id: str, document_id: str):
+        filename, content = documents.content(application_id, document_id)
+        return Response(content, media_type="application/pdf", headers={
+            "Content-Disposition": "attachment; filename=invoice.pdf; filename*=UTF-8''" + quote(filename, safe=""),
+            "X-Content-Type-Options": "nosniff", "Cache-Control": "no-store",
+        })
+
+    @app.post("/api/applications/{application_id}/documents/{document_id}/use", response_model=ApplicationView, tags=["Документы"])
+    def use_invoice(application_id: str, document_id: str, body: UseInvoice):
+        return documents.use(application_id, document_id, body)
+
+    @app.post("/api/chats/{chat_id}/documents/{document_id}/use", tags=["Документы"])
+    def propose_invoice(chat_id: str, document_id: str, body: UseInvoice) -> dict:
+        view = chats.get(chat_id)
+        return documents.use(view["record"]["application"]["application_id"], document_id, body, chat_id=chat_id)
 
     @app.get("/api/chat/config", tags=["Диалог"])
     def chat_config() -> dict:

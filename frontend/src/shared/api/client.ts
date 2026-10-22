@@ -13,6 +13,7 @@ export class ApiError extends Error {
 }
 
 const baseUrl = (import.meta.env.VITE_API_BASE_URL || '/api').replace(/\/$/, '')
+export const apiUrl = (path: `/${string}`) => `${baseUrl}${path}`
 
 /** Validate responses at the network boundary; feature APIs own their schemas. */
 export async function apiRequest<T>(
@@ -23,7 +24,7 @@ export async function apiRequest<T>(
   const { timeoutMs = 30_000, ...requestOptions } = options
   const headers = new Headers(requestOptions.headers)
   headers.set('Accept', 'application/json')
-  if (requestOptions.body && !(requestOptions.body instanceof FormData)) {
+  if (requestOptions.body && !(requestOptions.body instanceof FormData) && !headers.has('Content-Type')) {
     headers.set('Content-Type', 'application/json')
   }
   const timeout = AbortSignal.timeout(timeoutMs)

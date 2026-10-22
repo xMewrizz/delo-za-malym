@@ -8,6 +8,7 @@ from io import StringIO
 
 from credit_engine.checks import parse_timestamp
 from credit_engine.options import loan_options, overdraft_options
+from credit_engine.cashflow import loan_cashflow
 
 from . import demo
 from .imports import HEADERS, preview_csv
@@ -21,6 +22,22 @@ class ProductWorkspace:
     def explore(self, application_id, version, product_id, *, preferences=None, delay=None):
         return self.process.change(application_id, version, lambda record, now:
             self.explore_record(record, now, product_id, preferences=preferences, delay=delay))
+
+    def cashflow(self, application_id, version, exploration_id, option_id, *, delay=None):
+        record = self.process.get(application_id)
+        self.process._version(record, version)
+        exploration = next((item for item in record.get("explorations", []) if item["exploration_id"] == exploration_id), None)
+        if not exploration:
+            raise ProcessError("exploration_not_found", "Расчёт не найден. Пересчитайте варианты.", 404)
+        if exploration["application_version"] != version or parse_timestamp(exploration["valid_until"]) <= self.process.clock():
+            raise ProcessError("exploration_stale", "Данные или условия изменились. Пересчитайте варианты.")
+        option = next((item for item in exploration["result"]["options"] if item["option_id"] == option_id), None)
+        if not option or option.get("product_id") != "working_capital_loan":
+            raise ProcessError("option_not_found", "Вариант кредита не найден.", 404)
+        try:
+            return loan_cashflow(record["application"], option, self.process.clock(), delay=delay)
+        except (ValueError, OverflowError):
+            raise ProcessError("invalid_cash_forecast", "Проверьте даты и поступление денежного плана.", 422) from None
 
     def explore_record(self, record, now, product_id, *, preferences=None, delay=None):
         if record["state"]["status"] not in EDITABLE_STATES:

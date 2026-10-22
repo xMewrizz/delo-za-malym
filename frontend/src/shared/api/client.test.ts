@@ -19,6 +19,15 @@ describe('API boundary', () => {
     await expect(apiRequest('/example', schema)).rejects.toMatchObject({ code: 'invalid_response' })
   })
 
+  it('keeps an explicit PDF content type and sends file bytes unchanged', async () => {
+    const fetch = vi.fn().mockResolvedValue(new Response('{"amount":"450000.00"}'))
+    vi.stubGlobal('fetch', fetch)
+    const content = new Uint8Array([37, 80, 68, 70]).buffer
+    await apiRequest('/documents', schema, { method: 'POST', body: content, headers: { 'Content-Type': 'application/pdf' } })
+    expect(fetch.mock.calls[0][1].body).toBe(content)
+    expect(fetch.mock.calls[0][1].headers.get('Content-Type')).toBe('application/pdf')
+  })
+
   it('preserves conflict details and never repeats a mutation automatically', async () => {
     const fetch = vi.fn().mockResolvedValue(new Response(JSON.stringify({
       detail: { code: 'version_conflict', message: 'Версия заявки изменилась.' },

@@ -6,6 +6,7 @@ const planSchema = z.object({
   end_date: z.string(),
   opening_cash_balance: z.string(),
   cash_reserve: z.string(),
+  debt_payments_confirmed: z.boolean().optional(),
   transactions: z.array(
     z.object({
       transaction_id: z.string(),
@@ -40,8 +41,9 @@ export function draftFromPlan(
 ): PlanDraft {
   const plan = planSchema.safeParse(details?.overdraft);
   const value = plan.success ? plan.data : null;
-  const now = new Date();
-  const today = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  const today = new Date().toLocaleDateString("en-CA", {
+    timeZone: "Europe/Moscow",
+  });
   return {
     start: value?.start_date || today,
     end: value?.end_date || today,
@@ -57,7 +59,8 @@ export function draftFromPlan(
           (link) => link.transaction_id === row.transaction_id,
         )?.loan_id || "",
     })),
-    debtConfirmed: Boolean(value?.existing_debt_payments),
+    debtConfirmed:
+      value?.debt_payments_confirmed ?? Boolean(value?.existing_debt_payments),
   };
 }
 

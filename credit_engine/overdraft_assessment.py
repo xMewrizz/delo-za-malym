@@ -68,6 +68,8 @@ def validate_debt_payments(scenario: Mapping, loans: list, start: date, end: dat
     """Связать запланированные кредитные платежи с операциями, не добавляя их повторно."""
     field = "product_details.overdraft.existing_debt_payments"
     active = {loan["loan_id"]: loan for loan in loans if Decimal(loan["outstanding_principal"]) > 0}
+    if active and scenario.get("debt_payments_confirmed") is False:
+        return (CalculationIssue(field, "debt_payments_not_confirmed", "Проверьте платежи по действующим кредитам за период плана и подтвердите, что они учтены."),)
     references = scenario.get("existing_debt_payments")
     if references is None:
         return (CalculationIssue(field, "missing_debt_payment_plan", "Укажите платежи по текущим кредитам в плане или подтвердите, что в этом периоде их нет списком []."),) if active else ()

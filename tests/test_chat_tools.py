@@ -246,6 +246,42 @@ class CabinetToolsTests(unittest.TestCase):
                 with self.assertRaises(AssistantResponseError):
                     ModelAssistant.parse_reply(Reply(invalid, "stop"))
 
+    def test_need_collection_has_one_structured_call_without_calculation_tools(self):
+        cases = [
+            ("Нужно 500 тысяч на закупку на год", {"need.requested_amount": "500000.00", "need.term_months": 12}),
+            ("Давай срок 18 месяцев. Сумму не меняй", {"need.term_months": 18}),
+            ("Запрос 500 тысяч, но 400 тысяч мне точно хватит", {"need.minimum_acceptable_amount": "400000.00"}),
+        ]
+        with patch.dict(os.environ, {"LLM_MODEL": "test"}):
+            model = ModelAssistant()
+        model.client = Mock()
+        for text, changes in cases:
+            with self.subTest(text=text):
+                model.client.reset_mock()
+                model.client.chat.return_value = Reply(json.dumps({"text": "Проверьте данные", "changes": changes,
+                    "overdraft_plan": None, "question": "Есть ли ещё детали?"}, ensure_ascii=False), "stop")
+                turn = model.reply_with_tools([{"role": "user", "content": text}],
+                                             process=self.process, record=self.record, now=self.now)
+                self.assertEqual(turn.reply.intent, "propose_changes")
+                self.assertEqual(turn.reply.changes, changes)
+                self.assertEqual(turn.tools, ())
+                model.client.chat.assert_called_once()
+                self.assertNotIn("tools", model.client.chat.call_args.kwargs)
+                self.assertEqual(self.load(), self.record)
+
+    def test_fact_extractor_still_rejects_bank_fields_and_unknown_purpose(self):
+        with patch.dict(os.environ, {"LLM_MODEL": "test"}):
+            model = ModelAssistant()
+        model.client = Mock()
+        for changes in ({"financials.cash_balance": "99999999.00"}, {"need.purpose": "purchase"}):
+            with self.subTest(changes=changes):
+                model.client.chat.return_value = Reply(json.dumps({"text": "Ответ", "changes": changes,
+                    "overdraft_plan": None, "question": None}), "stop")
+                with self.assertRaises(AssistantResponseError):
+                    model.reply_with_tools([{"role": "user", "content": "Нужно 500 тысяч на закупку"}],
+                                           process=self.process, record=self.record, now=self.now)
+                self.assertEqual(self.load(), self.record)
+
     def test_search_is_public_and_missing_key_does_not_disable_calculations(self):
         result = self.tools.execute("web_search", '{"query":"поддержка малого бизнеса site:corpmsp.ru"}')
         self.assertTrue(result["ok"])

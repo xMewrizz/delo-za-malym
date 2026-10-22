@@ -16,10 +16,14 @@ export function OverdraftPlanForm({
   view,
   busy,
   onSave,
+  forceVisible = false,
+  submitLabel = "Сохранить денежный план",
 }: {
   view: ApplicationView;
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
+  forceVisible?: boolean;
+  submitLabel?: string;
 }) {
   const bankCash =
     view.client_data.bank_financials?.cash_balance ??
@@ -37,7 +41,10 @@ export function OverdraftPlanForm({
     view.application.need.preferred_product === "overdraft" ||
     view.application.need.financing_pattern === "cash_gap" ||
     Boolean(view.application.product_details?.overdraft);
-  if (!show) return null;
+  const loanMode =
+    view.application.need.preferred_product === "working_capital_loan" ||
+    view.application.need.financing_pattern === "gradual_repayment";
+  if (!show && !forceVisible) return null;
 
   function add(direction: "inflow" | "outflow") {
     setDraft((current) => ({
@@ -77,7 +84,11 @@ export function OverdraftPlanForm({
           ? { "need.purpose": "working_capital" }
           : {}),
         ...(!view.application.need.financing_pattern
-          ? { "need.financing_pattern": "cash_gap" }
+          ? {
+              "need.financing_pattern": loanMode
+                ? "gradual_repayment"
+                : "cash_gap",
+            }
           : {}),
       });
       setError("");
@@ -92,14 +103,15 @@ export function OverdraftPlanForm({
     <Card className="gap-0 border-border bg-card/70">
       <CardHeader className="pb-5">
         <p className="text-xs font-bold uppercase tracking-widest text-primary">
-          Овердрафт
+          {loanMode ? "Кредит на оборотные цели" : "Овердрафт"}
         </p>
         <h3 className="text-xl font-extrabold tracking-tight">
           План поступлений и расходов
         </h3>
         <p className="text-xs leading-relaxed text-muted-foreground">
-          Укажите, когда деньги уйдут и вернутся на счёт. Рассчитаем
-          использованный лимит, проценты и погашение по дням.
+          {loanMode
+            ? "Добавьте известные поступления и расходы. Покажем остаток с учётом получения кредита и его платежей за этот период."
+            : "Укажите, когда деньги уйдут и вернутся на счёт. Рассчитаем использованный лимит, проценты и погашение по дням."}
         </p>
       </CardHeader>
       <CardContent>
@@ -269,7 +281,7 @@ export function OverdraftPlanForm({
             )}
             <Button type="submit">
               <Save aria-hidden="true" />
-              Сохранить денежный план
+              {submitLabel}
             </Button>
           </fieldset>
         </form>

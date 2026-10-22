@@ -8,6 +8,7 @@
 | Uvicorn | 0.54.0 | BSD-3-Clause | ASGI-сервер |
 | Starlette | 1.9.0 | BSD-3-Clause | HTTP и тестовый клиент |
 | Pydantic | 2.14.1 | MIT | Валидация запросов |
+| pypdf | 6.21.2 | BSD-3-Clause | Чтение текстовых PDF-счетов |
 | pydantic-core | 2.50.1 | MIT | Валидация запросов |
 | annotated-doc | 0.0.5 | MIT | Зависимость FastAPI |
 | annotated-types | 0.8.0 | MIT | Зависимость Pydantic |

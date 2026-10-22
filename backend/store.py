@@ -19,11 +19,16 @@ class Store:
                 payload TEXT NOT NULL,
                 updated_at TEXT NOT NULL
             )""")
-            connection.execute("PRAGMA user_version=1")
             connection.execute("""CREATE TABLE IF NOT EXISTS chats (
                 chat_id TEXT PRIMARY KEY,
                 payload TEXT NOT NULL
             )""")
+            connection.execute("""CREATE TABLE IF NOT EXISTS documents (
+                document_id TEXT PRIMARY KEY,
+                application_id TEXT NOT NULL,
+                content BLOB NOT NULL
+            )""")
+            connection.execute("PRAGMA user_version=2")
 
     @contextmanager
     def connect(self, *, write=False):

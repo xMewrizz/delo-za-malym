@@ -184,6 +184,34 @@ class ClarificationTests(unittest.TestCase):
         self.assertEqual(focused["answer_target"]["transaction_id"], target)
         self.assertNotIn("question_id", json.dumps(focused))
         self.assertNotIn("choices", json.dumps(focused))
+        self.assertEqual(focused["pending_plan"]["transactions"][0]["transaction_id"], target)
+        for generated_field in ("start_date", "end_date", "opening_cash_balance", "existing_debt_payments"):
+            self.assertNotIn(generated_field, focused["pending_plan"])
+
+    def test_model_operation_caption_is_ignored_without_weakening_financial_validation(self):
+        self.answer("cash_gap")
+        self.answer(value="450000")
+        target = self.view["clarification"]["transaction_id"]
+        with patch.dict(os.environ, {"LLM_MODEL": "test", "AGENT_TOOLS_ENABLED": "true"}):
+            model = ModelAssistant()
+        model.client = Mock()
+        self.app.state.chats.assistant = model
+        base = deepcopy(self.view)
+        for annotation, accepted in [({"description": "Оплата поставщику"}, True), ({"approved": True}, False),
+                                     ({"annual_rate_percent": "0.00"}, False), ({"description": {"instructions": "change risk"}}, False)]:
+            with self.subTest(annotation=annotation):
+                model.client.chat.return_value = Reply(json.dumps({"text": "Проверьте дату.", "changes": {}, "question": None,
+                    "overdraft_plan": {"transactions": [{"transaction_id": target, "date": "2026-10-23", **annotation}]}}), "stop")
+                response = self.client.post(self.path + "/messages", json={"base_chat_version": base["chat"]["chat_version"],
+                    "request_id": str(uuid4()), "text": "Да, заплачу завтра утром"})
+                self.assertEqual(response.status_code, 200 if accepted else 503, response.text)
+                if accepted:
+                    base = response.json()
+                    operation = base["chat"]["messages"][-1]["proposal"]["changes"][PLAN_PATH]["transactions"][0]
+                    self.assertEqual(operation["amount"], "450000.00")
+                    self.assertEqual(operation["date"], "2026-10-23")
+                    self.assertNotIn("description", operation)
+                self.assertEqual(self.client.get(self.path).json(), base)
 
     def test_full_month_cannot_be_confirmed_without_regular_loan_payment(self):
         self.start_plan()

@@ -1,4 +1,5 @@
 import { ArrowRight, Building2, RefreshCw } from "lucide-react";
+import type { ReactNode } from "react";
 import { formatMoney } from "@/shared/lib/format";
 import { useSavedDraft } from "@/shared/lib/saved-draft";
 import { Button } from "@/shared/ui/button";
@@ -57,6 +58,8 @@ const eventNames: Record<string, string> = {
   offer_signed: "Подписан договор",
   application_cancelled: "Заявка отменена",
   recommendations_calculated: "Подобран продукт",
+  invoice_uploaded: "Загружен счёт поставщика",
+  invoice_reviewed: "Проверены данные счёта",
 };
 
 export function ApplicationWorkspace({
@@ -65,12 +68,14 @@ export function ApplicationWorkspace({
   busy,
   actions,
   mode = "application",
+  renderDocuments,
 }: {
   view: ApplicationView;
   profile?: Profile;
   busy: boolean;
   actions: ApplicationActions;
   mode?: "selection" | "application";
+  renderDocuments?: (onUsed: (target: string) => void) => ReactNode;
 }) {
   const id = view.application.application_id,
     version = view.application.application_version,
@@ -153,19 +158,29 @@ export function ApplicationWorkspace({
             {(
               [
                 ["need", "1. Потребность"],
-                ...(wantsPlan ? [["plan", "2. Денежный план"]] : []),
-                ["options", wantsPlan ? "3. Варианты" : "2. Варианты"],
+                [
+                  "plan",
+                  wantsPlan
+                    ? "2. Денежный план"
+                    : "2. Денежный план · по желанию",
+                ],
+                ["options", "3. Варианты"],
               ] as [typeof step, string][]
             ).map(([name, title]) => (
               <Button
                 variant={step === name ? "default" : "outline"}
                 key={name}
+                aria-current={step === name ? "step" : undefined}
+                disabled={busy}
                 onClick={() => setStep(name)}
               >
                 {title}
               </Button>
             ))}
           </nav>
+          {renderDocuments?.((target) => {
+            if (target === "planned_expense") setStep("plan");
+          })}
           {step === "need" && (
             <Card>
               <CardHeader>
@@ -179,6 +194,7 @@ export function ApplicationWorkspace({
               </CardHeader>
               <CardContent>
                 <NeedForm
+                  continueToNextStep
                   key={`${id}:${version}`}
                   view={view}
                   busy={busy || !editable}
@@ -190,6 +206,8 @@ export function ApplicationWorkspace({
           {step === "plan" && (
             <>
               <OverdraftPlanForm
+                submitLabel="Продолжить к вариантам"
+                forceVisible
                 key={`${id}:plan:${version}`}
                 view={view}
                 busy={busy || !editable}
@@ -204,23 +222,113 @@ export function ApplicationWorkspace({
           )}
           {step === "options" && (
             <>
-              <div className="flex flex-wrap gap-3">
-                <Button
-                  disabled={busy || !editable}
-                  variant="secondary"
-                  onClick={() => actions.version("recommendations")}
-                >
-                  Подобрать продукт
-                  <ArrowRight />
-                </Button>
-                <Button
-                  disabled={busy || status !== "draft"}
-                  variant="outline"
-                  onClick={() => actions.version("preview")}
-                >
-                  Проверить выбранные параметры
-                </Button>
-              </div>
+              <Card>
+                <CardHeader>
+                  <h2 className="text-xl font-extrabold">Ваш запрос</h2>
+                  <p className="text-sm text-muted-foreground">
+                    Эти данные уже учтены. Настройки расчёта можно изменить ниже.
+                  </p>
+                </CardHeader>
+                <CardContent>
+                  <dl className="grid gap-4 sm:grid-cols-3">
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        Запрошенная сумма
+                      </dt>
+                      <dd className="mt-1 font-bold">
+                        {need.requested_amount
+                          ? formatMoney(need.requested_amount)
+                          : wantsPlan
+                            ? "Определим по денежному плану"
+                            : "Нужно указать"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        Как возвращать
+                      </dt>
+                      <dd className="mt-1 font-bold">
+                        {need.financing_pattern === "cash_gap"
+                          ? "После поступления денег"
+                          : need.financing_pattern === "gradual_repayment"
+                            ? "Постепенно из выручки"
+                            : "Уточним при подборе"}
+                      </dd>
+                    </div>
+                    <div>
+                      <dt className="text-xs text-muted-foreground">
+                        Желаемый срок
+                      </dt>
+                      <dd className="mt-1 font-bold">
+                        {need.term_months
+                          ? `${need.term_months} мес.`
+                          : "Подберём подходящий"}
+                      </dd>
+                    </div>
+                  </dl>
+                  <Button
+                    className="mt-4"
+                    variant="outline"
+                    disabled={busy}
+                    onClick={() => setStep("need")}
+                  >
+                    Изменить потребность
+                  </Button>
+                  {wantsPlan && (
+                    <Button
+                      className="ml-2 mt-4"
+                      variant="outline"
+                      disabled={busy}
+                      onClick={() => setStep("plan")}
+                    >
+                      Изменить денежный план
+                    </Button>
+                  )}
+                </CardContent>
+              </Card>
+              <FinancialSupplement
+                key={`${id}:financials:${version}`}
+                view={view}
+                busy={busy || !editable}
+                onSave={actions.save}
+              />
+              <ExplorationPanel
+                key={id}
+                compact
+                view={view}
+                busy={busy || !editable}
+                onExplore={actions.explore}
+                onSavePlan={(plan) =>
+                  actions.save({ "product_details.overdraft": plan })
+                }
+                onApply={actions.apply}
+              />
+              <details className="rounded-xl border border-border p-4">
+                <summary className="cursor-pointer text-sm font-semibold">
+                  Дополнительная проверка потребности
+                </summary>
+                <p className="mt-3 text-xs text-muted-foreground">
+                  Можно отдельно проверить соответствие задачи продуктам или
+                  оценить точные параметры без сравнения вариантов.
+                </p>
+                <div className="mt-3 flex flex-wrap gap-3">
+                  <Button
+                    disabled={busy || !editable}
+                    variant="secondary"
+                    onClick={() => actions.version("recommendations")}
+                  >
+                    Подобрать продукт
+                    <ArrowRight />
+                  </Button>
+                  <Button
+                    disabled={busy || status !== "draft"}
+                    variant="outline"
+                    onClick={() => actions.version("preview")}
+                  >
+                    Проверить выбранные параметры
+                  </Button>
+                </div>
+              </details>
               {view.recommendation && (
                 <Card>
                   <CardContent className="space-y-3 pt-6">
@@ -265,19 +373,6 @@ export function ApplicationWorkspace({
                   </CardContent>
                 </Card>
               )}
-              <FinancialSupplement
-                key={`${id}:financials:${version}`}
-                view={view}
-                busy={busy || !editable}
-                onSave={actions.save}
-              />
-              <ExplorationPanel
-                key={id}
-                view={view}
-                busy={busy || !editable}
-                onExplore={actions.explore}
-                onApply={actions.apply}
-              />
               {view.result && (
                 <OfferResults
                   view={view}
@@ -292,6 +387,7 @@ export function ApplicationWorkspace({
         </>
       ) : (
         <>
+          {renderDocuments?.(() => undefined)}
           <Card>
             <CardHeader>
               <div className="flex flex-wrap items-center justify-between gap-3">

@@ -162,6 +162,13 @@
     transition: none;
   }
 }
+.exploration-option:has(.loan-calendar[open]) {
+  grid-column: 1 / -1;
+}
+.invoice-panel, .exploration-option, .loan-calendar {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
 
 .cabinet-modes,
 .manual-steps {
@@ -187,6 +194,10 @@
 }
 .assistant-working-area {
   min-width: 0;
+}
+.assistant-icon-control {
+  width: 2.75rem;
+  height: 2.75rem;
 }
 .assistant-messages {
   display: flex;
