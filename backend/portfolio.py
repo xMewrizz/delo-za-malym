@@ -8,6 +8,19 @@ import re
 PREFIX = "cabinet-loan:"
 
 
+def refinanced_loans(records):
+    return {item["loan_id"]: {"application_id": record["application"]["application_id"],
+                              "closed_at": record["completion"]["completed_at"], **item}
+            for record in records if belongs_to_client(record)
+            for item in (record.get("completion") or {}).get("repaid_loans", [])}
+
+
+def cash_disbursed(records):
+    return sum((Decimal(record["completion"]["amount"]) for record in records if belongs_to_client(record)
+                and (record.get("completion") or {}).get("type") == "disbursement"
+                and record["completion"].get("product_id") != "refinancing"), Decimal("0.00"))
+
+
 def belongs_to_client(record):
     # Изолированные сценарии проверяют разные финансовые профили, не общий счёт.
     created = next((item for item in record.get("events", []) if item["type"] == "application_created"), {})
@@ -16,6 +29,7 @@ def belongs_to_client(record):
 
 def issued_loans(records):
     loans = []
+    closed = refinanced_loans(records)
     for record in records:
         completion = record.get("completion") or {}
         if not belongs_to_client(record) or completion.get("type") != "disbursement":
@@ -23,8 +37,11 @@ def issued_loans(records):
         schedule = completion.get("schedule") or []
         if not schedule:
             continue
+        identifier = PREFIX + completion["operation_id"]
+        if identifier in closed:
+            continue
         loans.append({
-            "loan_id": PREFIX + completion["operation_id"],
+            "loan_id": identifier,
             "application_id": record["application"]["application_id"],
             "outstanding_principal": completion["amount"],
             "monthly_payment": str(max(Decimal(row["total_payment"]) for row in schedule)),
@@ -34,19 +51,20 @@ def issued_loans(records):
     return sorted(loans, key=lambda loan: loan["loan_id"])
 
 
-def with_loans(financials, loans):
+def with_loans(financials, loans, *, closed=(), cash_total=None):
     result = deepcopy(financials)
     previous = [loan for loan in result.get("existing_loans") or [] if loan["loan_id"].startswith(PREFIX)]
     if result.get("cash_balance") is not None:
-        result["cash_balance"] = str(Decimal(result["cash_balance"])
-            - sum((Decimal(loan["outstanding_principal"]) for loan in previous), Decimal("0.00"))
-            + sum((Decimal(loan["outstanding_principal"]) for loan in loans), Decimal("0.00")))
+        previous_cash = Decimal(result.get("portfolio_cash_total", str(sum((Decimal(loan["outstanding_principal"]) for loan in previous), Decimal("0.00")))))
+        current_cash = cash_total if cash_total is not None else sum((Decimal(loan["outstanding_principal"]) for loan in loans), Decimal("0.00"))
+        result["cash_balance"] = f'{Decimal(result["cash_balance"]) - previous_cash + current_cash:.2f}'
+        result["portfolio_cash_total"] = f"{current_cash:.2f}"
     result["existing_loans"] = [loan for loan in result.get("existing_loans") or []
-                                if not loan["loan_id"].startswith(PREFIX)] + deepcopy(loans)
+                                if not loan["loan_id"].startswith(PREFIX) and loan["loan_id"] not in closed] + deepcopy(loans)
     return result
 
 
-def include_scheduled_payments(plan, loans):
+def include_scheduled_payments(plan, loans, *, closed=()):
     """Банковский график включается в план один раз; ручные платежи остаются."""
     if not isinstance(plan, dict) or not isinstance(plan.get("start_date"), str) or not isinstance(plan.get("end_date"), str):
         return plan
@@ -58,10 +76,10 @@ def include_scheduled_payments(plan, loans):
     if not isinstance(links, list) or not all(isinstance(link, dict) and isinstance(link.get("loan_id"), str) and isinstance(link.get("transaction_id"), str) for link in links):
         return plan
     managed_ids = {loan["loan_id"] for loan in loans if loan.get("schedule")}
-    removed = {link["transaction_id"] for link in links if link["loan_id"] in managed_ids or link["loan_id"].startswith(PREFIX)}
+    removed = {link["transaction_id"] for link in links if link["loan_id"] in managed_ids or link["loan_id"] in closed or link["loan_id"].startswith(PREFIX)}
     result["transactions"] = [row for row in result.get("transactions", [])
                                if row["transaction_id"] not in removed and not row["transaction_id"].startswith("bank-payment:")]
-    result["existing_debt_payments"] = [link for link in links if link["loan_id"] not in managed_ids and not link["loan_id"].startswith(PREFIX)]
+    result["existing_debt_payments"] = [link for link in links if link["loan_id"] not in managed_ids and link["loan_id"] not in closed and not link["loan_id"].startswith(PREFIX) and not link["transaction_id"].startswith("bank-payment:")]
     for loan in loans:
         if loan["loan_id"] not in managed_ids:
             continue
@@ -87,6 +105,7 @@ def calendar_operation(row):
 
 def calendar_data(records, now):
     events, plans, accounts = [], [], []
+    closed = refinanced_loans(records)
     for record in records:
         if not belongs_to_client(record):
             continue
@@ -107,14 +126,25 @@ def calendar_data(records, now):
         if not completion:
             continue
         overdraft = completion["type"] == "limit_opening"
+        refinanced = closed.get(PREFIX + completion["operation_id"])
+        refinancing = completion["product_id"] == "refinancing"
         accounts.append({"application_id": identifier, "product_id": completion["product_id"],
             "amount": completion["amount"], "opened_at": completion["completed_at"],
-            "outstanding_principal": "0.00" if overdraft else completion["amount"]})
+            "status": "refinanced" if refinanced else "active",
+            "refinanced_by": refinanced["application_id"] if refinanced else None,
+            "outstanding_principal": "0.00" if overdraft or refinanced else completion["amount"]})
         events.append({"event_id": completion["operation_id"], "application_id": identifier,
             "date": completion["completed_at"][:10], "amount": completion["amount"],
-            "direction": "none" if overdraft else "inflow", "kind": "limit_opened" if overdraft else "loan_received",
-            "title": "Открыт лимит овердрафта" if overdraft else "Кредит получен", "forecast": False})
+            "direction": "none" if overdraft or refinancing else "inflow",
+            "kind": "refinancing_completed" if refinancing else "limit_opened" if overdraft else "loan_received",
+            "title": "Выполнено рефинансирование" if refinancing else "Открыт лимит овердрафта" if overdraft else "Кредит получен", "forecast": False})
+        for loan in completion.get("repaid_loans", []):
+            events.append({"event_id": f"{completion['operation_id']}:repaid:{loan['loan_id']}", "application_id": identifier,
+                "loan_id": loan["loan_id"], "date": completion["completed_at"][:10], "amount": loan["outstanding_principal"],
+                "direction": "none", "kind": "loan_refinanced", "title": "Прежний кредит погашен рефинансированием", "forecast": False})
         for index, row in enumerate(completion.get("schedule") or []):
+            if refinanced and row["date"] >= refinanced["closed_at"][:10]:
+                continue
             events.append({"event_id": f"{completion['operation_id']}:payment:{index}", "application_id": identifier,
                 "date": row["date"], "amount": row["total_payment"], "direction": "outflow",
                 "kind": "loan_final_payment" if index == len(completion["schedule"]) - 1 else "loan_payment",

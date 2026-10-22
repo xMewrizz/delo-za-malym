@@ -1,3 +1,4 @@
+import { RefinancingWorkspace } from "@/features/applications/ui/refinancing-loans";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { ArrowUp, MessageCircle, Plus, RefreshCw } from "lucide-react";
@@ -499,6 +500,7 @@ export function AssistantPanel({
             </Button>
           </div>
         )}
+        {!pending && record.application.need.preferred_product === "refinancing" && <RefinancingWorkspace view={record} busy={busy || !editable} onSave={actions.save} onExplore={() => actions.explore("refinancing", {})} />}
         {!pending && record.explorations.length > 0 && (
           <FinancialSupplement
             key={`${applicationId}:${record.application.application_version}`}

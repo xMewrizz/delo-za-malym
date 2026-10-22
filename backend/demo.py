@@ -7,6 +7,7 @@ from scripts.run_credit_scenarios import load_scenarios
 
 
 PRODUCTS = ("working_capital_loan", "overdraft")
+SUPPORTED_PRODUCTS = (*PRODUCTS, "refinancing")
 
 
 def shifted_month(month: str, delta: int) -> str:

@@ -24,7 +24,7 @@ export type ApplicationActions = {
     action: "preview" | "recommendations" | "retry" | "submit" | "cancel",
   ) => void;
   explore: (
-    productId: "working_capital_loan" | "overdraft",
+    productId: "working_capital_loan" | "overdraft" | "refinancing",
     preferences: Record<string, unknown>,
     delay?: { transaction_id: string; days: number },
   ) => void;
@@ -58,6 +58,8 @@ const eventNames: Record<string, string> = {
   offer_signed: "Подписан договор",
   application_cancelled: "Заявка отменена",
   recommendations_calculated: "Подобран продукт",
+  loans_refinanced: "Выбранные обязательства погашены",
+  credit_refinanced: "Кредит погашен рефинансированием",
   bank_obligations_updated: "Учтён новый кредит: требуется пересчёт предложений",
   invoice_uploaded: "Загружен счёт поставщика",
   invoice_reviewed: "Проверены данные счёта",
@@ -117,7 +119,7 @@ export function ApplicationWorkspace({
   useEffect(() => {
     if (!calculateAfterSave.current || busy) return;
     calculateAfterSave.current = false;
-    actions.explore(need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
+    actions.explore(need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "working_capital_loan" ? "working_capital_loan" : wantsPlan ? "overdraft" : "working_capital_loan", {});
   }, [step, busy, actions, wantsPlan, need.preferred_product]);
   const saveNeed = (changes: Record<string, unknown>) =>
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
@@ -196,7 +198,7 @@ export function ApplicationWorkspace({
                   <dl className="grid gap-4 sm:grid-cols-3">
                     <div>
                       <dt className="text-xs text-muted-foreground">
-                        Запрошенная сумма
+                        {need.preferred_product === "refinancing" ? "На погашение выбранных долгов" : "Запрошенная сумма"}
                       </dt>
                       <dd className="mt-1 font-bold">
                         {need.requested_amount

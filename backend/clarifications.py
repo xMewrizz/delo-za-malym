@@ -24,6 +24,8 @@ def next_clarification(chat, record, now):
     for path, value in (pending or {}).get("changes", {}).items():
         if path.startswith("need."):
             need[path[5:]] = value
+    if need.get("purpose") == "refinancing" or need.get("preferred_product") == "refinancing":
+        return None  # Выбор банковских кредитов выполняется в рабочей области.
     plan = (pending or {}).get("changes", {}).get(PLAN_PATH) or record["application"].get("product_details", {}).get("overdraft")
     today = local_now(now).date()
 

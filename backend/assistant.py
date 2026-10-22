@@ -47,6 +47,7 @@ need — пожелания клиента, а не одобренные усл�
 ограничение с учётом действующих кредитов. Используй comparison только при is_current=true.
 Вопрос «почему» требует объяснения, даже если в нём повторены сумма и срок; не
 предлагай повторно сохранять те же поля. Пожелание сохранить сумму не отменяет вопрос.
+Для рефинансирования предложи purpose=refinancing и preferred_product=refinancing. Кредиты для замены клиент отмечает в рабочей области: не проси вручную переписывать банковские остатки и графики, не выдумывай их идентификаторы. Сумму определяет система по выбранным долгам. Разницу в платеже и общей оставшейся стоимости объясняй отдельно: меньший платёж не обязательно означает экономию.
 Ты не вызываешь отправку, подпись или выдачу. Изменения сначала подтверждает клиент.
 Ответь ровно одним JSON-объектом без markdown и рассуждений:
 {"text":"ответ клиенту", "intent":"ask_clarification", "changes":{}, "question":"вопрос или null"}.
@@ -67,13 +68,14 @@ priority: lowest_payment/lowest_total_cost/preserve_amount}. Неизвестн�
 В остальных намерениях preferences: null. Результат нового расчёта объясняй по переданным
 данным со следующего сообщения, не придумывай результат вызова заранее.
 Разрешены только отдельные поля need: purpose (working_capital/investment/refinancing/
-contract_execution/other), preferred_product (working_capital_loan/overdraft),
+contract_execution/other), preferred_product (working_capital_loan/overdraft/refinancing),
 requested_amount, minimum_acceptable_amount, own_funds (строки рублей с двумя знаками),
 term_months (целое), needed_by (YYYY-MM-DD), recurring (boolean),
 financing_pattern (cash_gap/gradual_repayment), priority
 (lowest_payment/lowest_total_cost/preserve_amount). Неизвестные поля можно установить в null.
 Пример changes: {"need.requested_amount":"500000.00", "need.term_months":12}.
 minimum_acceptable_amount заполняй только если клиент явно назвал достаточную меньшую сумму.
+«Меньше не хватит» не задаёт minimum_acceptable_amount: это отказ от уменьшения запроса. Оставь поле без изменений.
 Будущие расходы и поступления собирай в отдельном overdraft_plan. Это предложение для
 денежного плана и разового кредита, и овердрафта; само наличие плана не меняет продукт.
 Сумма покупки в документе не равна сумме кредита: учитывай собственные деньги и вопрос клиента.
@@ -146,7 +148,7 @@ class FactsExtractionReply(RequestModel):
 
 ENUMS = {
     "purpose": {"working_capital", "investment", "refinancing", "contract_execution", "other"},
-    "preferred_product": {"working_capital_loan", "overdraft"},
+    "preferred_product": {"working_capital_loan", "overdraft", "refinancing"},
     "financing_pattern": {"cash_gap", "gradual_repayment"},
     "priority": {"lowest_payment", "lowest_total_cost", "preserve_amount"},
 }
@@ -448,6 +450,7 @@ existing_debt_payments определяет приложение: их НЕ во
 не удаляет уже названные операции. Относительные даты считай от current_datetime по Москве:
 «завтра» +1 день, «через неделю» +7 дней; неоднозначную дату оставь null. Дату и сумму не переспрашивай
 просто для подтверждения — клиент проверит карточку. Не придумывай операции из среднемесячных показателей.
+Если месяц не определён (например, «450 тысяч 15-го числа, месяц пока не определён»), сразу верни одну операцию с amount="450000.00", date=null и question=null. Приложение само спросит дату; не вычисляй возможные месяцы.
 Если клиент явно подтвердил, что все кредитные платежи учтены или их нет за этот период,
 верни overdraft_plan:{"debt_payments_confirmed":true}. Для этого не повторяй transactions.
 Иначе подтверждение пропусти: приложение уточнит кредитные платежи.
@@ -458,12 +461,13 @@ existing_debt_payments определяет приложение: их НЕ во
 Если новых данных нет — overdraft_plan:null. Не возвращай пустой объект overdraft_plan:{}.
 changes содержит только явно изменённые поля с ПОЛНЫМИ именами:
 need.purpose: working_capital/investment/refinancing/contract_execution/other;
-need.preferred_product: working_capital_loan/overdraft;
+need.preferred_product: working_capital_loan/overdraft/refinancing;
 need.financing_pattern: gradual_repayment/cash_gap;
 need.requested_amount, need.minimum_acceptable_amount, need.own_funds: строки рублей с двумя знаками, например "150000.00";
 need.term_months: целое число месяцев, например 12; need.needed_by: строка YYYY-MM-DD;
 need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/preserve_amount.
 Покупка товара и сырья — purpose=working_capital. minimum_acceptable_amount — только если клиент явно подтвердил достаточность меньшей суммы.
+Фраза «нужны именно 500 тысяч, меньше не хватит» оставляет changes пустым, если запрос уже 500000.00: minimum_acceptable_amount не заполняй и не приравнивай к requested_amount.
 Не добавляй другие поля, например валюту, банк, комментарий или тип заёмщика.
 Не приравнивай сумму расхода или поступления к запрашиваемому кредиту. Никаких иных полей JSON."""
         application = context.get("application", {})

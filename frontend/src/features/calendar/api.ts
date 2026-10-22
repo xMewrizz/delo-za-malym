@@ -10,7 +10,7 @@ export const eventSchema = z.object({
 export const calendarSchema = z.object({
   today: z.string(), events: z.array(eventSchema),
   plans: z.array(z.object({ application_id: z.string(), state: z.string(), amount: z.string().nullable(), events: z.array(eventSchema) })),
-  accounts: z.array(z.object({ application_id: z.string(), product_id: z.string(), amount: z.string(), opened_at: z.string(), outstanding_principal: z.string() })),
+  accounts: z.array(z.object({ application_id: z.string(), product_id: z.string(), amount: z.string(), opened_at: z.string(), outstanding_principal: z.string(), status: z.string().optional(), refinanced_by: z.string().nullable().optional() })),
 });
 export type CalendarEvent = z.infer<typeof eventSchema>;
 export type CalendarData = z.infer<typeof calendarSchema>;

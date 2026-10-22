@@ -2,6 +2,7 @@
 
 from copy import deepcopy
 from uuid import uuid4
+from decimal import Decimal
 
 from credit_engine import assess_application, assess_overdraft, calculate_loan, check_offer_readiness, recommend_financing
 
@@ -10,6 +11,9 @@ from .client_data import bank_financials, client_data, preserves_bank_values
 from .store import Store
 from .sources import source_value
 from .portfolio import belongs_to_client, issued_loans, with_loans, include_scheduled_payments, calendar_data
+from .portfolio import refinanced_loans, cash_disbursed
+from credit_engine.refinancing import assess_refinancing
+from credit_engine.financials import MONEY_PATTERN
 
 
 class ProcessError(Exception):
@@ -41,13 +45,16 @@ class CreditProcess:
 
     def profile(self):
         profile, _ = demo.profile(self.clock())
-        profile["financials"] = with_loans(profile["financials"], issued_loans(self.store.list()))
+        records = self.store.list()
+        profile["financials"] = with_loans(profile["financials"], issued_loans(records), closed=refinanced_loans(records), cash_total=cash_disbursed(records))
         return profile
 
     def calendar(self):
         result = calendar_data(self.store.list(), self.clock())
-        profile, _ = demo.profile(self.clock())
+        profile = self.profile()
         for loan in profile["financials"].get("existing_loans", []):
+            if loan.get("application_id"):
+                continue
             for row in loan.get("schedule", []):
                 result["events"].append({"event_id": f"bank:{loan['loan_id']}:{row['date']}", "application_id": "", "loan_id": loan["loan_id"],
                     "date": row["date"], "amount": row["total_payment"], "direction": "outflow", "kind": "existing_loan_payment",
@@ -61,11 +68,18 @@ class CreditProcess:
                 return self.sync_portfolio(connection)
         records = self.store.records(connection)
         loans = issued_loans(records)
+        closed, cash = refinanced_loans(records), cash_disbursed(records)
         for record in records:
+            completion = record.get("completion") or {}
+            closure = closed.get("cabinet-loan:" + completion.get("operation_id", ""))
+            if closure and completion.get("refinanced_by") != closure["application_id"]:
+                completion.update(refinanced_by=closure["application_id"], refinanced_at=closure["closed_at"])
+                event(record, "credit_refinanced", self.clock(), replacement_application_id=closure["application_id"])
+                self.store.save(connection, record)
             if not belongs_to_client(record) or record["state"]["status"] not in EDITABLE_STATES:
                 continue
             known = bank_financials(record)
-            updated = with_loans(known, loans)
+            updated = with_loans(known, loans, closed=closed, cash_total=cash)
             if updated == known:
                 continue
             record["simulator"]["bank_financials"] = updated
@@ -74,10 +88,11 @@ class CreditProcess:
             application["financials"]["existing_loans"] = deepcopy(updated["existing_loans"])
             if updated.get("cash_balance") is not None:
                 application["financials"]["cash_balance"] = updated["cash_balance"]
+                application["financials"]["portfolio_cash_total"] = updated["portfolio_cash_total"]
             details = application.get("product_details") or {}
             if details.get("overdraft"):
                 details["overdraft"]["opening_cash_balance"] = updated.get("cash_balance") or "0.00"
-                details["overdraft"] = include_scheduled_payments(details["overdraft"], updated["existing_loans"])
+                details["overdraft"] = include_scheduled_payments(details["overdraft"], updated["existing_loans"], closed=closed)
             application["application_version"] += 1
             application["confirmation"] = None
             record["field_sources"] = {path: source for path, source in record.get("field_sources", {}).items()
@@ -128,6 +143,8 @@ class CreditProcess:
                 application["need"].update(deepcopy(need))
             if product_details is not None:
                 application["product_details"] = deepcopy(product_details)
+            # Учёт уже выданных денег восстанавливается только из операций банка.
+            application["financials"].pop("portfolio_cash_total", None)
             self._check_bank_financials(simulator["bank_financials"], application["financials"])
         application.update(application_id=str(uuid4()), application_version=1, confirmation=None)
         state = {"application_id": application["application_id"], "application_version": 1,
@@ -139,13 +156,15 @@ class CreditProcess:
         event(record, "application_created", now, scenario=scenario)
         with self.store.connect(write=True) as connection:
             if not scenario:
-                loans = issued_loans(self.store.records(connection))
-                application["financials"] = with_loans(application["financials"], loans)
-                simulator["bank_financials"] = with_loans(simulator["bank_financials"], loans)
+                records = self.store.records(connection)
+                loans, closed, cash = issued_loans(records), refinanced_loans(records), cash_disbursed(records)
+                application["financials"] = with_loans(application["financials"], loans, closed=closed, cash_total=cash)
+                simulator["bank_financials"] = with_loans(simulator["bank_financials"], loans, closed=closed, cash_total=cash)
                 simulator["known_loans"] = deepcopy(application["financials"]["existing_loans"])
                 details = application.get("product_details") or {}
                 if details.get("overdraft"):
-                    details["overdraft"] = include_scheduled_payments(details["overdraft"], application["financials"]["existing_loans"])
+                    details["overdraft"] = include_scheduled_payments(details["overdraft"], application["financials"]["existing_loans"], closed=closed)
+            self._refinancing_amount(application)
             self.store.save(connection, record)
         return self.public(record)
 
@@ -183,16 +202,19 @@ class CreditProcess:
         # Используется и формой, и подтверждёнными предложениями ассистента.
         for path, value in changes.items():
             if path in ("need", "financials", "product_details"):
-                allowed = NEED_FIELDS if path == "need" else FINANCIAL_FIELDS if path == "financials" else {"overdraft"}
+                allowed = NEED_FIELDS if path == "need" else FINANCIAL_FIELDS if path == "financials" else {"overdraft", "refinancing"}
                 self._validate_fields(value, allowed, path)
                 record["application"][path] = deepcopy(value)
+                if path == "financials" and "portfolio_cash_total" in known:
+                    record["application"][path]["portfolio_cash_total"] = known["portfolio_cash_total"]
             else:
                 parts = path.split(".")
-                allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else {"overdraft"} if parts[0] == "product_details" else set()
+                allowed = NEED_FIELDS if parts[0] == "need" else FINANCIAL_FIELDS if parts[0] == "financials" else {"overdraft", "refinancing"} if parts[0] == "product_details" else set()
                 if len(parts) != 2 or parts[1] not in allowed:
                     raise ProcessError("unsupported_field", f"Изменение поля {path} недоступно.", 422)
                 record["application"].setdefault(parts[0], {})[parts[1]] = deepcopy(value)
         self._check_bank_financials(known, record["application"].get("financials"))
+        self._refinancing_amount(record["application"])
         details = record["application"].get("product_details") or {}
         if details.get("overdraft"):
             details["overdraft"] = include_scheduled_payments(details["overdraft"], record["application"]["financials"].get("existing_loans", []))
@@ -208,6 +230,29 @@ class CreditProcess:
         event(record, "application_updated", now, fields=list(changes))
 
     @staticmethod
+    def _refinancing_amount(application):
+        need = application["need"]
+        if need.get("preferred_product") != "refinancing" and need.get("purpose") != "refinancing":
+            return
+        need.update(purpose="refinancing", preferred_product="refinancing", financing_pattern="gradual_repayment",
+                    minimum_acceptable_amount=None, own_funds=None)
+        details = application.setdefault("product_details", {})
+        selection = details.get("refinancing") or {}
+        if not isinstance(selection, dict) or set(selection) - {"loan_ids"}:
+            raise ProcessError("invalid_refinancing_selection", "Для рефинансирования передайте только идентификаторы кредитов.", 422)
+        ids = selection.get("loan_ids", [])
+        if not isinstance(ids, list) or len(ids) > 20 or any(not isinstance(item, str) for item in ids) or len(ids) != len(set(ids)):
+            raise ProcessError("invalid_refinancing_selection", "Выберите разные кредиты из банковского профиля.", 422)
+        loans = application["financials"].get("existing_loans", [])
+        selected = [loan for loan in loans if loan["loan_id"] in ids]
+        if len(selected) != len(ids):
+            raise ProcessError("refinancing_loan_unavailable", "Выбранный кредит уже закрыт или отсутствует в банковском профиле.", 422)
+        if any(not isinstance(loan.get("outstanding_principal"), str) or not MONEY_PATTERN.fullmatch(loan["outstanding_principal"]) or Decimal(loan["outstanding_principal"]) <= 0 for loan in selected):
+            raise ProcessError("refinancing_balance_missing", "Банк должен уточнить остаток долга.", 422)
+        need["requested_amount"] = f'{sum((Decimal(loan["outstanding_principal"]) for loan in selected), Decimal("0.00")):.2f}' if selected else None
+        details.pop("overdraft", None)
+
+    @staticmethod
     def _check_bank_financials(known, proposed):
         if not preserves_bank_values(known, proposed):
             raise ProcessError("bank_data_read_only",
@@ -220,6 +265,11 @@ class CreditProcess:
             previous = record.get("recommendation") or {}
             checks = demo.simulate_checks(record["application"], record["simulator"], now,
                                           retry=previous.get("status") in ("check_retry_pending", "needs_checks"))
+            if record["application"]["need"].get("purpose") == "refinancing":
+                from credit_engine.refinancing import refinancing_options
+                result = refinancing_options(record["application"], checks, calculated_at=now)
+                record["recommendation"] = {**result, "recommended_product_id": "refinancing" if result["options"] else None, "candidates": []}
+                return
             record["recommendation"] = recommend_financing(record["application"], checks, calculated_at=now).to_dict()
             event(record, "recommendations_calculated", now, status=record["recommendation"]["status"],
                   recommended_product_id=record["recommendation"]["recommended_product_id"])
@@ -234,9 +284,9 @@ class CreditProcess:
             raise ProcessError("invalid_financing_pattern", "Укажите временный разрыв, постепенный возврат или null.", 422)
         if product == "overdraft" and pattern == "gradual_repayment":
             raise ProcessError("product_pattern_conflict", "Для постепенного возврата по графику выберите разовый кредит или уточните задачу.", 422)
-        if product not in demo.PRODUCTS:
-            raise ProcessError("product_required", "Выберите разовый кредит или овердрафт.", 422)
-        return assess_overdraft if product == "overdraft" else assess_application
+        if product not in demo.SUPPORTED_PRODUCTS:
+            raise ProcessError("product_required", "Выберите кредит, овердрафт или рефинансирование.", 422)
+        return assess_refinancing if product == "refinancing" else assess_overdraft if product == "overdraft" else assess_application
 
     def _assess(self, record, now, *, stage, retry=False):
         calculator = self._calculator(record)
@@ -346,6 +396,19 @@ class CreditProcess:
             if readiness["status"] != "ready_to_sign":
                 return
             offer = next(offer for offer in record["result"]["assessment"]["offers"] if offer["offer_id"] == offer_id)
+            repaid = []
+            if offer["product_id"] == "refinancing":
+                from credit_engine.refinancing import selected_debts
+                try:
+                    comparison = selected_debts(record["application"], now)
+                except ValueError as exc:
+                    raise ProcessError("refinancing_changed", str(exc)) from None
+                if any(
+                    comparison[key] != offer.get("refinancing", {}).get(key) for key in ("loan_ids", "payoff_amount", "current_total_repayment")):
+                    raise ProcessError("refinancing_changed", "Долги изменились. Пересчитайте рефинансирование.")
+                if comparison["payoff_amount"] != offer["amount"]:
+                    raise ProcessError("refinancing_changed", "Сумма не покрывает выбранные кредиты.")
+                repaid = [{"loan_id": loan["loan_id"], "outstanding_principal": loan["outstanding_principal"]} for loan in comparison["loans"]]
             record["signature"] = {"signature_id": str(uuid4()), "offer_id": offer_id, "signed_at": now.isoformat(), "mode": "simulated"}
             set_state(record, "signed", "signing", "wait", "Договор подписан", now)
             event(record, "contract_signed", now, offer_id=offer_id, mode="simulated")
@@ -353,13 +416,16 @@ class CreditProcess:
             record["completion"] = {"operation_id": str(uuid4()), "offer_id": offer_id, "amount": offer["amount"],
                                     "product_id": offer["product_id"], "completed_at": now.isoformat(), "mode": "simulated",
                                     "type": "limit_opening" if overdraft else "disbursement"}
+            if repaid:
+                record["completion"].update(repaid_loans=repaid, cash_to_client="0.00", settlement_type="direct_loan_repayment")
+                event(record, "loans_refinanced", now, loan_ids=[loan["loan_id"] for loan in repaid], mode="simulated")
             if not overdraft:
                 from credit_engine.cashflow import payment_calendar
                 from .overdraft_chat import local_now
                 schedule = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]["schedule"]
                 record["completion"]["schedule"] = payment_calendar(schedule, local_now(now).date())
             set_state(record, "limit_opened" if overdraft else "disbursed", "completion", "none",
-                      "Лимит открыт" if overdraft else "Кредит выдан", now)
+                      "Рефинансирование завершено" if repaid else "Лимит открыт" if overdraft else "Кредит выдан", now)
             event(record, "limit_opened" if overdraft else "credit_disbursed", now, operation_id=record["completion"]["operation_id"], mode="simulated")
         return self.change(application_id, version, sign_and_complete)
 

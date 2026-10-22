@@ -224,16 +224,20 @@ class InflowDelay(RequestModel):
 
 
 class ExploreOptions(VersionAction):
-    product_id: Literal["working_capital_loan", "overdraft"]
+    product_id: Literal["working_capital_loan", "overdraft", "refinancing"]
     preferences: LoanPreferences = Field(default_factory=LoanPreferences)
     delay: InflowDelay | None = None
 
     @model_validator(mode="after")
     def matching_product(self):
-        if self.product_id == "working_capital_loan" and self.delay is not None:
+        if self.product_id != "overdraft" and self.delay is not None:
             raise ValueError("Перенос поступления доступен в плане овердрафта.")
         if self.product_id == "overdraft" and self.preferences.model_fields_set:
             raise ValueError("Настройки суммы и срока относятся к разовому кредиту.")
+        if self.product_id == "refinancing" and self.preferences.requested_amount is not None:
+            raise ValueError("Сумму рефинансирования определяем по выбранным долгам.")
+        if self.product_id == "refinancing" and "maximum_term" not in self.preferences.model_fields_set:
+            self.preferences.maximum_term = 48
         return self
 
 

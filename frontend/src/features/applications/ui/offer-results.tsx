@@ -6,6 +6,8 @@ import { ConfirmAction } from "@/shared/ui/confirm-action";
 import type { ApplicationView, Offer } from "../api/applications";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
 
+import { RefinancingEffect } from "./refinancing-comparison";
+
 function OfferCard({
   offer,
   final,
@@ -23,6 +25,7 @@ function OfferCard({
 }) {
   return (
     <div className="rounded-[22px] border border-border bg-background p-5 sm:p-6">
+      {offer.product_id === "refinancing" && <RefinancingEffect offer={offer} />}
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <p className="text-xs font-bold text-primary">
@@ -265,7 +268,7 @@ export function OfferResults({
           <div className="rounded-2xl border border-success/30 bg-success/10 p-5">
             <p className="flex items-center gap-2 text-lg font-extrabold">
               <Check className="size-5 text-success" />
-              {view.state.status === "limit_opened"
+              {view.completion.refinanced_by ? "Кредит погашен рефинансированием" : view.completion.product_id === "refinancing" ? "Рефинансирование завершено" : view.state.status === "limit_opened"
                 ? "Лимит открыт"
                 : "Кредит выдан"}
             </p>
@@ -275,10 +278,12 @@ export function OfferResults({
                 : ""}
               Операция выполнена в демонстрационном режиме.
             </p>
+            {view.completion.product_id === "refinancing" && <p className="mt-3 text-sm">Выбранные кредиты погашены. В календаре и следующих заявках учитывается новый кредит. Дополнительные деньги на счёт не зачислялись.</p>}
+            {typeof view.completion.refinanced_by === "string" && <a className="mt-3 block font-semibold text-primary underline" href={`/cabinet?mode=applications&application=${encodeURIComponent(view.completion.refinanced_by)}`}>Открыть заменивший кредит</a>}
             {view.completion.schedule && (
               <details className="mt-4">
                 <summary className="cursor-pointer text-sm font-semibold text-primary">
-                  Посмотреть график платежей
+                  {view.completion.refinanced_by ? "Прежний график — будущие платежи заменены новым кредитом" : "Посмотреть график платежей"}
                 </summary>
                 <div className="mt-3 max-h-72 overflow-auto rounded-xl bg-background">
                   <table aria-label="График погашения выбранного кредита" className="w-full text-left text-xs">

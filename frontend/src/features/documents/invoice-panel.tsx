@@ -83,6 +83,7 @@ export function InvoicePanel({
   });
   const error = upload.error || use.error;
   const busy = upload.isPending || use.isPending;
+  if (view.application.need.preferred_product === "refinancing" && !readOnly) return null;
   return (
     <section
       className="invoice-panel rounded-2xl border border-border bg-card p-4"

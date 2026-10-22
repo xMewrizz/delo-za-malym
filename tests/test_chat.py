@@ -70,7 +70,7 @@ class ChatTests(unittest.TestCase):
         self.assertEqual(self.view["record"]["application"], original)
         context = json.loads(self.assistant.calls[-1][1]["content"].split("\n", 1)[1])
         self.assertEqual(context["application"]["application_id"], original["application_id"])
-        self.assertEqual(len(context["catalog"]), 2)
+        self.assertEqual(len(context["catalog"]), 3)
         self.view = self.resolve().json()
         self.assertEqual(self.view["record"]["application"]["need"]["requested_amount"], "500000.00")
         self.assertEqual(self.view["record"]["application"]["application_version"], 2)

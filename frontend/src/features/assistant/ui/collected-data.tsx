@@ -134,7 +134,7 @@ export function CollectedData({
         <div className="collected-fact" key={`purpose-${need.purpose}-${need.financing_pattern}`}>
           <dt>Задача</dt>
           <dd>
-            {need.purpose === "working_capital"
+            {need.purpose === "refinancing" ? "Рефинансирование действующих кредитов" : need.purpose === "working_capital"
               ? need.financing_pattern === "cash_gap"
                 ? "Заплатить до выручки"
                 : "Оборотные расходы"
@@ -144,7 +144,7 @@ export function CollectedData({
           </dd>
         </div>
         <div className="collected-fact" key={`amount-${need.requested_amount}`}>
-          <dt>Нужная сумма</dt>
+          <dt>{need.preferred_product === "refinancing" ? "На погашение долгов" : "Нужная сумма"}</dt>
           <dd>
             {need.requested_amount
               ? formatMoney(need.requested_amount)
@@ -156,7 +156,7 @@ export function CollectedData({
               originFor(view.field_sources, "need.requested_amount")
             }
           />
-          {proposal && (
+          {proposal && need.preferred_product !== "refinancing" && (
             <Correction
               label="Сумма"
               initial={need.requested_amount || ""}

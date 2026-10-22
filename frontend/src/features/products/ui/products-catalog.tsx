@@ -80,7 +80,8 @@ export function ProductsCatalog() {
 
 function ProductCard({ product }: { product: Product }) {
   const loan = product.product_id === "working_capital_loan";
-  const Icon = loan ? Banknote : ArrowDownUp;
+  const refinancing = product.product_id === "refinancing";
+  const Icon = refinancing ? RefreshCw : loan ? Banknote : ArrowDownUp;
   const titleId = `product-${product.product_id}`;
   return (
     <Card
@@ -91,7 +92,7 @@ function ProductCard({ product }: { product: Product }) {
       <CardHeader>
         <div className="product-card-top">
           <span className="product-tag">
-            {loan ? "На развитие бизнеса" : "На каждый день"}
+            {refinancing ? "Для действующих кредитов" : loan ? "На оборотные задачи" : "На каждый день"}
           </span>
           <span className="product-symbol" aria-hidden="true">
             <Icon />
@@ -103,7 +104,7 @@ function ProductCard({ product }: { product: Product }) {
           </h3>
         </CardTitle>
         <CardDescription className="product-description">
-          {loan
+          {refinancing ? "Замените выбранные кредиты одним. Сравните новый платёж и все оставшиеся выплаты с текущими условиями." : loan
             ? "Закупайте товары и материалы. Оплачивайте расходы. Возвращайте деньги по графику."
             : "Оплачивайте важное, пока выручка в пути. Поступления на счёт погасят задолженность."}
         </CardDescription>
@@ -112,11 +113,11 @@ function ProductCard({ product }: { product: Product }) {
         <dl className="product-mechanics">
           <div>
             <dt>Когда подходит</dt>
-            <dd>{loan ? "Для закупок и текущих расходов" : "Когда расходы раньше выручки"}</dd>
+            <dd>{refinancing ? "Чтобы пересмотреть текущие обязательства" : loan ? "Для закупок и текущих расходов" : "Когда расходы раньше выручки"}</dd>
           </div>
           <div>
             <dt>Как возвращать</dt>
-            <dd>{loan ? "Платежами по графику" : "Поступлениями на счёт"}</dd>
+            <dd>{loan || refinancing ? "Платежами по новому графику" : "Поступлениями на счёт"}</dd>
           </div>
         </dl>
         <details className="product-details">
@@ -132,7 +133,7 @@ function ProductCard({ product }: { product: Product }) {
             />
           </summary>
           <div className="product-details-content">
-            <p>{loan
+            <p>{refinancing ? "Сумма направляется на полное погашение выбранных долгов. Уменьшение платежа за счёт увеличения срока может повысить общую стоимость — покажем разницу до оформления." : loan
               ? "Деньги выдаются одной суммой под задачу бизнеса. Возврат идёт по графику; погашенную часть кредита нельзя использовать повторно."
               : "Овердрафт помогает оплатить расходы при временной нехватке денег на счёте. Поступления на счёт уменьшают задолженность."}</p>
           </div>

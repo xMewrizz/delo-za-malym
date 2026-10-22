@@ -95,7 +95,7 @@ export function PaymentCalendar({ initialPlanId, assistantPlanId }: { initialPla
     {Boolean(calendar.data?.accounts.length) && <Card><CardContent className="pt-6"><h2 className="text-lg font-bold">Полученное финансирование</h2><div className="mt-4 grid gap-3 sm:grid-cols-2">
       {calendar.data?.accounts.map(account => <Link key={account.application_id} className="rounded-xl border border-border p-4 hover:border-primary" to={`/cabinet?mode=applications&application=${account.application_id}`}>
         <strong>{financingName(account.product_id)} · {formatMoney(account.amount)}</strong>
-        <p className="mt-2 text-sm text-muted-foreground">{account.product_id === "overdraft" ? "Лимит открыт. Использование и погашение показаны как прогноз." : "Учтён при расчёте новых заявок. Платежи показаны по договорному графику."}</p>
+        <p className="mt-2 text-sm text-muted-foreground">{account.status === "refinanced" ? "Погашен рефинансированием. Будущие платежи по этому кредиту не учитываются." : account.product_id === "overdraft" ? "Лимит открыт. Использование и погашение показаны как прогноз." : "Учтён при расчёте новых заявок. Платежи показаны по договорному графику."}</p>
       </Link>)}
     </div></CardContent></Card>}
   </div>;

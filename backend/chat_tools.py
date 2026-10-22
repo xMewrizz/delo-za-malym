@@ -35,7 +35,7 @@ CALCULATIONS = [
     definition("simulate_alternative", "Посчитать отдельный вариант «а если» на копии заявки, не сохраняя изменения.",
                {"changes": {"type": "object", "description": "Только изменённые поля need, например need.requested_amount: строка рублей с двумя десятичными знаками, need.term_months: целое.", "additionalProperties": True}}, ["changes"]),
     definition("compare_options", "Сравнить допустимые условия кредита или рассчитать лимит по плану овердрафта. Заявку не меняет. Подбор сохраняется отдельно; выбор подтверждает клиент.", {
-        "product_id": {"type": "string", "enum": ["working_capital_loan", "overdraft"]},
+        "product_id": {"type": "string", "enum": ["working_capital_loan", "overdraft", "refinancing"]},
         "preferences": {"type": "object", "additionalProperties": False, "properties": {
             "requested_amount": {"type": "string", "description": "Рубли с двумя знаками"},
             "maximum_monthly_payment": {"type": "string", "description": "Рубли с двумя знаками"},
@@ -67,12 +67,12 @@ class CabinetTools:
 
     @property
     def definitions(self):
-        selected = self.record["application"]["need"].get("preferred_product") in demo.PRODUCTS
+        selected = self.record["application"]["need"].get("preferred_product") in demo.SUPPORTED_PRODUCTS
         return [deepcopy(item) for item in CALCULATIONS
                 if selected or item["function"]["name"] != "assess_credit"] + self.search.definitions
 
     def execute(self, name, arguments):
-        if name == "assess_credit" and self.record["application"]["need"].get("preferred_product") not in demo.PRODUCTS:
+        if name == "assess_credit" and self.record["application"]["need"].get("preferred_product") not in demo.SUPPORTED_PRODUCTS:
             return {"ok": False, "error": {"code": "product_required", "message": "Сначала выберите продукт или выполните подбор по потребности."}}
         allowed = {item["function"]["name"] for item in self.definitions}
         if name not in allowed:
@@ -121,7 +121,11 @@ class CabinetTools:
                 snapshot["application"]["confirmation"] = None
             if name == "recommend_financing":
                 checks = demo.simulate_checks(snapshot["application"], snapshot["simulator"], self.now)
-                result = recommend_financing(snapshot["application"], checks, calculated_at=self.now).to_dict()
+                if snapshot["application"]["need"].get("purpose") == "refinancing":
+                    from credit_engine.refinancing import refinancing_options
+                    result = refinancing_options(snapshot["application"], checks, calculated_at=self.now)
+                else:
+                    result = recommend_financing(snapshot["application"], checks, calculated_at=self.now).to_dict()
             else:
                 self.process._assess(snapshot, self.now, stage="preliminary")
                 result = snapshot["result"]

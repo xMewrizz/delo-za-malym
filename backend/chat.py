@@ -165,7 +165,7 @@ class ChatService:
             changes[PLAN_PATH] = engine_plan(changes[PLAN_PATH])
         self.process.patch_record(projection, changes, self.clock())
         need = projection["application"]["need"]
-        product = need.get("preferred_product") or (
+        product = need.get("preferred_product") or ("refinancing" if need.get("purpose") == "refinancing" else None) or (
             "overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
         self.workspace.explore_record(projection, self.clock(), product)
         result = projection["explorations"][-1]["result"]
@@ -271,13 +271,13 @@ class ChatService:
                             self.workspace.save_exploration_record(record, exploration, self.clock())
                     else:
                         need = record["application"]["need"]
-                        product = need.get("preferred_product") or (
+                        product = need.get("preferred_product") or ("refinancing" if need.get("purpose") == "refinancing" else None) or (
                             "overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
-                        preferences = (reply.preferences or LoanPreferences()).model_dump(exclude_none=True)
+                        preferences = (reply.preferences or LoanPreferences()).model_dump(exclude_none=True, exclude_unset=True)
                         if product == "overdraft" and reply.preferences is not None and reply.preferences.model_fields_set:
                             raise ProcessError("invalid_comparison", "Для овердрафта нужен дневной план; настройки платежа и срока относятся к разовому кредиту.", 422)
                         self.workspace.explore_record(record, self.clock(), product,
-                            preferences=preferences if product == "working_capital_loan" else None)
+                            preferences=preferences if product in ("working_capital_loan", "refinancing") else None)
                     self.store.save(connection, record)
                 if proposal:
                     for message in current["messages"]:
@@ -312,7 +312,7 @@ class ChatService:
                 attach_sources(record, proposal.get("field_sources", {}))
                 need = record["application"]["need"]
                 if PLAN_PATH in changes:
-                    product = need.get("preferred_product") or ("overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
+                    product = need.get("preferred_product") or ("refinancing" if need.get("purpose") == "refinancing" else None) or ("overdraft" if need.get("financing_pattern") == "cash_gap" else "working_capital_loan")
                     if product == "overdraft" or need.get("requested_amount") is not None:
                         self.workspace.explore_record(record, self.clock(), product)
                 elif (record["application"]["need"].get("purpose") == "working_capital"

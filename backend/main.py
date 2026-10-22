@@ -44,7 +44,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         yield
 
     app = FastAPI(title="Дело за малым", version="0.1.0", lifespan=lifespan,
-                  description="Кредитный процесс существующего демонстрационного клиента: разовый кредит и овердрафт.")
+                  description="Кредитный процесс существующего демонстрационного клиента: разовый кредит, овердрафт и рефинансирование.")
     app.state.process = process
     assets = Path(__file__).with_name("static")
     frontend = Path(frontend_directory or os.getenv("FRONTEND_DIST", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
@@ -105,6 +105,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @app.get("/api/products", tags=["Данные клиента"])
     def products():
         loan, overdraft = WorkingCapitalPolicy(), OverdraftCreditPolicy()
+        from credit_engine.refinancing import POLICY as refinancing
         return [
             {"product_id": "working_capital_loan", "name": "Разовый кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
@@ -117,6 +118,11 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
              "max_debt_days": overdraft.max_debt_days, "minimum_business_months": overdraft.minimum_business_months,
              "history_months": 6, "purpose": "working_capital", "plan_required": True,
              "conditions": "Проверяются оборот, доступная нагрузка и погашение по плану; при среднем классе риска требуется поручительство."},
+            {"product_id": "refinancing", "name": "Рефинансирование", "policy_version": refinancing.version,
+             "minimum_amount": str(refinancing.minimum_amount), "maximum_amount": str(refinancing.maximum_amount),
+             "annual_rate_percent": refinancing.annual_rate_percent, "terms": list(refinancing.terms),
+             "minimum_business_months": refinancing.minimum_business_months, "history_months": 6, "purpose": "refinancing",
+             "conditions": "Полное погашение выбранных известных кредитов без дополнительных денег на счёт. Сравниваем платёж и оставшуюся стоимость."},
         ]
 
     chats = ChatService(process, assistant if assistant is not None else configured_assistant(), products, workspace=workspace)

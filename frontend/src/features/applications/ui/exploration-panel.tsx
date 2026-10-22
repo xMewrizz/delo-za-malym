@@ -11,9 +11,10 @@ import { describeIssue, outcomeName, productName } from "../model/presentation";
 import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
 import { LoanOptionDetails } from "./loan-option-details";
+import { RefinancingBaseline, RefinancingEffect } from "./refinancing-comparison";
 import { z } from "zod";
 
-type ProductId = "working_capital_loan" | "overdraft";
+type ProductId = "working_capital_loan" | "overdraft" | "refinancing";
 
 export function ExplorationPanel({
   view,
@@ -47,14 +48,14 @@ export function ExplorationPanel({
   const product: ProductId =
     productOverride?.context === productContext
       ? productOverride.product
-      : need.preferred_product === "overdraft" ||
+      : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
           (!need.preferred_product && need.financing_pattern === "cash_gap")
         ? "overdraft"
         : "working_capital_loan";
   const [amount, setAmount] = useState("");
   const [payment, setPayment] = useState("");
   const [minTerm, setMinTerm] = useState("6");
-  const [maxTerm, setMaxTerm] = useState("36");
+  const [maxTerm, setMaxTerm] = useState(need.preferred_product === "refinancing" ? "48" : "36");
   const [priority, setPriority] = useState("preserve_amount");
   const [preserveAmount, setPreserveAmount] = useState(true);
   const [error, setError] = useState("");
@@ -117,7 +118,7 @@ export function ExplorationPanel({
       };
       const requested = normalizeMoneyInput(amount);
       const maximumPayment = normalizeMoneyInput(payment);
-      if (requested) preferences.requested_amount = requested;
+      if (requested && product !== "refinancing") preferences.requested_amount = requested;
       if (maximumPayment) preferences.maximum_monthly_payment = maximumPayment;
       onExplore(product, preferences);
       setError("");
@@ -182,6 +183,7 @@ export function ExplorationPanel({
                 <Button variant="outline" size="sm" disabled={busy || !current} onClick={() => onExplore("overdraft", {})}>Вернуться к основным предложениям</Button>
               </div>
             )}
+            {latest.product_id === "refinancing" && <RefinancingBaseline value={latest.result.refinancing} />}
             {changedTerm && baseline.success && typeof capacity === "string" && Number(baseline.data.monthly_payment) > Number(capacity) && (
               <p className="rounded-xl bg-primary/10 p-4 text-sm">На запрошенные {need.term_months} мес. платёж составил бы {formatMoney(baseline.data.monthly_payment)} в месяц. С учётом действующих кредитов доступно до {formatMoney(capacity)}. Ниже — условия с посильным платежом.</p>
             )}
@@ -354,6 +356,7 @@ export function ExplorationPanel({
                       Без поручительства и залога
                     </p>
                   )}
+                  {option.product_id === "refinancing" && <RefinancingEffect offer={option} />}
                   {option.product_id === "working_capital_loan" &&
                     option.option_id && (
                       <LoanOptionDetails
@@ -394,25 +397,25 @@ export function ExplorationPanel({
             Рассчитаем: {productName(product)}
           </p>
           <p className="text-xs text-muted-foreground">
-            {product === "overdraft"
+            {product === "refinancing" ? "Сумма равна остатку выбранных долгов. Сравним несколько сроков, платежи и оставшуюся стоимость." : product === "overdraft"
               ? "Лимит и проценты определим по сохранённым поступлениям и расходам."
               : amount.trim()
                 ? `Сумма для сравнения: ${amount} ₽. Исходный запрос не меняется.`
                 : "Сумма уже взята из вашего запроса. Покажем доступные сроки и платежи."}
           </p>
-          {product === "working_capital_loan" && payment.trim() && (
+          {product !== "overdraft" && payment.trim() && (
             <p className="text-xs text-muted-foreground">
               Ограничение платежа: до {payment} ₽ в месяц.
             </p>
           )}
           <div>
             <fieldset disabled={busy} className="mt-4 space-y-5">
-              <ChoiceField
+              {need.purpose !== "refinancing" && need.preferred_product !== "refinancing" && <ChoiceField
                 id="compare-product"
                 label="Продукт"
                 value={product}
                 onValueChange={(value) => {
-                  if (value === "overdraft" || value === "working_capital_loan")
+                  if (value === "overdraft" || value === "working_capital_loan" || value === "refinancing")
                     setProductOverride({ context: productContext, product: value });
                 }}
                 options={[
@@ -422,10 +425,11 @@ export function ExplorationPanel({
                   },
                   { value: "overdraft", label: "Овердрафт до поступления денег" },
                 ]}
-              />
-              {product === "working_capital_loan" ? (
+              />}
+              {product !== "overdraft" ? (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
+                    {product !== "refinancing" && (
                     <FormField
                       id="compare-amount"
                       label="Сумма для сравнения, ₽"
@@ -434,6 +438,7 @@ export function ExplorationPanel({
                       placeholder="Как в заявке"
                       inputMode="decimal"
                     />
+                    )}
                     <FormField
                       id="compare-payment"
                       label="Комфортный платёж до, ₽"
@@ -471,6 +476,7 @@ export function ExplorationPanel({
                       },
                     ]}
                   />
+                  {product !== "refinancing" && (
                   <label className="flex items-start gap-3 text-xs leading-relaxed text-muted-foreground">
                     <input
                       type="checkbox"
@@ -482,6 +488,7 @@ export function ExplorationPanel({
                     />
                     Не уменьшать запрошенную сумму без подтверждённого минимума
                   </label>
+                  )}
                 </>
               ) : (
                 <div className="space-y-4">

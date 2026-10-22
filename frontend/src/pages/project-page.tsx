@@ -9,6 +9,7 @@ const documents = [
   { title: "Архитектура", text: "Компоненты, состояния и хранение данных", href: "/project-docs/architecture.md", icon: Boxes },
   { title: "Описание API", text: "Методы и контракты кредитного процесса", href: "/project-docs/api.md", icon: Code2 },
   { title: "Тестовые сценарии", text: "Подготовленные кейсы и ожидаемые результаты", href: "/project-docs/scenarios.md", icon: CheckCheck },
+  { title: "Рефинансирование", text: "Замена долгов, сравнение стоимости и новый график", href: "/project-docs/refinancing.md", icon: GitBranch },
 ];
 
 export function ProjectPage() {
@@ -28,6 +29,6 @@ export function ProjectPage() {
     <section className="project-section" id="documentation"><p className="section-kicker">Для команды и экспертов</p><h2>Документация без поиска по чатам</h2><p className="project-section-note">Материалы из репозитория проекта. Markdown-файлы можно открыть или сохранить, а API — проверить интерактивно.</p>
       <div className="project-documents">{documents.map(({ title, text, href, icon: Icon }) => <a key={href} href={href} target="_blank" rel="noreferrer"><Icon /><div><h3>{title}</h3><p>{text}</p></div><ArrowUpRight /></a>)}<a href="/docs" target="_blank" rel="noreferrer"><Code2 /><div><h3>Интерактивный API</h3><p>Актуальная OpenAPI-схема работающего сервера</p></div><ArrowUpRight /></a></div>
     </section>
-    <aside className="project-scope"><ShieldCheck /><div><h2>Честно о границах демоверсии</h2><p>Работают оборотный кредит и овердрафт. Профиль компании синтетический; банковские проверки, подписание и выдача смоделированы. Настоящая авторизация, OCR сканов и промышленные банковские интеграции — следующие этапы развития.</p></div></aside>
+    <aside className="project-scope"><ShieldCheck /><div><h2>Честно о границах демоверсии</h2><p>Работают оборотный кредит, овердрафт и рефинансирование выбранных обязательств. Профиль компании синтетический; банковские проверки, подписание и выдача смоделированы. Настоящая авторизация, OCR сканов и промышленные банковские интеграции — следующие этапы развития.</p></div></aside>
   </article>;
 }
