@@ -44,7 +44,7 @@ function useLandingMotion(root: RefObject<HTMLDivElement | null>, motion: boolea
           gsap.fromTo(element, { x: 24, opacity: .4 }, { x: 0, opacity: 1, duration: .75, ease: "power2.out", clearProps: "all", scrollTrigger: { trigger: element, start: "top 75%", once: true } });
         });
         gsap.fromTo(".ep-journey .ep-section-heading", { y: 30 }, { y: -40, ease: "none", scrollTrigger: { trigger: ".ep-journey", start: "top bottom", end: "bottom top", scrub: 1 } });
-        gsap.fromTo(".ep-final h2", { xPercent: -8, opacity: .2 }, { xPercent: 0, opacity: 1, ease: "none", scrollTrigger: { trigger: ".ep-final", start: "top 90%", end: "top 25%", scrub: .8 } });
+        gsap.fromTo(".ep-final h2", { xPercent: -8, opacity: .2 }, { xPercent: 0, opacity: 1, duration: .85, ease: "power3.out", clearProps: "transform,opacity", scrollTrigger: { trigger: ".ep-final", start: "top 80%", once: true } });
       });
     }, root);
     let mounted = true;

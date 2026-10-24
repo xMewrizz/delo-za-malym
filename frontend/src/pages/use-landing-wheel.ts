@@ -14,7 +14,7 @@ export function installLandingWheel(root: HTMLElement) {
     const eased = remaining*(1-Math.exp(-elapsed/100));
     // A burst can keep refreshing the destination. A per-event clamp alone therefore
     // cannot stop an accelerating wheel/trackpad from skipping the next section.
-    const step = Math.max(-.48*elapsed, Math.min(.48*elapsed, eased));
+    const step = Math.max(-.54*elapsed, Math.min(.54*elapsed, eased));
     const next = Math.abs(remaining) < .6 ? target : current+step;
     writing = true; window.scrollTo({top: next, behavior: "instant"}); writing = false;
     if (next !== target) frame = requestAnimationFrame(tick);
@@ -31,10 +31,10 @@ export function installLandingWheel(root: HTMLElement) {
     event.preventDefault();
     const current=window.scrollY;
     const pixels=event.deltaY*(event.deltaMode===1 ? 18 : event.deltaMode===2 ? window.innerHeight : 1);
-    const delta=Math.max(-72, Math.min(72, pixels*.65));
+    const delta=Math.max(-81, Math.min(81, pixels*.73));
     // Reversing the wheel discards the previous direction's remaining travel.
     if (!frame || Math.sign(delta)!==Math.sign(target-current)) target=current;
-    target=Math.max(0,Math.min(maxScroll(),current+100,Math.max(current-100,target+delta)));
+    target=Math.max(0,Math.min(maxScroll(),current+112,Math.max(current-112,target+delta)));
     if (!frame) frame=requestAnimationFrame(tick);
   }
   const externalScroll = () => {if (!writing && frame && Math.abs(window.scrollY-target)>200) cancel();};
