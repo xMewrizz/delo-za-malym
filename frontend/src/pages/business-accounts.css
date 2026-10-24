@@ -1,0 +1,191 @@
+.company-profile-card {
+  min-width: 0;
+  padding: 26px 28px 0;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-panel);
+  background: var(--card);
+}
+.company-profile-header { display: flex; align-items: center; gap: 16px; }
+.company-profile-icon { display: grid; place-items: center; flex-shrink: 0; width: 48px; height: 48px; border-radius: 14px; background: var(--accent); color: var(--accent-foreground); }
+.company-profile-identity { flex: 1; min-width: 0; }
+.company-profile-identity h2 { font-size: clamp(20px, 1.8vw, 25px); line-height: 1.35; font-weight: 600; letter-spacing: -.04em; overflow-wrap: anywhere; }
+.company-profile-identity p { margin-top: 6px; color: var(--muted-foreground); font-size: 13px; line-height: 1.6; }
+.company-profile-header [data-slot=button] { flex-shrink: 0; }
+.company-profile-requisites { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; margin-top: 25px; padding-block: 21px; border-top: 1px solid var(--border); }
+.company-profile-requisites dt { font-size: 12px; line-height: 1.5; color: var(--muted-foreground); }
+.company-profile-requisites dd { margin-top: 6px; font-size: 14px; line-height: 1.5; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.company-profile-footer { display: flex; align-items: center; gap: 18px; min-height: 52px; padding-block: 10px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.6; color: var(--muted-foreground); }
+.company-profile-source { display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; }
+.company-profile-source::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--primary); }
+.company-profile-update { min-width: 0; margin-left: auto; }
+.company-profile-update>span { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.company-profile-update>span>svg { color: var(--success); }
+.company-profile-error { color: var(--destructive); }
+.company-profile-footer .bank-elapsed-status-compact { display: flex; flex-wrap: wrap; gap: 10px; padding: 0; border: 0; border-radius: 0; background: transparent; }
+.company-profile-footer .bank-elapsed-status-compact strong { font-size: 12px; font-weight: 500; }
+.company-profile-footer .bank-elapsed-time { font-size: 12px; margin: 0; }
+@media(max-width: 600px) {
+  .company-profile-card { padding: 20px 20px 0; }
+  .company-profile-header { flex-wrap: wrap; gap: 12px; }
+  .company-profile-identity { flex-basis: calc(100% - 60px); }
+  .company-profile-header [data-slot=button] { margin-top: 4px; }
+  .company-profile-requisites { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 18px; margin-top: 20px; }
+  .company-profile-footer { flex-wrap: wrap; gap: 6px 14px; padding-block: 12px; }
+  .company-profile-update { margin-left: 0; }
+}
+
+.business-board { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 20px; align-items: start; }
+.business-board>*, .business-panel { min-width: 0; }
+.business-board>.company-profile-card { grid-column: span 5; align-self: stretch; display: flex; flex-direction: column; }
+.business-board .company-profile-requisites { gap: 16px; }
+.business-board .company-profile-footer { margin-top: auto; flex-wrap: wrap; gap: 4px 14px; }
+.business-board .company-profile-update { margin-left: 0; }
+.business-board .company-profile-header { gap: 12px; }
+.business-board .company-profile-header [data-slot=button] { min-height: 44px; width: 44px; padding: 0; }
+.business-account-hero { grid-column: span 7; min-height: 262px; display: flex; flex-direction: column; position: relative; isolation: isolate; overflow: hidden; border: 1px solid transparent; border-radius: var(--radius-panel); padding: 26px 28px 20px; background: var(--lime); color: var(--action-foreground); }
+.business-account-hero::before, .business-account-hero::after { content: ""; position: absolute; z-index: -1; width: 290px; height: 290px; border: 1px solid currentColor; border-radius: 50%; opacity: .12; right: -160px; top: -75px; pointer-events: none; }
+.business-account-hero::after { right: -130px; top: -45px; }
+.business-account-hero header { display: flex; gap: 16px; align-items: center; justify-content: space-between; }
+.business-account-hero header>span:first-child { display: flex; gap: 12px; align-items: center; min-width: 0; }
+.business-account-hero h2 { font-size: 14px; font-weight: 600; line-height: 1.5; }
+.business-currency { font-size: 11px; font-weight: 650; border: 1px solid currentColor; padding: 3px 8px; border-radius: 7px; }
+.business-account-balance { margin-block: 27px 24px; }
+.business-account-balance>p { font-size: 13px; }
+.business-account-balance>strong { display: block; margin-top: 9px; font-size: clamp(31px, 3.3vw, 49px); line-height: 1.25; font-weight: 600; letter-spacing: -.055em; font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+.business-account-balance>span { display: block; font-size: 13px; margin-top: 8px; }
+.business-account-hero footer { display: flex; align-items: center; justify-content: space-between; gap: 16px; margin-top: auto; font-size: 12px; line-height: 1.5; }
+.business-account-hero footer a { display: grid; place-items: center; min-width: 44px; height: 44px; border: 1px solid currentColor; border-radius: 50%; }
+.business-panel { padding: 25px 26px; border: 1px solid var(--border); border-radius: var(--radius-panel); background: var(--card); }
+.business-activity { grid-column: span 8; }
+.business-next-payment { grid-column: span 4; align-self: stretch; display: flex; flex-direction: column; }
+.business-operations { grid-column: span 7; }
+.business-funding { grid-column: span 5; align-self: stretch; display: flex; flex-direction: column; }
+.business-panel-heading { display: flex; justify-content: space-between; align-items: center; gap: 16px; }
+.business-panel-heading>svg { flex-shrink: 0; color: var(--primary); }
+.business-overline { color:var(--muted-foreground); font-family:var(--app-font-label); font-size:var(--label-font-size); font-weight:var(--label-font-weight); line-height:var(--label-line-height); letter-spacing:var(--label-letter-spacing); }
+.business-panel-heading h2 { font-size: 20px; line-height: 1.4; letter-spacing: -.035em; font-weight: 550; margin-top: 3px; }
+.business-range { display: flex; flex-shrink: 0; border: 1px solid var(--border); border-radius: 12px; padding: 3px; }
+.business-range button { padding: 6px 10px; min-height: 38px; font-size: 12px; border-radius: 9px; color: var(--muted-foreground); cursor: pointer; }
+.business-range button[aria-pressed=true] { color: var(--foreground); background: var(--secondary); }
+.business-month-summary { margin-top: 22px; }
+.business-month-summary>p { font-size: 12px; color: var(--muted-foreground); text-transform: capitalize; }
+.business-month-summary dl { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin-top: 13px; }
+.business-month-summary dt { display: flex; gap: 7px; align-items: center; font-size: 11px; color: var(--muted-foreground); line-height: 1.5; }
+.business-month-summary dt i { width: 7px; height: 7px; flex-shrink: 0; border-radius: 50%; }
+.business-dot-in { background: var(--lime); }
+.business-dot-out { background: var(--primary); }
+.business-month-summary dd { font-size: clamp(17px, 1.7vw, 25px); font-weight: 550; letter-spacing: -.04em; margin-top: 7px; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.business-month-summary dd[data-negative=true] { color: var(--destructive); }
+.business-bars { display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); gap: 14px; margin-top: 24px; background: repeating-linear-gradient(to top, transparent 0, transparent 47px, var(--border) 48px, transparent 49px); }
+.business-month { display: flex; align-items: center; flex-direction: column; gap: 12px; min-width: 0; min-height: 44px; padding: 6px 5px 0; border-radius: 12px; cursor: pointer; }
+.business-bar-pair { display: flex; align-items: flex-end; gap: 5px; width: 100%; max-width: 58px; height: 136px; }
+.business-bar-pair>i { display: block; width: 50%; min-width: 0; height: var(--business-bar-height); border-radius: 7px 7px 2px 2px; transition: height .2s ease; }
+.business-bar-in { background: repeating-linear-gradient(135deg, transparent 0 3px, var(--card) 3px 4px),var(--lime); }
+.business-bar-out { background: var(--primary); }
+.business-month[aria-pressed=true] .business-bar-in { background: var(--lime); }
+.business-month[aria-pressed=true] { background: var(--secondary); }
+.business-month>span:last-child { padding-bottom: 8px; color: var(--muted-foreground); font-size: 11px; }
+.business-month[aria-pressed=true]>span:last-child { color: var(--foreground); }
+.business-month[data-negative=true]>span:last-child b { color: var(--destructive); font-weight: 650; }
+.business-history-table { border-top: 1px solid var(--border); margin-top: 17px; font-size: 12px; }
+.business-history-table summary { cursor: pointer; color: var(--primary); padding-block: 13px 0; min-height: 36px; }
+.business-history-table>div { overflow: auto; margin-top: 14px; }
+.business-history-table table { width: 100%; border-collapse: collapse; white-space: nowrap; font-size: 12px; }
+.business-history-table th,.business-history-table td { padding: 12px 14px 12px 0; text-align: right; border-bottom: 1px solid var(--border); font-weight: 400; }
+.business-history-table th:first-child { text-align: left; }
+.business-history-table thead th { color: var(--muted-foreground); }
+.business-due-date { margin-top: 27px; width: fit-content; padding: 6px 11px; background: var(--accent); color: var(--accent-foreground); border-radius: 8px; font-size: 13px; font-weight: 550; }
+.business-due-date[data-overdue=true] { color: var(--destructive); background: var(--background); }
+.business-due-amount { display: block; font-size: clamp(25px, 2.2vw, 34px); line-height: 1.4; letter-spacing: -.045em; font-weight: 550; font-variant-numeric: tabular-nums; margin-top: 12px; overflow-wrap: anywhere; }
+.business-due-products { display: grid; gap: 10px; margin-top: 16px; list-style: none; }
+.business-due-products li { display: flex; justify-content: space-between; align-items: baseline; gap: 12px; font-size: 11px; color: var(--muted-foreground); line-height: 1.5; }
+.business-due-products b { flex-shrink: 0; font-weight: 500; color: var(--foreground); }
+.business-payment-cover { padding-block: 18px; margin-top: 19px; border-block: 1px solid var(--border); }
+.business-payment-cover>p { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 12px; }
+.business-payment-cover>p>svg { color: var(--success); }
+.business-cover-track { height: 7px; border-radius: 5px; overflow: hidden; margin-top: 12px; background: var(--secondary); }
+.business-cover-track>span { display: block; height: 100%; background: var(--primary); border-radius: inherit; }
+.business-payment-cover>div:last-of-type { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; margin-top: 12px; font-size: 12px; }
+.business-payment-cover>div:last-of-type>span { color: var(--muted-foreground); }
+.business-payment-cover strong { font-size: 16px; font-weight: 550; }
+.business-payment-cover>small { display: block; font-size: 10px; line-height: 1.6; color: var(--muted-foreground); margin-top: 8px; }
+.business-payment-cover[data-shortfall=true]>p,.business-payment-cover[data-shortfall=true] strong { color: var(--destructive); }
+.business-payment-cover[data-shortfall=true] .business-cover-track>span { background: var(--destructive); }
+.business-text-link { display: inline-flex; gap: 10px; justify-content: space-between; align-items: center; min-height: 44px; font-size: 12px; line-height: 1.5; color: var(--primary); cursor: pointer; }
+.business-next-payment>.business-text-link,.business-funding>.business-text-link { margin-top: auto; padding-top: 12px; }
+.business-debt-number { display: flex; flex-direction: column; gap: 9px; margin-top: 23px; }
+.business-debt-number>span { color: var(--muted-foreground); font-size: 12px; }
+.business-debt-number>strong { font-size: clamp(27px, 2.5vw, 35px); letter-spacing: -.04em; line-height: 1.3; font-weight: 550; overflow-wrap: anywhere; }
+.business-debt-number>small { font-size: 11px; color: var(--muted-foreground); }
+.business-limit-summary { margin-top: 22px; padding-block: 18px 0; border-top: 1px solid var(--border); }
+.business-limit-summary>div:first-child { display: flex; gap: 12px; justify-content: space-between; align-items: baseline; flex-wrap: wrap; }
+.business-limit-summary>div:first-child>span { display: flex; gap: 7px; align-items: center; font-size: 12px; color: var(--muted-foreground); }
+.business-limit-summary strong { font-size: 21px; font-weight: 550; letter-spacing: -.04em; }
+.business-limit-track { height: 9px; border-radius: 5px; overflow: hidden; margin-top: 14px; background: repeating-linear-gradient(135deg, var(--secondary) 0 4px, var(--border) 4px 6px); }
+.business-limit-track>span { display: block; height: 100%; border-radius: inherit; background: var(--growth); }
+.business-limit-summary p { font-size: 11px; line-height: 1.6; color: var(--muted-foreground); margin-top: 10px; }
+.business-operation-list { margin-top: 15px; list-style: none; }
+.business-operation-list>li { display: flex; gap: 12px; align-items: center; padding-block: 16px; border-bottom: 1px solid var(--border); }
+.business-operation-list>li:last-child { border-bottom: 0; }
+.business-operation-icon { display: grid; place-items: center; flex-shrink: 0; width: 40px; height: 40px; border-radius: 12px; background: var(--accent); color: var(--accent-foreground); }
+.business-operation-icon[data-inflow=true] { background: var(--secondary); color: var(--foreground); }
+.business-operation-list>li>div { flex: 1; min-width: 0; }
+.business-operation-list strong { font-size: 13px; font-weight: 550; line-height: 1.5; }
+.business-operation-list>li>div>span { display: block; margin-top: 4px; color: var(--muted-foreground); font-size: 11px; line-height: 1.5; }
+.business-operation-list b { font-size: 15px; font-weight: 550; white-space: nowrap; letter-spacing: -.03em; font-variant-numeric: tabular-nums; }
+.business-operation-list b[data-inflow=true] { color: var(--success); }
+.business-operations .cash-balance-breakdown { border-top: 1px solid var(--border); margin: 14px 0 0; padding: 13px 0 0; font-size: 12px; }
+.business-empty { display: grid; place-items: center; min-height: 160px; color: var(--muted-foreground); text-align: center; font-size: 13px; line-height: 1.7; }
+.business-load-error { grid-column: 1/-1; display: flex; gap: 20px; justify-content: space-between; align-items: center; color: var(--destructive); font-size: 13px; line-height: 1.6; }
+.business-board :is(a,button,summary):focus-visible { outline: 2px solid var(--ring); outline-offset: 4px; }
+.business-account-hero a:focus-visible { outline-color: var(--action-foreground); }
+:root[data-theme=light] .business-bar-in { box-shadow: inset 0 0 0 1px var(--highlight-foreground); }
+:root[data-theme=light] .business-dot-in { outline: 1px solid var(--highlight-foreground); }
+@media(max-width: 1200px) {
+  .business-activity,.business-operations { grid-column: span 7; }
+  .business-next-payment { grid-column: span 5; }
+  .business-board .company-profile-requisites { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .business-month-summary dl { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .business-month-summary dl>div:last-child { grid-column: 1/-1; display: flex; align-items: baseline; justify-content: space-between; gap: 15px; }
+  .business-month-summary dl>div:last-child dd { margin-top: 0; }
+  .business-operation-list b { font-size: 13px; }
+}
+@media(max-width: 950px) {
+  .business-board { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 16px; }
+  .business-board>.business-account-hero,.business-board>.company-profile-card { grid-column: span 1; }
+  .business-activity,.business-funding { grid-column: 1/-1; }
+  .business-next-payment,.business-operations { grid-column: span 1; }
+  .business-month-summary dl { grid-template-columns: repeat(3,minmax(0,1fr)); }
+  .business-month-summary dl>div:last-child { grid-column: auto; display: block; }
+  .business-month-summary dl>div:last-child dd { margin-top: 7px; }
+}
+@media(max-width: 639px) {
+  .business-board { display: flex; flex-direction: column; }
+  .business-board>* { width: 100%; }
+  .business-account-hero { padding: 23px 22px 18px; min-height: 244px; }
+  .business-account-balance>strong { font-size: clamp(30px,7.5vw,43px); }
+  .business-panel { padding: 22px 20px; }
+  .business-board>.company-profile-card { display: block; }
+  .business-board .company-profile-header { flex-wrap: nowrap; }
+  .business-board .company-profile-identity { flex-basis: auto; }
+  .business-board .company-profile-header [data-slot=button] { margin-top: 0; }
+  .business-board .company-profile-requisites { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 13px; }
+  .company-profile-requisites dd { font-size: 13px; }
+  .business-panel-heading h2 { font-size: 19px; }
+  .business-range { padding: 2px; }
+  .business-range button { padding-inline: 8px; }
+  .business-month-summary dl { grid-template-columns: repeat(2,minmax(0,1fr)); }
+  .business-month-summary dl>div:last-child { grid-column: 1/-1; display: flex; align-items: baseline; justify-content: space-between; }
+  .business-month-summary dl>div:last-child dd { margin-top: 0; }
+  .business-month-summary dd { font-size: 22px; }
+  .business-bars { gap: 5px; }
+  .business-bar-pair { gap: 3px; height: 124px; }
+  .business-operation-list>li { flex-wrap: wrap; gap: 9px 12px; }
+  .business-operation-list>li>div { min-width: 150px; }
+  .business-operation-list b { margin-left: 52px; font-size: 16px; }
+  .business-load-error { align-items: flex-start; flex-direction: column; }
+}
+
+.business-account-overdraft { display:flex; justify-content:space-between; align-items:center; gap:14px; padding:16px 0; border-top:1px solid currentColor; font-size:12px; }
+.business-account-overdraft strong { display:block; font-size:20px; margin-top:4px; }
+.business-account-overdraft a { display:flex; align-items:center; gap:6px; text-decoration:underline; }

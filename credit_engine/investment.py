@@ -46,7 +46,7 @@ def project_values(need):
             "own_share_percent": f"{own / cost * 100:.2f}", "principal_grace_months": grace}, []
 
 
-def assess_investment(application, checks, *, calculated_at, stage="final", assessment_id=None):
+def assess_investment(application, checks, *, calculated_at, stage="final", assessment_id=None, seasonal=False):
     now = parse_timestamp(calculated_at)
     if now is None:
         return InvestmentResult({"status": "invalid_data", "assessment": None, "issues": [{"field": "calculated_at", "code": "invalid_timestamp", "message": "Нужно время расчёта с часовым поясом."}]})
@@ -72,7 +72,7 @@ def assess_investment(application, checks, *, calculated_at, stage="final", asse
                               financing_pattern="gradual_repayment", minimum_acceptable_amount=None)
     policy = replace(POLICY, principal_grace_months=project["principal_grace_months"])
     result = assess_application(projection, checks, calculated_at=now, stage=stage, assessment_id=assessment_id,
-        policy=policy, financial_policy=replace(FinancialPolicy(), version=policy.version)).to_dict()
+        policy=policy, financial_policy=replace(FinancialPolicy(), version=policy.version), seasonal=seasonal).to_dict()
     assessment = result.get("assessment")
     if assessment:
         messages = {
@@ -102,7 +102,7 @@ def assess_investment(application, checks, *, calculated_at, stage="final", asse
     return InvestmentResult(result)
 
 
-def investment_options(application, checks, *, calculated_at, preferences=None, exploration_id=None):
+def investment_options(application, checks, *, calculated_at, preferences=None, exploration_id=None, seasonal=False):
     preferences = preferences or {}
     identity, options, last, before = exploration_id or str(uuid4()), [], None, False
     for term in POLICY.terms:
@@ -110,7 +110,7 @@ def investment_options(application, checks, *, calculated_at, preferences=None, 
             continue
         projection = deepcopy(application)
         projection["need"]["term_months"] = term
-        last = assess_investment(projection, checks, calculated_at=calculated_at, stage="preliminary").to_dict()
+        last = assess_investment(projection, checks, calculated_at=calculated_at, stage="preliminary", seasonal=seasonal).to_dict()
         for offer in (last.get("assessment") or {}).get("offers", []):
             if offer["term_months"] != term:
                 continue

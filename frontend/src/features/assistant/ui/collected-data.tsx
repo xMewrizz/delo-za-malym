@@ -1,4 +1,4 @@
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { z } from "zod";
 import {
   CashFlowChart,
@@ -12,7 +12,6 @@ import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
 import { FieldOrigin } from "@/shared/ui/field-origin";
 import { originFor } from "@/shared/lib/field-source";
-import { InvestmentTerms } from "@/features/applications/ui/investment-terms";
 import type { Proposal, ProposalPreview } from "../api/chat";
 
 const rowsSchema = z.array(
@@ -84,6 +83,7 @@ export function CollectedData({
   busy,
   loading,
   onEdit,
+  expenseImport,
 }: {
   view: ApplicationView;
   proposal?: Proposal;
@@ -94,6 +94,7 @@ export function CollectedData({
     changes: Record<string, unknown>,
     plan?: Record<string, unknown>,
   ) => void;
+  expenseImport?: ReactNode;
 }) {
   const need = view.application.need,
     plan = view.application.product_details?.overdraft;
@@ -116,23 +117,24 @@ export function CollectedData({
     ? "Предложено из разговора · проверьте значения"
     : "Подтверждённые данные";
   return (
-    <div className="assistant-live space-y-5" aria-live="polite">
+    <div className="assistant-live space-y-5" aria-busy={loading}>
       <div className="rounded-2xl bg-primary/10 p-4">
         <p className="text-xs font-bold uppercase tracking-wide text-primary">
           {source}
         </p>
-        <h2 className="mt-2 text-xl font-extrabold">
-          {loading
-            ? "Обновляем расчёт…"
-            : rows.success && rows.data.length
+        <h2 className="mt-2 text-xl font-semibold">
+          {rows.success && rows.data.length
               ? "Уточняем платежи и поступления"
               : need.requested_amount
                 ? "Подбираем финансирование"
                 : "Сначала разберём вашу задачу"}
         </h2>
       </div>
+      {result?.calculation?.required_limit === "0.00" && <p className="rounded-xl border border-border bg-background p-4 text-sm leading-relaxed text-muted-foreground">
+        По уже указанным платежам нехватки денег нет. Если есть другие предстоящие расходы или неприкосновенный остаток, расскажите об этом Луме — я учту их в плане.
+      </p>}
       <dl className="collected-facts grid grid-cols-2 gap-3">
-        <div className="collected-fact" key={`purpose-${need.purpose}-${need.financing_pattern}`}>
+        <div className="collected-fact" data-live-field="purpose">
           <dt>Задача</dt>
           <dd>
             {need.purpose === "investment" ? "Оборудование и развитие" : need.purpose === "refinancing" ? "Рефинансирование действующих кредитов" : need.purpose === "working_capital"
@@ -144,7 +146,7 @@ export function CollectedData({
                 : "Уточняем"}
           </dd>
         </div>
-        <div className="collected-fact" key={`amount-${need.requested_amount}`}>
+        <div className="collected-fact" data-live-field="amount">
           <dt>{need.preferred_product === "revolving_credit_line" ? "Желаемый лимит" : need.preferred_product === "refinancing" ? "На погашение долгов" : "Нужная сумма"}</dt>
           <dd>
             {need.requested_amount
@@ -159,6 +161,7 @@ export function CollectedData({
           />
           {proposal && need.preferred_product !== "refinancing" && need.preferred_product !== "investment_loan" && (
             <Correction
+              key={need.requested_amount}
               label="Сумма"
               initial={need.requested_amount || ""}
               disabled={busy}
@@ -172,12 +175,12 @@ export function CollectedData({
           <div className="collected-fact"><dt>Отсрочка долга</dt><dd>{need.principal_grace_months == null ? "Уточняем" : need.principal_grace_months ? need.principal_grace_months + " мес., проценты ежемесячно" : "Без отсрочки"}</dd></div>
         </>}
         {need.term_months && (
-          <div className="collected-fact" key={`term-${need.term_months}`}>
+          <div className="collected-fact" data-live-field="term">
             <dt>Срок</dt>
             <dd>{need.term_months} мес.</dd>
           </div>
         )}
-        <div className="collected-fact">
+        <div className="collected-fact" data-live-field="bank-balance" data-live-static="true">
           <dt>Остаток из данных банка</dt>
           <dd>
             {formatMoney(
@@ -188,13 +191,14 @@ export function CollectedData({
           </dd>
         </div>
       </dl>
+      {expenseImport}
       {rows.success && rows.data.length > 0 && (
         <section className="rounded-2xl border border-border p-4">
           <h3 className="font-bold">Поступления и расходы</h3>
           <ol className="mt-3 space-y-3">
             {rows.data.map((row) => (
               <li
-                key={`${row.transaction_id}:${row.amount}:${row.date}`}
+                key={row.transaction_id}
                 className="collected-operation"
               >
                 <div>
@@ -231,6 +235,7 @@ export function CollectedData({
                 {proposal && (
                   <div className="collected-operation-edit">
                     <Correction
+                      key={`amount-${row.amount}`}
                       label="Сумма платежа"
                       initial={row.amount || ""}
                       disabled={busy}
@@ -249,6 +254,7 @@ export function CollectedData({
                       }
                     />
                     <Correction
+                      key={`date-${row.date}`}
                       label="Дата платежа"
                       initial={row.date || ""}
                       type="date"
@@ -274,6 +280,9 @@ export function CollectedData({
           </ol>
         </section>
       )}
+      {proposal && (days.success || result?.calculation) && <details className="collected-preview">
+        <summary>Предварительный расчёт движения денег</summary>
+        <div className="mt-4 space-y-4">
       {days.success && <CashFlowChart days={days.data} />}
       {result?.calculation && (
         <dl className="grid grid-cols-2 gap-3">
@@ -287,6 +296,8 @@ export function CollectedData({
           </div>
         </dl>
       )}
+        </div>
+      </details>}
       {proposal?.conflicts?.length ? (
         <p
           role="alert"
@@ -301,37 +312,6 @@ export function CollectedData({
           {describeIssue(issue)}
         </p>
       ))}
-      {proposal && (result?.options || []).length > 0 && (
-        <section>
-          <h3 className="mb-3 text-sm font-bold">Предварительные варианты</h3>
-          <div className="grid gap-3 sm:grid-cols-2">
-            {result?.options?.slice(0, 4).map((option) => (
-              <div
-                key={option.option_id || option.offer_id}
-                className="collected-fact"
-              >
-                <p className="text-xs text-muted-foreground">
-                  {option.product_id === "overdraft"
-                    ? "Овердрафт"
-                    : `${option.term_months} мес.`}
-                </p>
-                <p className="mt-1 text-lg font-extrabold">
-                  {formatMoney(option.amount)}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {option.monthly_payment
-                    ? `${option.product_id === "investment_loan" ? "Максимальный платёж " : ""}${formatMoney(option.monthly_payment)} в месяц`
-                    : "Погашение из поступлений"}
-                </p>
-                {option.product_id === "investment_loan" && <InvestmentTerms offer={option} />}
-              </div>
-            ))}
-          </div>
-          <p className="mt-3 text-xs text-muted-foreground">
-            Подтвердите данные, чтобы выбрать условия.
-          </p>
-        </section>
-      )}
       {!proposal &&
         !need.requested_amount &&
         (!rows.success || !rows.data.length) && (

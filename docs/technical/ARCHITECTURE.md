@@ -49,12 +49,14 @@ stateDiagram-v2
 
 ## Данные
 
-Физическое хранение — две таблицы SQLite:
+Физическое хранение — четыре таблицы SQLite:
 
 | Таблица | Ключ | Содержимое |
 |---|---|---|
 | `applications` | `application_id` | JSON записи заявки и `updated_at` |
 | `chats` | `chat_id` | JSON диалога, включая ссылку на `application_id` |
+| `documents` | `document_id` | PDF BLOB и связь с заявкой |
+| `account_payments` | `request_id` | JSON подтверждённой оплаты и источников средств |
 
 В записи заявки находятся `application`, `state`, `checks`, `result`, `recommendation`, `readiness`, `signature`, `completion`, `events`, `submitted_versions`, `explorations`, `imports`. Результаты симулятора хранятся отдельно от редактируемых клиентом данных.
 

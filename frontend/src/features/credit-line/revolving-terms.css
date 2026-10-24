@@ -1,0 +1,16 @@
+.revolving-terms{display:grid;gap:20px;margin-top:22px;padding-top:22px;border-top:1px solid var(--border);min-width:0}
+.revolving-terms h4{font-size:16px;line-height:1.5;font-weight:550;letter-spacing:-.02em}
+.revolving-terms p{font-size:13px;line-height:1.8;color:var(--muted-foreground);max-width:64ch}
+.revolving-terms-intro p{margin-top:7px}
+.revolving-payment-rules{display:grid;gap:12px}
+.revolving-payment-rules>div{display:flex;justify-content:space-between;gap:20px;font-size:13px;line-height:1.65}
+.revolving-payment-rules dt{color:var(--muted-foreground)}
+.revolving-payment-rules dd{font-weight:550;text-align:right;white-space:nowrap}
+.revolving-cost-example{padding:20px;border-radius:14px;border:1px solid var(--luma-border);background:var(--luma-surface)}
+.revolving-cost-example>div>span{display:block;font-size:11px;line-height:1.6;color:var(--muted-foreground)}
+.revolving-cost-example strong{display:block;font-size:29px;line-height:1.3;font-weight:550;letter-spacing:-.04em;margin-top:6px;color:var(--foreground)}
+.revolving-cost-example small{display:block;font-size:12px;line-height:1.7;color:var(--foreground);margin-top:5px}
+.revolving-cost-example>p{margin-top:15px;font-size:12px;line-height:1.8}
+.revolving-terms .ui-disclosure>summary strong{font-size:12px}
+.revolving-terms .ui-disclosure-content p{font-size:12px}
+@media(max-width:600px){.revolving-payment-rules>div{font-size:12px;gap:14px}.revolving-cost-example{padding:17px}.revolving-terms h4{font-size:15px}}

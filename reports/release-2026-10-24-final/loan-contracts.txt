@@ -1,0 +1,7 @@
+OK 01_approved: assessed / approved
+OK 02_longer_term: assessed / alternative_offers
+OK 03_lower_amount: assessed / alternative_offers
+OK 04_needs_information: assessed / needs_information
+OK 05_guarantor_required: assessed / conditional_approval
+OK 06_declined: assessed / declined
+OK 07_check_unavailable: check_retry_pending / assessment отсутствует

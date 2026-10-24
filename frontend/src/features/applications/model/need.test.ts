@@ -1,7 +1,22 @@
 import { describe, expect, it } from "vitest";
-import { buildNeedChanges, normalizeMoneyInput } from "./need";
+import { buildNeedChanges, normalizeMoneyInput, draftFromApplication, mergeNeedDraft } from "./need";
+import { scenarioDraft, selectNeedTask } from "./need-scenario";
+import type { ApplicationView } from "../api/applications";
 
 describe("need payload", () => {
+  it("updates an exact amount without validating a hidden minimum from the previous request", () => {
+    const draft = draftFromApplication({application:{need:{requested_amount:"500000.00",minimum_acceptable_amount:"500000.00"}}} as ApplicationView);
+    const changes = buildNeedChanges({...draft,requestedAmount:"300000"});
+    expect(changes["need.minimum_acceptable_amount"]).toBe("300000.00");
+  });
+  it("preserves the explicit entry mode across a successful save but accepts an external scenario change", () => {
+    const base = draftFromApplication({application:{need:{}}} as ApplicationView);
+    const draft = selectNeedTask(selectNeedTask(base, "product"), "product", "refinancing");
+    const saved = draftFromApplication({application:{need:{purpose:"refinancing",preferred_product:"refinancing",financing_pattern:"gradual_repayment"}}} as ApplicationView);
+    expect(scenarioDraft(mergeNeedDraft(saved,{base,draft})).entryTask).toBe("product");
+    const external = {...saved,purpose:"investment",preferredProduct:"investment_loan"};
+    expect(scenarioDraft(mergeNeedDraft(external,{base,draft})).entryTask).toBe("investment");
+  });
   it("sends project cost and contribution without reusing a stale loan amount", () => {
     const changes = buildNeedChanges({ purpose: "investment", preferredProduct: "investment_loan", projectCost: "1 000 000", ownFunds: "200000", graceMonths: "3", termMonths: "36", requestedAmount: "old value", minimumAmount: "", financingPattern: "gradual_repayment", neededBy: "", recurring: "false" });
     expect(changes["need.project_cost"]).toBe("1000000.00");

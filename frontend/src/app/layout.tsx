@@ -44,7 +44,7 @@ export function AppLayout() {
   }, [pathname, hash, isCabinet]);
   if (isCabinet) return <div className="cabinet-shell"><a href="#main-content" className="skip-link">Перейти к содержимому</a><main id="main-content" tabIndex={-1}><Outlet /></main></div>;
   return (
-    <div className="app-shell">
+    <div className={["/", "/project", "/documentation"].includes(pathname) ? "app-shell landing-shell" : "app-shell"}>
       <a href="#main-content" className="skip-link">Перейти к содержимому</a>
       <header ref={header} className="app-header">
         <div className="app-container app-header-inner">
@@ -52,10 +52,8 @@ export function AppLayout() {
             <BrandLogo />
           </Link>
           <nav className="app-navigation" aria-label="О проекте и возможностях">
-            <a href="/#capabilities">Возможности</a>
-            <a href="/#selection-guide">Как это работает</a>
-            <Link to="/project">О проекте</Link>
-            <Link to="/project#documentation">Документация</Link>
+            <Link to="/project" aria-current={pathname === "/project" ? "page" : undefined}>О проекте</Link>
+            <Link to="/documentation" aria-current={pathname === "/documentation" ? "page" : undefined}>Документация</Link>
           </nav>
           <div className="header-actions"><ThemeToggle /><Button asChild variant="secondary" className="app-header-action"><Link to="/cabinet">Войти в кабинет<ArrowUpRight aria-hidden="true" /></Link></Button></div>
         </div>

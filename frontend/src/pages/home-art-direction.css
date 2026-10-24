@@ -1,0 +1,126 @@
+/* Large rendered objects lead the page; the product scenes stay still while their content changes. */
+.ep-home .ep-hero{padding-top:0}
+.ep-hero-main{display:grid;grid-template-columns:.95fr 1.05fr;align-items:center;min-height:clamp(540px,76svh,740px);gap:20px}
+.ep-home .ep-hero h1{display:block;margin:28px 0 24px;font-size:clamp(53px,5.5vw,92px);line-height:1.12;letter-spacing:-.065em}
+.ep-home .ep-hero h1 .ep-title-mask{width:max-content}
+.ep-home .ep-hero-bottom{display:block;margin:0;max-width:none}
+.ep-home .ep-hero-bottom>p{font-size:16px;line-height:1.8;max-width:36ch}
+.ep-home .ep-hero-actions{margin-top:30px;gap:25px;flex-wrap:wrap}
+.ep-home .ep-hero-orbit{top:80px;right:0;opacity:.06}
+.ep-hero-sculpture{align-self:stretch;display:grid;align-items:center;min-width:0;pointer-events:none}
+.ep-sculpture-scroll,.ep-sculpture-arrive,.ep-sculpture-float{position:relative;z-index:1}
+.ep-hero-sculpture img{display:block;width:calc(100% + 80px);max-width:none;height:auto;margin-left:-40px;filter:drop-shadow(0 30px 36px #00000014)}
+.ep-sculpture-caption{position:absolute;right:14px;bottom:8%;display:flex;gap:12px;align-items:center;max-width:240px;background:var(--card);border:1px solid var(--border);padding:16px 19px;border-radius:17px;box-shadow:0 14px 45px #0000000c;transform:rotate(-4deg);color:var(--primary)}
+.ep-sculpture-caption>span{font-size:11px;line-height:1.8;color:var(--muted-foreground)}
+.ep-sculpture-caption strong{font-weight:500;color:var(--foreground);white-space:nowrap}
+.ep-sculpture-shadow{position:absolute!important;left:10%;right:6%;bottom:19%;height:6%;border-radius:50%;background:radial-gradient(ellipse,#00000016,transparent 70%);z-index:0}
+.ep-home .ep-hero-stage{margin-top:45px;max-width:1200px;padding:0 0 25px;perspective:2200px}
+.ep-home .ep-product-arrive{animation:none}
+.ep-final-copy{z-index:2}
+.ep-demo-caption>div>span{font-size:13px;font-weight:550}
+.ep-demo-caption>div>p{font-size:12px;line-height:1.7;color:var(--muted-foreground);margin-top:7px}
+.ep-demo-caption>div{animation:ep-caption-settle .5s ease-out}
+.ep-story-stage .ep-demo-field strong{color:var(--foreground)}
+.ep-story-stage .ep-story-field-dash{color:var(--muted-foreground)!important}
+.ep-story-stage .ep-story-field-glow{margin:0;display:block;z-index:0}
+.ep-story-request .ep-demo-field{isolation:isolate}
+.ep-story-navigation .ep-demo-steps{border:1px solid var(--border);border-radius:30px;padding:4px;background:var(--background)}
+.ep-story-navigation .ep-demo-steps button[aria-pressed=true]{background:var(--accent);color:var(--accent-foreground)}
+.ep-live-scroll .ep-story-progress,.ep-product-scroll-progress{height:1px;opacity:.75}
+.ep-story-stage .ep-demo-chat-title strong{font-size:20px;letter-spacing:-.035em}
+.ep-story-stage .ep-demo-chat-title .luma-avatar{--luma-size:44px!important}
+.ep-story-message .ep-demo-user{background:var(--foreground);color:var(--background);border:1px solid transparent}
+.ep-story-message .ep-demo-reply{background:var(--luma-surface);border:1px solid var(--luma-border)}
+.ep-story-stage{border-radius:20px;box-shadow:none}
+.ep-story-request .ep-demo-field{border-radius:16px}
+.ep-story-sync{position:absolute!important;left:calc(50% - 17px);top:48%;z-index:5;display:grid;place-items:center;width:34px;height:34px;border:1px solid var(--luma-border);border-radius:50%;background:var(--card);color:var(--luma-ink);opacity:.3;pointer-events:none}
+.ep-live-scroll[data-scrub=off] .ep-demo-user,.ep-live-scroll[data-scrub=off] .ep-demo-reply{visibility:visible;opacity:1}
+
+.ep-product-panel-copy>a,.ep-hero-actions [data-slot=button]{transition:transform .25s ease,background .25s ease}
+.ep-product-panel-copy>a:active,.ep-hero-actions [data-slot=button]:active{transform:scale(.98)}
+@keyframes ep-caption-settle{from{opacity:.25;transform:translateY(5px)}to{opacity:1;transform:translateY(0)}}
+@keyframes ep-sculpture-breathe{0%,100%{transform:translateY(0) rotate(-1.5deg)}50%{transform:translateY(-18px) rotate(1.5deg)}}
+@media (min-width:900px) and (pointer:fine){
+  .ep-sculpture-float{animation:ep-sculpture-breathe 13s ease-in-out infinite}
+  .ep-home:not([data-hero-active=true]) .ep-sculpture-float{animation-play-state:paused}
+}
+@media(min-width:1600px){.ep-hero-main{gap:60px}.ep-hero-sculpture img{width:calc(100% + 120px);margin-left:-50px}.ep-sculpture-caption{bottom:12%;right:0}}
+@media(min-width:900px) and (max-height:800px){
+  .ep-live-scroll[data-scrub=on] .ep-story-offers{padding:18px 24px;gap:9px}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer{padding:10px 13px}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer h4{font-size:13px;line-height:1.25}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer p{font-size:10px;line-height:1.5;margin-top:4px}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer-primary{padding:12px 14px}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer-primary>div{margin-bottom:6px}
+  .ep-live-scroll[data-scrub=on] .ep-story-offer-primary>strong{font-size:24px;line-height:1.2;margin-top:6px}
+}
+@media(max-width:1100px){
+  .ep-hero-main{min-height:590px;gap:0}
+  .ep-home .ep-hero h1{font-size:clamp(48px,5.6vw,65px)}
+  .ep-home .ep-hero-bottom>p{font-size:14px}
+  .ep-home .ep-hero-actions{gap:18px}
+  .ep-home .ep-hero-actions>a{font-size:11px}
+  .ep-sculpture-caption{padding:13px;right:0;bottom:4%}
+  .ep-sculpture-caption>span{font-size:10px}
+}
+@media(max-width:899px){
+  .ep-hero-main{min-height:0;grid-template-columns:1fr;gap:0;padding-top:35px}
+  .ep-home .ep-hero h1{display:block;font-size:clamp(47px,7.5vw,70px);margin:28px 0 22px}
+  .ep-home .ep-hero-bottom{display:flex;gap:20px;align-items:center}
+  .ep-home .ep-hero-actions{margin:0;flex-direction:column;gap:9px;align-items:flex-start}
+  .ep-hero-sculpture{max-width:660px;margin:0 auto;width:100%;height:auto}
+  .ep-hero-sculpture img{width:100%;margin:0}
+  .ep-sculpture-caption{right:6%;bottom:10%}
+  .ep-sculpture-shadow{bottom:12%}
+  .ep-home .ep-hero-stage{margin-top:25px}
+}
+@media(max-width:600px){
+  .ep-home .ep-hero h1{font-size:clamp(34px,9.1vw,51px);display:block;line-height:1.14;margin-top:24px}
+  .ep-home .ep-hero-bottom{display:block}
+  .ep-home .ep-hero-bottom>p{font-size:14px;max-width:33ch}
+  .ep-home .ep-hero-actions{flex-direction:row;align-items:center;gap:18px;margin-top:23px}
+  .ep-hero-main{padding-top:28px}
+  .ep-hero-sculpture{margin-top:14px;width:calc(100% + 24px);margin-left:-12px}
+  .ep-sculpture-caption{padding:10px 12px;border-radius:12px;right:3%;bottom:5%}
+  .ep-sculpture-caption>span{font-size:9px}
+  .ep-sculpture-caption>.luma-mark{width:20px}
+  .ep-home .ep-hero-stage{margin-top:42px}
+  .ep-story-navigation .ep-demo-steps{display:flex;flex-wrap:nowrap;width:max-content;max-width:100%;margin-inline:auto;padding:3px}
+  .ep-story-navigation .ep-demo-steps button{padding-inline:9px;font-size:10px}
+  .ep-story-sync{display:none}
+  .ep-demo-caption>div>span{font-size:12px}
+  .ep-demo-caption>div>p{font-size:11px}
+  .ep-final-copy{position:relative}
+  .ep-final-copy>div{position:relative;z-index:3;flex-wrap:wrap}
+}
+
+
+/* One product language: neutral surfaces, clear type and restrained violet accents. */
+.ep-home .ep-scene-light-accent{background:none}
+.ep-home .ep-hero-stage .ep-product-tilt{box-shadow:none}
+.ep-mobile-break{display:none}
+.ep-home .ep-control-section{padding-top:clamp(65px,8svh,100px)}
+.ep-control-section>.ep-section-heading{margin-bottom:28px}
+.ep-home .ep-control-section h2{font-size:clamp(31px,3.8vw,56px);line-height:1.15;margin-top:16px}
+.ep-control-section .ep-heading-row>p:last-child:not(.ep-eyebrow){font-size:13px;max-width:30ch}
+.ep-control-board{max-width:1200px;margin-inline:auto}
+.ep-home .ep-final{padding:80px 0 90px;min-height:0;overflow:hidden;border-top:1px solid var(--border);background:var(--background)}
+.ep-home .ep-final h2{font-size:clamp(48px,6vw,88px);line-height:1.13;letter-spacing:-.06em;max-width:none;margin:24px 0 30px}
+
+
+
+.ep-home .ep-final-copy{position:relative;z-index:2}
+@media(max-width:1000px){.ep-home .ep-final h2{font-size:clamp(46px,7vw,70px)}}
+@media(max-width:800px){.ep-control-section>.ep-section-heading{display:block}.ep-control-section .ep-heading-row>p:last-child:not(.ep-eyebrow){margin-top:16px;max-width:none}.ep-control-section .ep-heading-row>p>br{display:none}}
+@media(max-width:600px){.ep-mobile-break{display:block}.ep-home .ep-hero-stage{margin-top:34px}.ep-home .ep-control-section h2{font-size:36px}.ep-control-section>.ep-section-heading{margin-bottom:22px}.ep-home .ep-final{padding:55px 0 60px}.ep-home .ep-final h2{font-size:clamp(40px,10vw,58px);margin:24px 0}.ep-final-copy>div{gap:16px}.ep-home .ep-final [data-slot=button]{font-size:12px;padding-inline:16px}.ep-home .ep-final .ep-final-manual{font-size:12px}}
+/* Keep the first product immediately below its heading; center neither empty space nor the tab row. */
+.ep-products-section>.ep-section-heading{margin-bottom:0}
+.ep-products-section .ep-product-scroll{margin-top:26px}
+.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{justify-content:flex-start;padding-block:18px 24px}
+.ep-product-scroll[data-scrub=on] .ep-product-window{height:clamp(400px,66svh,650px)}
+.ep-home .ep-journey{padding-top:70px}
+.ep-home .ep-faq .ep-section-heading h2{margin-top:0}
+@media(min-width:900px) and (max-height:780px){.ep-product-scroll[data-scrub=on] .ep-product-window{height:calc(100svh - 160px)}}
+@media(max-width:600px){.ep-products-section .ep-product-scroll{margin-top:22px}.ep-home .ep-journey{padding-top:45px}}
+/* Match the end of the scroll range to the actual scene height, including tall desktop windows. */
+.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{height:min(100svh,800px)}

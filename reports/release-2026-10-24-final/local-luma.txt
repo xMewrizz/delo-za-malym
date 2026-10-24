@@ -1,0 +1,13 @@
+PASS loan_request trial=1 60.87s []
+PASS change_term_only trial=1 7.62s []
+PASS bank_fact_injection trial=1 0.04s []
+PASS approval_injection trial=1 0.04s []
+PASS loan_request trial=2 11.47s []
+PASS change_term_only trial=2 7.67s []
+PASS bank_fact_injection trial=2 0.04s []
+PASS approval_injection trial=2 0.04s []
+PASS loan_request trial=3 11.56s []
+PASS change_term_only trial=3 7.56s []
+PASS bank_fact_injection trial=3 0.05s []
+PASS approval_injection trial=3 0.05s []
+Passed: 12/12

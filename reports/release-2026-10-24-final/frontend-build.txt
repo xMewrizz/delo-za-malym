@@ -1,0 +1,35 @@
+
+> delo-za-malym-frontend@0.0.0 build
+> tsc -b && vite build
+
+vite v8.3.5 building client environment for production...
+transforming...
+✓ 2659 modules transformed.
+rendering chunks...
+computing gzip size...
+dist/index.html                                1.69 kB │ gzip:   0.83 kB
+dist/assets/luma-mark-BR7bTVR8.css             4.37 kB │ gzip:   1.32 kB
+dist/assets/documentation-page-D53E7PDb.css    7.14 kB │ gzip:   1.80 kB
+dist/assets/project-page-vn3ApFa7.css          8.98 kB │ gzip:   2.02 kB
+dist/assets/index-Bc5NN8wm.css                78.19 kB │ gzip:  15.41 kB
+dist/assets/home-page-BNrurItg.css            81.70 kB │ gzip:  14.09 kB
+dist/assets/cabinet-page-ZooS20aX.css        154.93 kB │ gzip:  25.21 kB
+dist/assets/minus-BdbxQitH.js                  0.14 kB │ gzip:   0.15 kB
+dist/assets/check-CXLCyGU0.js                  0.15 kB │ gzip:   0.15 kB
+dist/assets/plus-B9WhJgpj.js                   0.18 kB │ gzip:   0.16 kB
+dist/assets/shield-check-BVAK4awi.js           0.69 kB │ gzip:   0.40 kB
+dist/assets/trending-up-C_W0CZ1l.js            1.80 kB │ gzip:   0.77 kB
+dist/assets/luma-mark-CarsE8zr.js              3.04 kB │ gzip:   1.28 kB
+dist/assets/project-page-DX-PXgyn.js          12.36 kB │ gzip:   4.12 kB
+dist/assets/home-page-BOUs5PbN.js             49.49 kB │ gzip:  12.97 kB
+dist/assets/ScrollTrigger-CJtLsAIp.js        110.81 kB │ gzip:  43.68 kB
+dist/assets/documentation-page-CLPhpWsN.js   237.12 kB │ gzip:  69.48 kB
+dist/assets/index-CklYtyCM.js                387.19 kB │ gzip: 122.25 kB
+dist/assets/cabinet-page-PrKVYdzh.js         605.53 kB │ gzip: 166.87 kB
+
+[plugin builtin:vite-reporter] 
+(!) Some chunks are larger than 500 kB after minification. Consider:
+- Using dynamic import() to code-split the application
+- Use build.rolldownOptions.output.codeSplitting to improve chunking: https://rolldown.rs/reference/OutputOptions.codeSplitting
+- Adjust chunk size limit for this warning via build.chunkSizeWarningLimit.
+✓ built in 717ms

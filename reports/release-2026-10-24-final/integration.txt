@@ -1,0 +1,18 @@
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  19:53:46
+   Duration  2.40s (tests 71%, import 23%, transform 5%)
+
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+
+ Test Files  1 passed (1)
+      Tests  16 passed (16)
+   Start at  19:53:50
+   Duration  31.82s (tests 95%, environment 2%, import 2%, transform 1%)
+

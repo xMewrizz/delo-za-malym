@@ -20,6 +20,16 @@ def main():
     npm = shutil.which("npm")
     if not npm:
         raise SystemExit("Установите Node.js 24+ и npm.")
+    # Contract scenarios issue loans. Never let them change the profile used by
+    # the React journey running in another worker.
+    for suite in ("api.integration.test.ts", "cabinet.integration.test.tsx"):
+        code = run_suite(root, npm, suite)
+        if code:
+            return code
+    return 0
+
+
+def run_suite(root, npm, suite):
     with TemporaryDirectory() as directory, socket.socket() as listener:
         listener.bind(("127.0.0.1", 0))
         port = listener.getsockname()[1]
@@ -35,13 +45,13 @@ def main():
                     raise RuntimeError("Тестовый API не запустился.")
                 time.sleep(.05)
             env = {**os.environ, "CABINET_TEST_URL": f"http://127.0.0.1:{port}"}
-            command = ["cmd.exe", "/d", "/c", "npm", "run", "test:integration"] if os.name == "nt" else [npm, "run", "test:integration"]
+            command = (["cmd.exe", "/d", "/c", "npm"] if os.name == "nt" else [npm]) + ["exec", "--", "vitest", "run", f"src/integration/{suite}", "--testTimeout=30000"]
             result = subprocess.run(command, cwd=root / "frontend", env=env)
         finally:
             server.should_exit = True
             worker.join(timeout=10)
-    raise SystemExit(result.returncode)
+    return result.returncode
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

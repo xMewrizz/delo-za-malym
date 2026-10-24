@@ -287,6 +287,25 @@ class BackendTests(unittest.TestCase):
         self.assertEqual(self.client.get("/api/applications/missing").status_code, 404)
         self.assertEqual(self.client.post("/api/demo/scenarios/unknown/missing").status_code, 404)
 
+    def test_declined_application_is_an_immutable_result(self):
+        record = self.submit(self.create_case("06_declined"))
+        self.assertEqual(record["state"]["status"], "declined")
+        url = f"/api/applications/{record['application']['application_id']}"
+        version = record["application"]["application_version"]
+        self.assertEqual(self.client.patch(url, json={"base_application_version": version,
+            "changes": {"need.requested_amount": "100000.00"}}).status_code, 409)
+        for action in ("cancel", "submit", "retry", "preview", "recommendations"):
+            response = self.post(record, action, **({"confirmed": True} if action in ("cancel", "submit") else {}))
+            self.assertEqual(response.status_code, 409, (action, response.text))
+        self.assertEqual(self.client.get(url).json(), record)
+
+    def test_cancelled_application_cannot_be_reopened_by_completing_a_condition(self):
+        record = self.select(self.submit(self.create_case()))
+        record = self.post(record, "cancel", confirmed=True).json()
+        response = self.post(record, "conditions/guarantee_required/complete", offer_id=record["state"]["selected_offer_id"], confirmed=True)
+        self.assertEqual(response.status_code, 409)
+        self.assertEqual(self.client.get(f"/api/applications/{record['application']['application_id']}").json(), record)
+
     def test_demo_dates_follow_current_month(self):
         self.now = datetime.fromisoformat("2027-01-02T10:00:00+03:00")
         record = self.submit(self.create_case("01_overdraft_approved", "overdraft"))

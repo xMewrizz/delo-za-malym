@@ -160,14 +160,7 @@
     grid-template-columns: minmax(0, 1fr);
   }
 }
-@media (prefers-reduced-motion: reduce) {
-  .cabinet-application-item {
-    transition: none;
-  }
-}
-.exploration-option:has(.loan-calendar[open]) {
-  grid-column: 1 / -1;
-}
+
 .invoice-panel, .exploration-option, .loan-calendar {
   min-width: 0;
   overflow-wrap: anywhere;
@@ -388,10 +381,4 @@
 @media (max-width: 800px) {
   .application-mobile-picker { display: block; }
   .cabinet-grid > .cabinet-sidebar { display: none; }
-}
-@media (prefers-reduced-motion: reduce) {
-  .collected-fact,
-  .collected-operation {
-    animation: none;
-  }
 }

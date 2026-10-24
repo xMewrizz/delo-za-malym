@@ -1,0 +1,71 @@
+services:
+  seed:
+    image: alfa-cabinet-demo:local
+    command: ["python", "-m", "scripts.demo_bootstrap"]
+    environment:
+      DATABASE_PATH: /app/data/cabinet.sqlite3
+      DEMO_MANIFEST_PATH: /app/data/demo-showcase.json
+      DEMO_DATE: ${DEMO_DATE:-2026-10-24}
+      CHAT_MODE: demo
+    volumes:
+      - demo_data:/app/data
+    restart: "no"
+  api:
+    image: alfa-cabinet-demo:local
+    build: .
+    init: true
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-18007}:8000"
+    depends_on:
+      seed:
+        condition: service_completed_successfully
+    environment:
+      DATABASE_PATH: /app/data/cabinet.sqlite3
+      DEMO_MANIFEST_PATH: /app/data/demo-showcase.json
+      CHAT_MODE: ${DEMO_CHAT_MODE:-demo}
+      LLM_API_BASE_URL: http://ollama:11434/v1
+      LLM_MODEL: qwen3:4b-instruct-2507-q4_K_M
+      LLM_API_KEY: ""
+      TAVILY_API_KEY: ""
+      LLM_REASONING_EFFORT: none
+      LLM_RESPONSE_FORMAT: json_schema
+      LLM_CONTEXT_SIZE: "16384"
+      LLM_MAX_OUTPUT_TOKENS: "2048"
+      LLM_TEMPERATURE: "0"
+      HTTP_TIMEOUT_SECONDS: "180"
+      AGENT_TOOLS_ENABLED: "true"
+      AGENT_MAX_TOOL_CALLS: "3"
+      CHAT_MAX_CONCURRENT_GENERATIONS: "1"
+    volumes:
+      - demo_data:/app/data
+  ollama:
+    profiles: [luma]
+    image: ollama/ollama:0.13.5@sha256:2c9595c555fd70a28363489ac03bd5bf9e7c5bdf2890373c3a830ffd7252ce6d
+    environment:
+      OLLAMA_CONTEXT_LENGTH: "16384"
+      OLLAMA_NUM_PARALLEL: "1"
+      OLLAMA_MAX_LOADED_MODELS: "1"
+    volumes:
+      - luma_models:/root/.ollama
+    ports:
+      - "127.0.0.1:${DEMO_LLM_PORT:-11436}:11434"
+    healthcheck:
+      test: ["CMD", "ollama", "list"]
+      interval: 5s
+      timeout: 5s
+      retries: 15
+  model-init:
+    profiles: [luma]
+    image: ollama/ollama:0.13.5@sha256:2c9595c555fd70a28363489ac03bd5bf9e7c5bdf2890373c3a830ffd7252ce6d
+    environment:
+      OLLAMA_HOST: http://ollama:11434
+    depends_on:
+      ollama:
+        condition: service_healthy
+    entrypoint: ["ollama"]
+    command: ["pull", "qwen3:4b-instruct-2507-q4_K_M"]
+    restart: "no"
+volumes:
+  demo_data:
+  luma_models:
+    name: alfa_luma_models

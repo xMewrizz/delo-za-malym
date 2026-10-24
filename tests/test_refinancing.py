@@ -9,10 +9,64 @@ import unittest
 from fastapi.testclient import TestClient
 
 from backend.main import create_app
+from credit_engine.refinancing import selected_debts
 
 
 class RefinancingTests(unittest.TestCase):
+    def test_monthly_peak_uses_combined_calendar_instead_of_sum_of_individual_peaks(self):
+        application = {"product_details": {"refinancing": {"loan_ids": ["first", "second"]}}, "financials": {"existing_loans": [
+            {"loan_id": "first", "outstanding_principal": "100000.00", "monthly_payment": "90000.00", "schedule": [
+                {"date": "2026-11-15", "total_payment": "90000.00"}, {"date": "2026-12-15", "total_payment": "10000.00"}]},
+            {"loan_id": "second", "outstanding_principal": "100000.00", "monthly_payment": "90000.00", "schedule": [
+                {"date": "2026-11-25", "total_payment": "10000.00"}, {"date": "2026-12-25", "total_payment": "90000.00"}]}]}}
+        comparison = selected_debts(application, datetime.fromisoformat("2026-10-23T12:00:00+03:00"))
+        self.assertEqual(comparison["current_monthly_payment"], "100000.00")
+        self.assertEqual(comparison["current_payment_in_comparison_month"], "100000.00")
+        self.assertEqual(comparison["comparison_month"], "2026-11")
+        midnight = selected_debts(application, datetime.fromisoformat("2026-10-31T22:30:00+00:00"))
+        self.assertEqual(midnight["comparison_month"], "2026-12")
+
+    def test_refinancing_during_investment_grace_shows_first_month_increase_and_replaces_debt(self):
+        first = self.client.post("/api/applications", json={"need": {"purpose": "investment", "project_cost": "1000000.00",
+            "own_funds": "200000.00", "principal_grace_months": 3, "term_months": 36}}).json()
+        first = self.action(first, "submit", confirmed=True)
+        assessment = first["result"]["assessment"]
+        first = self.action(first, "select-offer", assessment_id=assessment["assessment_id"], offer_id=assessment["offers"][0]["offer_id"])
+        first = self.sign(first)
+        first_id = first["application"]["application_id"]
+        before = self.client.get("/api/profile").json()
+        old_id = next(loan["loan_id"] for loan in before["financials"]["existing_loans"] if loan.get("application_id") == first_id)
+        ready = self.ready(self.create([old_id]), term=36)
+        offer = ready["result"]["assessment"]["offers"][0]
+        comparison = offer["refinancing"]
+        self.assertEqual(comparison["current_payment_in_comparison_month"], "12000.00")
+        self.assertGreater(Decimal(comparison["monthly_payment_reduction"]), 0)
+        self.assertGreater(Decimal(comparison["first_month_payment_change"]), 0)
+        self.assertEqual(Decimal(comparison["first_month_payment_change"]), Decimal(offer["schedule"][0]["total_payment"]) - Decimal("12000.00"))
+        self.assertEqual(Decimal(comparison["current_total_repayment"]), sum(Decimal(row["total_payment"]) for row in first["completion"]["schedule"]))
+        completed = self.sign(ready)
+        after = self.client.get("/api/profile").json()
+        self.assertEqual(after["financials"]["cash_balance"], before["financials"]["cash_balance"])
+        self.assertNotIn(old_id, [loan["loan_id"] for loan in after["financials"]["existing_loans"]])
+        self.assertEqual(len(after["financials"]["existing_loans"]), 2)
+        calendar = self.client.get("/api/calendar").json()
+        self.assertFalse(any(event["application_id"] == first_id and event["direction"] == "outflow" for event in calendar["events"]))
+        self.assertTrue(any(event["application_id"] == completed["application"]["application_id"] and event["direction"] == "outflow" for event in calendar["events"]))
+        self.assertEqual(self.sign(ready)["completion"], completed["completion"])
+        self.assertEqual(self.client.get("/api/profile").json(), after)
+
+        self.client.__exit__(None, None, None)
+        self.client = TestClient(create_app(self.path, clock=lambda: self.now)).__enter__()
+        self.assertEqual(self.client.get("/api/profile").json(), after)
+        self.assertEqual(self.client.get("/api/calendar").json(), calendar)
+
     def setUp(self):
+        from backend import demo
+        from unittest.mock import patch
+        original_profile = demo.profile
+        fixture = patch("backend.demo.profile", side_effect=lambda now: original_profile(now, include_sample_loan=True))
+        fixture.start()
+        self.addCleanup(fixture.stop)
         self.directory = TemporaryDirectory()
         self.addCleanup(self.directory.cleanup)
         self.path = Path(self.directory.name) / "refinancing.sqlite3"
@@ -45,6 +99,20 @@ class RefinancingTests(unittest.TestCase):
 
     def sign(self, view):
         return self.action(view, "sign", confirmed=True, offer_id=view["state"]["selected_offer_id"])
+
+    def test_repeat_excludes_debts_already_closed_by_the_original_refinancing(self):
+        original = self.sign(self.ready(self.create()))
+        identifier = original["application"]["application_id"]
+        before = self.client.get("/api/profile").json()
+        response = self.client.post(f"/api/applications/{identifier}/repeat", json={})
+        self.assertEqual(response.status_code, 201, response.text)
+        repeated = response.json()
+        self.assertEqual(repeated["application"]["product_details"]["refinancing"]["loan_ids"], [])
+        self.assertIsNone(repeated["application"]["need"]["requested_amount"])
+        self.assertEqual(repeated["application"]["need"]["preferred_product"], "refinancing")
+        self.assertEqual(repeated["state"]["status"], "draft")
+        self.assertEqual(self.client.get(f"/api/applications/{identifier}").json(), original)
+        self.assertEqual(self.client.get("/api/profile").json(), before)
 
     def test_multiple_offers_distinguish_payment_reduction_and_total_cost(self):
         original = self.create()

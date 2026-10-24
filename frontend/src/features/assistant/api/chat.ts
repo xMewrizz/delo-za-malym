@@ -16,6 +16,8 @@ const clarificationSchema = z.object({
   question_id: z.string(),
   field: z.string(),
   title: z.string(),
+  description: z.string().optional(),
+  input_label: z.string().optional(),
   input_type: z.enum(["money", "date"]).nullable(),
   transaction_id: z.string().nullable().optional(),
   direction: z.enum(["inflow", "outflow"]).nullable().optional(),
@@ -38,6 +40,12 @@ export const chatViewSchema = z
               created_at: z.string(),
               proposal: proposalSchema.nullable().optional(),
               mode: z.string().optional(),
+              clarification_question: z.string().optional(),
+              clarification_answer: z.object({
+                question_id: z.string(),
+                choice_id: z.string().nullable().optional(),
+                value: z.string().nullable().optional(),
+              }).optional(),
             })
             .passthrough(),
         ),

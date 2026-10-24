@@ -82,6 +82,27 @@ def extract_pdf(content):
     return {"pages": pages, "extracted": fields_from_pages(pages)}
 
 
+def supplier_fields(parsed):
+    """Заполняем только однозначные подписанные реквизиты, без догадок."""
+    candidates = {"amount": [item["value"] for item in parsed["extracted"]["amount"]]}
+    patterns = {
+        "recipient_name": r"^(?:получатель|поставщик)(?:\s*\([^)]*\))?\s*[:=]\s*(.{2,160})$",
+        "recipient_inn": r"^(?:ИНН\s+(?:получателя|поставщика)|ИНН)\s*[:=]?\s*(\d{10}|\d{12})(?!\d)",
+        "recipient_account": r"^(?:р[./]?с[.]?|расч[её]тный\s+сч[её]т|сч[её]т\s+получателя)\s*[:=]?\s*(\d{20})(?!\d)",
+        "recipient_bik": r"^БИК\s*[:=]?\s*(\d{9})(?!\d)",
+        "purpose": r"^назначение\s+платежа\s*[:=]\s*(.{5,210})$",
+        "invoice_number": r"^сч[её]т(?:\s+на\s+оплату)?\s*№\s*([^\s,;]{1,80})",
+    }
+    for page in parsed["pages"]:
+        for line in page["text"].splitlines():
+            for field, pattern in patterns.items():
+                match = re.match(pattern, line.strip(), re.I)
+                if match:
+                    candidates.setdefault(field, []).append(match[1].strip())
+    fields = {key: next(iter(values)) for key, rows in candidates.items() if len(values := set(rows)) == 1}
+    return {"fields": fields, "review_required": True}
+
+
 def parse_invoice(content):
     try:
         result = subprocess.run([sys.executable, "-m", "backend.invoice_pdf"], input=content,

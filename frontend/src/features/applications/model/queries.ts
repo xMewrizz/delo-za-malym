@@ -28,6 +28,7 @@ export const applicationQueries = {
   profile: () =>
     queryOptions({
       queryKey: applicationKeys.profile,
+      refetchInterval: 30000,
       queryFn: ({ signal }) => getProfile(signal),
     }),
   scenarios: () =>

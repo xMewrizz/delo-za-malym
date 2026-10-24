@@ -7,10 +7,11 @@ from tempfile import TemporaryDirectory
 import unittest
 from uuid import uuid4
 from unittest.mock import Mock, patch
+from types import SimpleNamespace
 
 from fastapi.testclient import TestClient
 
-from backend.assistant import ModelAssistant, build_messages
+from backend.assistant import AssistantReply, ModelAssistant, build_messages
 from backend.main import create_app
 from backend.overdraft_chat import PLAN_PATH
 from scr.delo_za_malyn.Models.Llm.client import Reply
@@ -26,6 +27,11 @@ class UnavailableModel:
 
 class ClarificationTests(unittest.TestCase):
     def setUp(self):
+        from backend import demo
+        original_profile = demo.profile
+        fixture = patch("backend.demo.profile", side_effect=lambda now: original_profile(now, include_sample_loan=True))
+        fixture.start()
+        self.addCleanup(fixture.stop)
         self.directory = TemporaryDirectory()
         self.now = datetime.fromisoformat("2026-10-21T22:30:00+00:00")  # В Москве уже 22 октября.
         self.database = Path(self.directory.name) / "test.db"
@@ -60,6 +66,84 @@ class ClarificationTests(unittest.TestCase):
         self.answer("tomorrow")
         self.answer(value="500000")
         self.answer("week")
+
+    def named_need(self, plan=None):
+        self.app.state.chats.assistant = SimpleNamespace(mode="model", model="test", reply=lambda messages: AssistantReply(
+            text="Учла потребность в 50 000 ₽.", intent="propose_changes",
+            changes={"need.purpose": "working_capital", "need.requested_amount": "50000.00"},
+            overdraft_plan=plan))
+        response = self.client.post(self.path + "/messages", json={
+            "base_chat_version": self.view["chat"]["chat_version"], "request_id": str(uuid4()),
+            "text": "Надо закрыть кассовую яму в 50 000 р"})
+        self.assertEqual(response.status_code, 200, response.text)
+        self.view = response.json()
+
+    def test_named_financing_amount_can_be_reused_as_payment_without_retyping_or_inventing_expense(self):
+        self.named_need()
+        self.answer("receipt")
+        card = self.view["clarification"]
+        self.assertIn("50 000 ₽", card["description"])
+        self.assertIn("300 000 ₽", card["description"])
+        self.assertEqual(card["input_label"], "Полная сумма платежа, ₽")
+        self.assertNotIn(PLAN_PATH, self.pending()["changes"])
+        self.answer("use_known_amount")
+        operations = self.pending()["changes"][PLAN_PATH]["transactions"]
+        self.assertEqual(len(operations), 1)
+        self.assertEqual(operations[0]["amount"], "50000.00")
+        self.assertIsNone(operations[0]["date"])
+        self.assertEqual(self.view["clarification"]["field"], PLAN_PATH + ".date")
+        self.assertIn("50 000 ₽", self.view["clarification"]["title"])
+        self.assertEqual(self.client.post(self.last_path, json=self.last_body).json(), self.view)
+        self.assertEqual(self.view["record"]["application"]["financials"]["cash_balance"], "300000.00")
+        self.assertIsNone(self.view["record"]["application"]["need"]["requested_amount"])
+        self.assertEqual(self.view["chat"]["messages"][-1]["text"], "Учла ответ в черновике.")
+
+    def test_full_payment_can_differ_from_financing_amount_without_overwriting_it(self):
+        self.named_need()
+        self.answer("receipt")
+        self.answer(value="350000")
+        self.assertEqual(self.pending()["changes"]["need.requested_amount"], "50000.00")
+        self.assertEqual(self.pending()["changes"][PLAN_PATH]["transactions"][0]["amount"], "350000.00")
+
+    def test_cash_covers_named_payment_so_no_unnecessary_repayment_question_or_credit(self):
+        self.named_need()
+        self.answer("receipt")
+        self.answer("use_known_amount")
+        self.answer("tomorrow")
+        self.assertEqual(self.view["clarification"]["field"], PLAN_PATH + ".existing_debt_payments")
+        self.answer("debt_reviewed")
+        self.assertIsNone(self.view["clarification"])
+        self.assertEqual(self.pending()["plan_issues"], [])
+        response = self.client.post(self.path + "/proposals/" + self.pending()["proposal_id"] + "/confirm", json={
+            "base_chat_version": self.view["chat"]["chat_version"], "confirmed": True})
+        self.assertEqual(response.status_code, 200, response.text)
+        result = response.json()["record"]["explorations"][-1]["result"]
+        self.assertEqual(result["calculation"]["required_limit"], "0.00")
+        self.assertEqual(result["options"], [])
+
+    def test_real_shortfall_or_explicit_cash_reserve_still_requires_repayment_inflow(self):
+        for amount, reserve in (("350000.00", None), ("50000.00", "280000.00")):
+            with self.subTest(amount=amount, reserve=reserve):
+                self.view = self.client.post("/api/chats", json={}).json()
+                self.path = "/api/chats/" + self.view["chat"]["chat_id"]
+                plan = {"transactions": [{"transaction_id": "payment", "direction": "outflow", "amount": amount, "date": "2026-10-23"}]}
+                if reserve is not None:
+                    plan["cash_reserve"] = reserve
+                self.named_need(plan)
+                self.assertEqual(self.view["clarification"]["field"], PLAN_PATH + ".new_operation")
+                self.assertEqual(self.view["clarification"]["direction"], "inflow")
+
+    def test_known_operation_amount_skips_amount_question_and_partial_operation_is_updated_in_place(self):
+        for amount in ("50000.00", None):
+            with self.subTest(amount=amount):
+                self.view = self.client.post("/api/chats", json={}).json()
+                self.path = "/api/chats/" + self.view["chat"]["chat_id"]
+                self.named_need({"transactions": [{"transaction_id": "supplier", "direction": "outflow", "amount": amount}]})
+                if amount is None:
+                    self.answer("use_known_amount")
+                self.assertEqual(self.view["clarification"]["field"], PLAN_PATH + ".date")
+                self.assertEqual(self.view["clarification"]["transaction_id"], "supplier")
+                self.assertEqual(len(self.pending()["changes"][PLAN_PATH]["transactions"]), 1)
 
     def test_loan_cards_skip_known_values_and_produce_real_options_without_model(self):
         original = deepcopy(self.view["record"]["application"])

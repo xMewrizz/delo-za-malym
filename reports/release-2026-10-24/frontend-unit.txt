@@ -1,0 +1,12 @@
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+
+ Test Files  42 passed (42)
+      Tests  135 passed (135)
+   Start at  19:46:57
+   Duration  16.30s (environment 47%, tests 26%, import 25%, transform 2%)
+
+    Isolate  42 workers spawned · ~800ms startup each (spawn + environment, per file)
+             at least ~7.60s faster with isolate: false — reuses workers across files instead of one per file
+

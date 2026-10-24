@@ -17,7 +17,11 @@
 .luma-starters button:disabled { opacity:.5; cursor:default; }
 .luma-message-author { display:flex; align-items:center; gap:6px; margin-bottom:7px; color:var(--luma-ink); font-size:11px; font-weight:650; }
 .assistant-message-user .luma-message-author { color:inherit; opacity:.65; }
+.luma-clarification-answer { margin-top:8px; color:var(--muted-foreground); font-size:12px; line-height:1.65; white-space:pre-wrap; overflow-wrap:anywhere; }
 .luma-thinking { display:flex; align-items:center; gap:10px; padding:7px 2px; color:var(--luma-ink); font-size:12px; }
+.assistant-composer { margin-top:8px; padding-top:16px; border-top:1px solid var(--border); }
+.assistant-composer [data-slot=textarea] { min-height:88px; line-height:1.65; }
+.assistant-conversation .assistant-message { padding:16px 18px; font-size:13px; line-height:1.8; }
 html .assistant-message:not(.assistant-message-user) { border:1px solid var(--luma-border); background:var(--luma-surface); }
 html .workspace-assistant-shortcut { background:linear-gradient(110deg,var(--luma-surface),var(--card)); border-color:var(--luma-border); }
 html .workspace-assistant-shortcut[aria-current=page] { border-color:var(--luma-ink); }
@@ -36,5 +40,5 @@ html .pulse-assistant-action>svg { background:none; color:inherit; padding:0; }
 .next-home .next-scene-assistant { border-color:var(--luma-border); }
 .next-home .next-scene-assistant>span:nth-child(2)>strong { display:block; font-size:14px; font-weight:600; }
 @keyframes luma-listening { 50% { opacity:calc(var(--luma-glow-opacity) * .5); } }
-@media(prefers-reduced-motion:reduce) { .luma-avatar[data-active=true]>.luma-mark-glow { animation:none; } }
+
 @media(forced-colors:active) { .luma-avatar { color:CanvasText; }.luma-avatar>.luma-mark-glow { display:none; }.luma-mark { color:CanvasText; fill:CanvasText; } }

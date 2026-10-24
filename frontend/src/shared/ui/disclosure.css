@@ -1,0 +1,15 @@
+.ui-disclosure{border:1px solid var(--border);border-radius:16px;background:var(--card);min-width:0}
+.ui-disclosure>summary{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:18px 20px;min-height:64px;cursor:pointer;list-style:none}
+.ui-disclosure>summary::-webkit-details-marker{display:none}
+.ui-disclosure>summary::marker{content:""}
+.ui-disclosure>summary>span:first-child{min-width:0}
+.ui-disclosure>summary strong{display:block;font-size:14px;line-height:1.5;font-weight:550}
+.ui-disclosure>summary small{display:block;font-size:12px;line-height:1.7;color:var(--muted-foreground);margin-top:4px;max-width:65ch}
+.ui-disclosure>summary:focus-visible{outline:2px solid var(--ring);outline-offset:3px;border-radius:14px}
+.ui-disclosure-toggle{position:relative;flex-shrink:0;width:28px;height:28px;border:1px solid var(--border);border-radius:50%;color:var(--foreground)}
+.ui-disclosure-toggle::before,.ui-disclosure-toggle::after{content:"";position:absolute;width:10px;height:1px;background:currentColor;left:8px;top:13px}
+.ui-disclosure-toggle::after{transform:rotate(90deg);transition:transform .2s ease}
+.ui-disclosure[open]>summary .ui-disclosure-toggle::after{transform:rotate(0)}
+.ui-disclosure-content{padding:4px 20px 20px}
+@media(max-width:600px){.ui-disclosure>summary{padding:16px;gap:14px}.ui-disclosure-content{padding:0 16px 16px}.ui-disclosure>summary strong{font-size:13px}}
+

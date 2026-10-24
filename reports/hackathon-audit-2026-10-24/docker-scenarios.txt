@@ -1,0 +1,14 @@
+OK 01_approved: disbursed
+OK 02_longer_term: disbursed
+OK 03_lower_amount: disbursed
+OK 04_needs_information: waiting_for_data
+OK 05_guarantor_required: disbursed
+OK 06_declined: declined
+OK 07_check_unavailable: disbursed
+OK 01_overdraft_approved: limit_opened
+OK 02_overdraft_lower_limit: limit_opened
+OK 03_overdraft_missing_plan: waiting_for_data
+OK 04_overdraft_repayment_unclear: waiting_for_data
+OK 05_overdraft_guarantor: limit_opened
+OK 06_overdraft_declined: declined
+OK 07_overdraft_check_unavailable: limit_opened

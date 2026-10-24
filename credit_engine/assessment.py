@@ -1,7 +1,7 @@
 """Рассмотрение первого продукта с явными результатами внешних проверок."""
 
 from collections.abc import Mapping
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_HALF_UP, localcontext
 from typing import Any, Literal
@@ -90,10 +90,14 @@ def assess_application(
     application: Mapping[str, Any], checks: Mapping[str, Any] | None,
     *, calculated_at: datetime | str, stage: str = "final", assessment_id: str | None = None,
     policy: WorkingCapitalPolicy = WorkingCapitalPolicy(), financial_policy: FinancialPolicy = FinancialPolicy(),
+    seasonal: bool = False,
 ) -> AssessmentResult:
     """Рассмотреть заявку без изменения глобального контекста Decimal."""
     if policy.version != financial_policy.version:
         raise ValueError("Версии правил продукта и финансовых показателей должны совпадать")
+    if seasonal:
+        policy = replace(policy, version=policy.version.removesuffix("-v1") + "-seasonal-v2")
+        financial_policy = replace(financial_policy, version=policy.version, allow_seasonal_cash_flow=True)
     need = application.get("need") if isinstance(application, Mapping) else None
     amount_text = need.get("requested_amount") if isinstance(need, Mapping) else None
     with localcontext() as context:
@@ -231,7 +235,7 @@ def _assess_application(
     if age < policy.minimum_business_months:
         return finish("out_of_policy", "insufficient_business_history", "Возраст бизнеса меньше требуемого для автоматической оценки.")
     if financials.status == "out_of_policy":
-        return finish("out_of_policy", "nonpositive_monthly_cash_flow", financials.issues[0].message)
+        return finish("out_of_policy", financials.issues[0].code, financials.issues[0].message)
     if metrics.available_monthly_payment <= 0:
         return finish("declined", "no_payment_capacity", "Для первого продукта нет доступного платежа; другие продукты этой версией не оцениваются.")
     scoring = calculate_risk_score(metrics, checks["credit_history"]["category"])

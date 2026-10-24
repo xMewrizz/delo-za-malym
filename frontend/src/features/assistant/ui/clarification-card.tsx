@@ -23,11 +23,13 @@ export function ClarificationCard({
   return (
     <section
       className="clarification-card"
+      data-message-key={`question:${card.question_id}`}
       aria-labelledby={`${id}-title`}
     >
       <h3 id={`${id}-title`} className="text-sm font-bold">
         {card.title}
       </h3>
+      {card.description && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{card.description}</p>}
       <div className="mt-3 flex flex-wrap gap-2">
         {card.choices.map((choice) => (
           <Button
@@ -45,9 +47,9 @@ export function ClarificationCard({
         <form onSubmit={submit} className="mt-3 flex items-end gap-2">
           <div className="min-w-0 flex-1"><FormField
             id={`${id}-answer`}
-            aria-label={card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата"}
+            aria-label={card.input_label || (card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата")}
             label={
-              card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата"
+              card.input_label || (card.input_type === "money" ? "Своя сумма, ₽" : "Своя дата")
             }
             type={card.input_type === "date" ? "date" : "text"}
             inputMode={card.input_type === "money" ? "decimal" : undefined}

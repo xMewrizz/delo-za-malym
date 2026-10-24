@@ -7,7 +7,7 @@ from hashlib import sha256
 import json
 import re
 
-from .overdraft_chat import PLAN_PATH, local_now, plan_issues
+from .overdraft_chat import PLAN_PATH, local_now, plan_issues, needs_repayment_inflow
 from .service import EDITABLE_STATES
 
 
@@ -29,15 +29,39 @@ def next_clarification(chat, record, now):
     plan = (pending or {}).get("changes", {}).get(PLAN_PATH) or record["application"].get("product_details", {}).get("overdraft")
     today = local_now(now).date()
 
-    def card(field, title, choices=(), *, input_type=None, transaction_id=None, direction=None):
+    def card(field, title, choices=(), *, input_type=None, transaction_id=None, direction=None, description=None, input_label=None):
         content = {"field": field, "title": title, "input_type": input_type, "transaction_id": transaction_id,
                    "direction": direction, "choices": list(choices)}
+        if description:
+            content["description"] = description
+        if input_label:
+            content["input_label"] = input_label
         seed = [chat["chat_id"], chat["chat_version"], record["application"]["application_version"], today.isoformat(), content]
         content["question_id"] = sha256(json.dumps(seed, sort_keys=True, ensure_ascii=False).encode()).hexdigest()[:24]
         return content
 
     def choice(identifier, label, changes=None, plan_update=None):
         return {"choice_id": identifier, "label": label, "_changes": changes or {}, "_plan": plan_update}
+
+    def display_amount(value):
+        return f"{Decimal(value):,.2f}".replace(",", " ").removesuffix(".00").replace(".", ",")
+
+    def expense_amount_card(title, transaction_id=None):
+        amount = need.get("requested_amount")
+        field = PLAN_PATH + (".amount" if transaction_id else ".new_operation")
+        if not amount:
+            return card(field, title, input_type="money", direction="outflow", transaction_id=transaction_id)
+        description = f"{display_amount(amount)} ₽ на финансирование я учла. "
+        balance = record["application"]["financials"].get("cash_balance")
+        if balance is not None:
+            description += f"На счёте {display_amount(balance)} ₽ — учту их при расчёте. "
+        description += "Здесь нужна вся сумма предстоящего платежа, включая ту часть, которую оплатите своими деньгами."
+        update = ({"transactions": [{"transaction_id": transaction_id, "amount": amount}]} if transaction_id else
+                  {"_new_expense_amount": amount})
+        return card(field, "Какой платёж нужно закрыть?", [
+            choice("use_known_amount", f"Платёж тоже {display_amount(amount)} ₽", plan_update=update)],
+            input_type="money", direction="outflow", transaction_id=transaction_id,
+            description=description, input_label="Полная сумма платежа, ₽")
 
     if need.get("purpose") == "investment" or need.get("preferred_product") == "investment_loan":
         if not need.get("project_cost"):
@@ -60,6 +84,8 @@ def next_clarification(chat, record, now):
                     choice("inflow", "Деньги поступят", plan_update={"transactions": [{"transaction_id": identifier, "direction": "inflow"}]})], transaction_id=identifier)
             expense = operation["direction"] == "outflow"
             if operation.get("amount") is None:
+                if expense:
+                    return expense_amount_card("Сколько нужно заплатить?", identifier)
                 return card(PLAN_PATH + ".amount", "Сколько нужно заплатить?" if expense else "Сколько денег поступит?",
                             input_type="money", transaction_id=identifier)
             if not operation.get("date") or operation["date"] < today.isoformat():
@@ -72,6 +98,10 @@ def next_clarification(chat, record, now):
         ordinary = need.get("preferred_product") == "working_capital_loan" or need.get("financing_pattern") == "gradual_repayment"
         for direction, title in ([] if ordinary else [("outflow", "Сколько нужно заплатить до поступления денег?"), ("inflow", "Какое поступление ожидаете для погашения?")]):
             if direction not in directions:
+                if direction == "inflow" and not needs_repayment_inflow(plan):
+                    continue
+                if direction == "outflow":
+                    return expense_amount_card(title)
                 return card(PLAN_PATH + ".new_operation", title, input_type="money", direction=direction)
         issues = plan_issues(record, plan, now, (pending or {}).get("changes"))
         active = [loan for loan in record["application"]["financials"].get("existing_loans") or [] if Decimal(loan.get("outstanding_principal") or "0") > 0]
@@ -97,11 +127,16 @@ def next_clarification(chat, record, now):
     if need.get("purpose") != "working_capital":
         return None
     if need.get("financing_pattern") is None and need.get("preferred_product") is None:
+        known = need.get("requested_amount")
+        balance = record["application"]["financials"].get("cash_balance")
+        description = (f"Потребность в {display_amount(known)} ₽ я учла. На счёте {display_amount(balance)} ₽. "
+                       "Проверим будущие платежи и поступления, чтобы понять, нужно ли финансирование."
+                       if known and balance is not None else None)
         return card("need.financing_pattern", "Как планируете возвращать деньги?", [
             choice("gradual", "Постепенно из выручки", {"need.financing_pattern": "gradual_repayment"}),
-            choice("receipt", "Из ближайшего поступления", {"need.financing_pattern": "cash_gap"})])
+            choice("receipt", "Из ближайшего поступления", {"need.financing_pattern": "cash_gap"})], description=description)
     if need.get("financing_pattern") == "cash_gap" or need.get("preferred_product") == "overdraft":
-        return card(PLAN_PATH + ".new_operation", "Сколько нужно заплатить до поступления денег?", input_type="money", direction="outflow")
+        return expense_amount_card("Сколько нужно заплатить до поступления денег?")
     if need.get("requested_amount") is None:
         return card("need.requested_amount", "Сколько хотите занять?", input_type="money")
     return None
@@ -121,6 +156,9 @@ def resolve_answer(card, record, *, choice_id=None, value=None, now, operation_i
         if not choice:
             raise ValueError("Такого готового ответа нет в текущем вопросе.")
         changes, plan = deepcopy(choice["_changes"]), deepcopy(choice["_plan"])
+        if plan and "_new_expense_amount" in plan:
+            plan = {"transactions": [{"transaction_id": operation_id, "direction": "outflow",
+                                      "amount": plan["_new_expense_amount"], "date": None}]}
         if plan and "_add_loan" in plan:
             loan = next(row for row in record["application"]["financials"]["existing_loans"] if row["loan_id"] == plan["_add_loan"])
             plan = {"transactions": [{"transaction_id": operation_id, "direction": "outflow", "amount": loan["monthly_payment"], "loan_id": loan["loan_id"], "date": None}]}

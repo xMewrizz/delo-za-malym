@@ -1,6 +1,8 @@
 """HTTP API кабинета: uvicorn backend.main:app."""
 
 from contextlib import asynccontextmanager
+import asyncio
+import logging
 from datetime import datetime, timezone
 import os
 from pathlib import Path
@@ -30,9 +32,16 @@ from .service import CreditProcess, ProcessError
 from .store import Store
 from .workspace import ProductWorkspace
 from .credit_lines import CreditLines
+from .loan_payments import LoanPayments
+from .penalty_preview import preview_penalties
+from .models import LoanPaymentPreview, LoanPaymentRequest, CancelLoanOrder, PenaltyPreviewRequest
+from .models import OverdraftPreview, OverdraftOperation
+from .overdrafts import Overdrafts
+from .supplier_payments import SupplierPayments
+from .models import SupplierPaymentPreview, SupplierPaymentOperation
 
 
-def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None, frontend_directory=None) -> FastAPI:
+def create_app(database_path: str | Path | None = None, *, clock=None, assistant=None, frontend_directory=None, demo_delay_seconds=0) -> FastAPI:
     store = Store(database_path or os.getenv("DATABASE_PATH", "data/cabinet.sqlite3"))
     clock = clock or (lambda: datetime.now(timezone.utc))
     process = CreditProcess(store, clock)
@@ -42,15 +51,37 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     async def lifespan(app):
         store.initialize()
         process.sync_portfolio()
-        yield
+        stop = asyncio.Event()
+        interval = max(.05, float(os.getenv("PAYMENT_WORKER_INTERVAL_SECONDS", "30")))
+        async def payment_worker():
+            while not stop.is_set():
+                try:
+                    await run_in_threadpool(loan_payments.execute_due)
+                except Exception:
+                    logging.getLogger(__name__).exception("Scheduled payment processing failed; retrying")
+                try:
+                    await asyncio.wait_for(stop.wait(), timeout=interval)
+                except TimeoutError:
+                    pass
+        worker = asyncio.create_task(payment_worker())
+        try:
+            yield
+        finally:
+            stop.set()
+            await worker
 
     app = FastAPI(title="Дело за малым", version="0.1.0", lifespan=lifespan,
                   description="Кредитный процесс существующего демонстрационного клиента: кредит, овердрафт, рефинансирование и возобновляемая линия.")
     app.state.process = process
+    app.state.demo_delay_seconds = max(0, min(5, demo_delay_seconds))
     assets = Path(__file__).with_name("static")
     frontend = Path(frontend_directory or os.getenv("FRONTEND_DIST", Path(__file__).resolve().parent.parent / "frontend" / "dist"))
     frontend_index = frontend / "index.html"
     app.mount("/chat-assets", StaticFiles(directory=assets), name="chat-assets")
+    if manifest_path := os.getenv("DEMO_MANIFEST_PATH"):
+        @app.get("/project-docs/demo-showcase.json", include_in_schema=False)
+        def demo_manifest():
+            return FileResponse(Path(manifest_path), media_type="application/json", headers={"Cache-Control": "no-store"})
     for folder in ("assets", "fonts", "images", "brand", "project-docs"):
         if (frontend / folder).is_dir():
             app.mount("/" + folder, StaticFiles(directory=frontend / folder), name="frontend-" + folder)
@@ -63,6 +94,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     def cabinet_page():
         return FileResponse(frontend_index if frontend_index.is_file() else assets / "chat.html", headers={"Cache-Control": "no-store"})
 
+    @app.get("/documentation", include_in_schema=False)
     @app.get("/project", include_in_schema=False)
     def project_page():
         return FileResponse(frontend_index if frontend_index.is_file() else assets / "chat.html", headers={"Cache-Control": "no-store"})
@@ -99,9 +131,73 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     def get_profile():
         return process.profile()
 
+    @app.post("/api/profile/sync", tags=["Данные клиента"])
+    async def sync_demo_profile():
+        await asyncio.sleep(app.state.demo_delay_seconds)
+        return await run_in_threadpool(process.profile)
+
     @app.get("/api/calendar", tags=["Данные клиента"])
     def get_calendar():
         return process.calendar()
+
+    supplier_payments = SupplierPayments(process)
+
+    @app.get("/api/account/payments", tags=["Расчётный счёт"])
+    def account_payments(overdraft_application_id: str | None = None):
+        return supplier_payments.get(overdraft_application_id)
+
+    @app.post("/api/account/payments/preview", tags=["Расчётный счёт"])
+    def supplier_preview(payload: SupplierPaymentPreview):
+        return supplier_payments.preview(payload)
+
+    @app.post("/api/account/payments", tags=["Расчётный счёт"])
+    def supplier_payment(payload: SupplierPaymentOperation):
+        return supplier_payments.operate(payload)
+
+    @app.post("/api/account/invoice", tags=["Расчётный счёт"])
+    async def supplier_invoice(request: Request):
+        from .invoice_pdf import parse_invoice, supplier_fields, InvoiceError
+        content = bytearray()
+        async for chunk in request.stream():
+            content.extend(chunk)
+            if len(content) > MAX_BYTES:
+                raise ProcessError("document_too_large", "PDF должен быть не больше 2 МБ.", 413)
+        try:
+            parsed = await run_in_threadpool(parse_invoice, bytes(content))
+        except InvoiceError as exc:
+            raise ProcessError(exc.code, str(exc), 422) from None
+        return supplier_fields(parsed)
+
+    @app.post("/api/calendar/penalty-preview", tags=["Платёжный календарь"])
+    def penalty_preview(payload: PenaltyPreviewRequest):
+        return preview_penalties(process.calendar(), payload)
+
+    loan_payments = LoanPayments(process)
+
+    @app.middleware("http")
+    async def process_payment_orders(request, call_next):
+        if request.url.path.startswith("/api/") and request.method != "OPTIONS":
+            try:
+                await run_in_threadpool(loan_payments.execute_due)
+            except sqlite3.OperationalError:
+                return JSONResponse(status_code=503, content={"detail": {"code": "database_unavailable", "message": "Хранилище временно недоступно. Повторите запрос."}})
+        return await call_next(request)
+
+    @app.get("/api/applications/{application_id}/loan", tags=["Погашение кредита"])
+    def loan_state(application_id: str):
+        return loan_payments.get(application_id)
+
+    @app.post("/api/applications/{application_id}/loan/preview", tags=["Погашение кредита"])
+    def loan_payment_preview(application_id: str, payload: LoanPaymentPreview):
+        return loan_payments.preview(application_id, payload)
+
+    @app.post("/api/applications/{application_id}/loan/payments", tags=["Погашение кредита"])
+    def loan_payment(application_id: str, payload: LoanPaymentRequest):
+        return loan_payments.pay(application_id, payload)
+
+    @app.post("/api/applications/{application_id}/loan/orders/{order_id}/cancel", tags=["Погашение кредита"])
+    def cancel_loan_order(application_id: str, order_id: str, payload: CancelLoanOrder):
+        return loan_payments.cancel(application_id, order_id, payload)
 
     @app.get("/api/products", tags=["Данные клиента"])
     def products():
@@ -138,6 +234,19 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         ]
 
     credit_lines = CreditLines(process)
+    overdrafts = Overdrafts(process)
+
+    @app.get("/api/applications/{application_id}/overdraft", tags=["Овердрафт"])
+    def overdraft_state(application_id: str):
+        return overdrafts.get(application_id)
+
+    @app.post("/api/applications/{application_id}/overdraft/preview", tags=["Овердрафт"])
+    def overdraft_preview(application_id: str, payload: OverdraftPreview):
+        return overdrafts.preview(application_id, payload)
+
+    @app.post("/api/applications/{application_id}/overdraft/operations", tags=["Овердрафт"])
+    def overdraft_operation(application_id: str, payload: OverdraftOperation):
+        return overdrafts.operate(application_id, payload)
 
     @app.get("/api/applications/{application_id}/credit-line", tags=["Кредитная линия"])
     def credit_line(application_id: str):
@@ -282,6 +391,10 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     def create_application(body: CreateApplication):
         return process.create(**body.model_dump())
 
+    @app.post("/api/applications/{application_id}/repeat", response_model=ApplicationView, status_code=201, tags=["Заявки"])
+    def repeat_application(application_id: str):
+        return process.repeat(application_id)
+
     @app.get("/api/applications/{application_id}", response_model=ApplicationView, tags=["Заявки"])
     def get_application(application_id: str):
         return process.get(application_id)
@@ -299,12 +412,14 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         return process.recommend(application_id, body.base_application_version)
 
     @app.post("/api/applications/{application_id}/submit", response_model=ApplicationView, tags=["Рассмотрение"])
-    def submit(application_id: str, body: ConfirmedAction):
-        return process.submit(application_id, body.base_application_version)
+    async def submit(application_id: str, body: ConfirmedAction):
+        await asyncio.sleep(app.state.demo_delay_seconds)
+        return await run_in_threadpool(process.submit, application_id, body.base_application_version)
 
     @app.post("/api/applications/{application_id}/retry", response_model=ApplicationView, tags=["Рассмотрение"])
-    def retry(application_id: str, body: VersionAction):
-        return process.retry(application_id, body.base_application_version)
+    async def retry(application_id: str, body: VersionAction):
+        await asyncio.sleep(app.state.demo_delay_seconds)
+        return await run_in_threadpool(process.retry, application_id, body.base_application_version)
 
     @app.post("/api/applications/{application_id}/select-offer", response_model=ApplicationView, tags=["Оформление"])
     def select_offer(application_id: str, body: SelectOffer):
@@ -325,4 +440,4 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     return app
 
 
-app = create_app()
+app = create_app(demo_delay_seconds=float(os.getenv("DEMO_BANK_DELAY_SECONDS", "2")))

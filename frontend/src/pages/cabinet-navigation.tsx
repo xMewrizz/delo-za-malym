@@ -29,7 +29,7 @@ export function CabinetNavigation({ mode, company, applications, navigate }: { m
       <p className="workspace-nav-caption">ВАШЕ ДЕЛО</p>
       <nav aria-label="Разделы личного кабинета">{sections.map(({ mode: next, name, icon: Icon }) => <button key={next} type="button" aria-current={(mode === next || next === "manual" && mode === "assistant") ? "page" : undefined} onClick={() => go(next)}><Icon size={19} aria-hidden="true" /><span>{name}</span>{next === "applications" && applications > 0 && <small>{applications}</small>}</button>)}</nav>
       <button type="button" className="workspace-assistant-shortcut" aria-label="Обсудить с Лумой" aria-current={mode === "assistant" ? "page" : undefined} onClick={() => go("assistant")}><LumaAvatar size={38} /><span><span className="luma-shortcut-name"><strong>Лума</strong><span>ИИ-ассистент</span></span><small>Обсудим ваши планы</small></span><ArrowUpRight size={16} aria-hidden="true" /></button>
-      <div className="workspace-nav-footer"><Link to="/project#documentation"><CircleHelp size={17} />Помощь и документация</Link><Link to="/"><ArrowLeft size={17} />На сайт проекта</Link><span className="workspace-demo-label"><i />Демонстрационный кабинет</span></div>
+      <div className="workspace-nav-footer"><Link to="/documentation"><CircleHelp size={17} />Помощь и документация</Link><Link to="/"><ArrowLeft size={17} />На сайт проекта</Link><span className="workspace-demo-label"><i />Демо-кабинет · реальных списаний нет</span></div>
     </div>
   </aside>;
 }

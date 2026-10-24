@@ -108,7 +108,6 @@ describe.skipIf(!base)("frontend contracts against the running backend", () => {
     await answer({ choice_id: "tomorrow" });
     await answer({ value: "500000" });
     await answer({ choice_id: "week" });
-    await answer({ choice_id: "debt_reviewed" });
     expect(chat.clarification).toBeNull();
     const pending = pendingProposal(chat)!;
     const preview = await previewProposal(

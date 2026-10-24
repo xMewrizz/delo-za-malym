@@ -1,0 +1,80 @@
+.assistant-layout {
+  --assistant-pane-height: min(820px, calc(100dvh - 2rem));
+  --assistant-pane-top: 1rem;
+}
+.assistant-layout .assistant-conversation,
+.workspace-body .assistant-workspace {
+  position: sticky;
+  top: var(--assistant-pane-top);
+  height: var(--assistant-pane-height);
+  min-height: 530px;
+}
+.workspace-body .assistant-workspace {
+  display: flex;
+  flex-direction: column;
+  padding: 20px;
+  overflow: hidden;
+}
+.assistant-workspace .assistant-update-status {
+  flex: 0 0 auto;
+  min-height: 22px;
+  margin-bottom: 12px;
+  color: var(--muted-foreground);
+}
+.assistant-workspace-tabs { display: flex; flex: 1; flex-direction: column; min-height: 0; }
+.assistant-workspace-navigation { display: flex; flex: 0 0 auto; gap: 4px; padding: 4px; margin-bottom: 16px; border: 1px solid var(--border); border-radius: 12px; background: var(--background); }
+.assistant-workspace-navigation button { display: flex; justify-content: center; align-items: center; flex: 1; gap: 7px; min-width: 0; min-height: 40px; padding: 8px 10px; border-radius: 8px; color: var(--muted-foreground); font-size: 12px; font-weight: 550; cursor: pointer; }
+.assistant-workspace-navigation button[data-state=active] { background: var(--secondary); color: var(--foreground); box-shadow: inset 0 -2px 0 var(--growth); }
+.assistant-workspace-navigation button:focus-visible { outline: 2px solid var(--ring); outline-offset: 2px; }
+.assistant-tab-dot { flex: 0 0 auto; width: 6px; height: 6px; border-radius: 50%; background: var(--luma-ink); }
+.assistant-workspace-panel { min-height: 0; flex: 1; flex-direction: column; }
+.assistant-workspace-panel:not([hidden]) { display: flex; }
+.assistant-workspace-panel[hidden] { display: none; }
+.assistant-workspace-scroll { min-height: 0; flex: 1; overflow-y: auto; overflow-anchor: none; overscroll-behavior: contain; scrollbar-width: thin; scrollbar-color: var(--border) transparent; padding: 2px 6px 12px 2px; scrollbar-gutter: stable; }
+.assistant-workspace-scroll:focus-visible { outline: 2px solid var(--ring); outline-offset: -2px; border-radius: 8px; }
+.assistant-workspace-scroll > * + * { margin-top: 20px; }
+.assistant-workspace-footer { flex: 0 0 auto; display: flex; flex-wrap: wrap; gap: 8px; border-top: 1px solid var(--border); padding-top: 14px; margin-top: 8px; }
+.assistant-workspace-footer > p { flex-basis: 100%; color: var(--muted-foreground); font-size: 11px; line-height: 1.6; }
+.assistant-workspace-empty { display: flex; flex-direction: column; align-items: flex-start; gap: 14px; padding: 20px 4px; }
+.assistant-workspace-empty h3 { font-size: 18px; font-weight: 550; }
+.assistant-workspace-empty p { color: var(--muted-foreground); font-size: 13px; line-height: 1.8; }
+.collected-preview { border-top: 1px solid var(--border); padding-top: 16px; }
+.collected-preview > summary { padding: 4px 0; color: var(--luma-ink); font-size: 12px; cursor: pointer; }
+.assistant-workspace .assistant-live .collected-fact { animation: none; }
+.assistant-workspace .collected-facts { position: relative; }
+.assistant-workspace .collected-fact { position: relative; isolation: isolate; overflow: hidden; }
+.assistant-workspace .collected-fact::after { content: ""; position: absolute; inset: 0; z-index: -1; opacity: 0; background: var(--luma-highlight); border-radius: inherit; pointer-events: none; }
+.assistant-workspace .collected-fact[data-live-updated]::after { animation: luma-field-received 1.4s ease-out; }
+.assistant-workspace .collected-fact dd { font-weight: 550; font-size: 20px; line-height: 1.35; letter-spacing: -.035em; }
+.assistant-workspace-panel:not([hidden]) .assistant-workspace-scroll { animation: luma-panel-enter .32s cubic-bezier(.2,.75,.25,1); }
+.assistant-workspace-footer { animation: luma-panel-enter .35s ease-out; }
+.luma-thinking-dots { display: inline-flex; gap: 4px; align-items: center; }
+.luma-thinking-dots i { width: 4px; height: 4px; background: currentColor; border-radius: 50%; animation: luma-thinking-dot 1.4s ease-in-out infinite; }
+.luma-thinking-dots i:nth-child(2) { animation-delay: .16s; }
+.luma-thinking-dots i:nth-child(3) { animation-delay: .32s; }
+@keyframes luma-field-received { 0% { opacity: 0; } 20% { opacity: .85; } 100% { opacity: 0; } }
+@keyframes luma-panel-enter { from { opacity: .35; transform: translateY(9px); } to { opacity: 1; transform: translateY(0); } }
+@keyframes luma-thinking-dot { 0%,70%,100% { opacity: .35; transform: translateY(0); } 35% { opacity: 1; transform: translateY(-3px); } }
+
+.assistant-workspace-scroll > [data-slot=card] { border: 0; background: transparent; box-shadow: none; --card-padding: 0px; }
+.assistant-layout .assistant-conversation .assistant-messages { min-height: 6rem; scrollbar-width: thin; scrollbar-color: var(--border) transparent; scrollbar-gutter: stable; }
+.assistant-messages > .assistant-message, .assistant-messages > .clarification-card, .assistant-messages > .luma-thinking { flex-shrink: 0; }
+.assistant-conversation .assistant-composer [data-slot=textarea] { min-height: 64px; }
+@media (max-height: 750px) and (min-width: 901px) {
+  .assistant-conversation .luma-conversation-intro { display: none; }
+  .assistant-conversation > [data-slot=card-content] { gap: 10px; }
+}
+@media (min-width: 901px) and (max-width: 980px) {
+  .assistant-layout { --assistant-pane-height: calc(100dvh - 110px); --assistant-pane-top: 94px; }
+}
+@media (max-width: 900px) {
+  .assistant-layout { --assistant-pane-height: max(32rem, calc(100dvh - 11rem)); }
+  .assistant-layout .assistant-conversation, .workspace-body .assistant-workspace { position: static; min-height: 0; }
+  .workspace-body .assistant-workspace { padding: 16px; }
+  .assistant-workspace-navigation button { min-height: 44px; }
+}
+@media (pointer: coarse) {
+  .assistant-workspace-navigation button { min-height: 44px; }
+}
+
+.luma-task-state{padding:16px;border:1px solid var(--border);border-radius:14px;background:var(--background);font-size:13px;line-height:1.6}.luma-task-state p{color:var(--muted-foreground);margin:7px 0 12px}.luma-task-state>div{display:flex;flex-wrap:wrap;gap:8px}

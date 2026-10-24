@@ -15,11 +15,12 @@ import {
   type PlanRow,
 } from "../model/overdraft-plan";
 
-export function CashFlowFields({ view, draft, setDraft, bankCash }: {
+export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
   view: ApplicationView;
   draft: PlanDraft;
   setDraft: Dispatch<SetStateAction<PlanDraft>>;
   bankCash?: string | null;
+  direction?: "inflow" | "outflow";
 }) {
   const allLoans = view.application.financials.existing_loans || [];
   const loans = allLoans.filter(loan => !loan.schedule);
@@ -59,9 +60,9 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
               </p>
             <div className="space-y-3">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h4 className="font-bold">Предстоящие платежи и поступления</h4>
+                <h4 className="font-bold">{direction === "outflow" ? "Предстоящие платежи" : direction === "inflow" ? "Ожидаемые поступления" : "Предстоящие платежи и поступления"}</h4>
                 <div className="flex flex-wrap gap-2">
-                  <Button
+                  {direction !== "inflow" && <Button
                     type="button"
                     size="sm"
                     variant="outline"
@@ -69,8 +70,8 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                   >
                     <Plus aria-hidden="true" />
                     Расход
-                  </Button>
-                  <Button
+                  </Button>}
+                  {direction !== "outflow" && <Button
                     type="button"
                     size="sm"
                     variant="outline"
@@ -78,15 +79,15 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                   >
                     <Plus aria-hidden="true" />
                     Поступление
-                  </Button>
+                  </Button>}
                 </div>
               </div>
-              {draft.rows.length === 0 && (
+              {draft.rows.filter(row => !direction || row.direction === direction).length === 0 && (
                 <p className="rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
-                  Добавьте платёж, на который нужны деньги, и ожидаемое поступление.
+                  {direction === "inflow" ? "Добавьте ожидаемое поступление, из которого вернёте деньги." : direction === "outflow" ? "Добавьте платёж, на который нужны деньги." : "Добавьте платёж, на который нужны деньги, и ожидаемое поступление."}
                 </p>
               )}
-              {draft.rows.map((row, index) => (
+              {draft.rows.filter(row => !direction || row.direction === direction).map((row, index) => (
                 <div
                   key={row.id}
                   className="rounded-2xl border border-border bg-background p-4"
@@ -160,7 +161,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                 </div>
               ))}
             </div>
-            {loans.length > 0 && (
+            {direction !== "outflow" && loans.length > 0 && (
               <label className="flex items-start gap-3 rounded-xl bg-background p-4 text-xs leading-relaxed">
                 <input
                   type="checkbox"
@@ -177,7 +178,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash }: {
                 или подтверждаю, что их в нём нет.
               </label>
             )}
-    <details className="rounded-xl border border-border p-4">
+    <details hidden={direction === "outflow"} className="rounded-xl border border-border p-4">
       <summary className="cursor-pointer text-sm font-semibold">Резерв и период расчёта</summary>
       <p className="my-3 text-xs text-muted-foreground">Период определяем по датам платежей и поступлений. Здесь его можно расширить и оставить запас денег на счёте.</p>
             <div className="grid gap-4 sm:grid-cols-2">
@@ -286,7 +287,7 @@ export function OverdraftPlanForm({
         <p className="text-xs font-bold uppercase tracking-widest text-primary">
           {loanMode ? "Кредит на оборотные цели" : "Овердрафт"}
         </p>
-        <h3 className="text-xl font-extrabold tracking-tight">
+        <h3 className="text-xl font-semibold tracking-tight">
           Когда нужно заплатить и когда поступят деньги?
         </h3>
         <p className="text-xs leading-relaxed text-muted-foreground">

@@ -132,6 +132,9 @@ def check_case(case, before, view):
     for phrase in expected.get("forbidden_phrases", []):
         if phrase in text:
             issues.append(f"unexpected_statement:{phrase}")
+    for alternatives in expected.get("required_any_phrases", []):
+        if not any(phrase.lower().replace("ё", "е") in text for phrase in alternatives):
+            issues.append("missing_explanation:" + "|".join(alternatives))
     if expected.get("comparison"):
         comparisons = view["record"].get("explorations", [])
         if not comparisons:

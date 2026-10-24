@@ -10,6 +10,7 @@ from . import demo
 from .client_data import bank_financials, client_data, preserves_bank_values
 from .store import Store
 from .sources import source_value
+from .penalty_terms import attach_demo_penalties, read_penalty_terms, signed_penalty_terms
 from .portfolio import belongs_to_client, issued_loans, with_loans, include_scheduled_payments, calendar_data
 from .portfolio import refinanced_loans, cash_disbursed
 from credit_engine.refinancing import assess_refinancing
@@ -28,7 +29,7 @@ NEED_FIELDS = {"purpose", "preferred_product", "requested_amount", "term_months"
                "own_funds", "priority", "minimum_acceptable_amount", "financing_pattern", "project_cost", "principal_grace_months"}
 FINANCIAL_FIELDS = {"monthly", "cash_balance", "existing_loans", "largest_buyer_share"}
 EDITABLE_STATES = {"draft", "waiting_for_data", "check_retry_pending", "offers_ready", "conditions_pending",
-                   "ready_to_sign", "offer_expired", "declined", "out_of_policy"}
+                   "ready_to_sign", "offer_expired"}
 
 
 def set_state(record, status, step, action, label, now):
@@ -48,11 +49,28 @@ class CreditProcess:
     def profile(self):
         profile, _ = demo.profile(self.clock())
         records = self.store.list()
-        profile["financials"] = with_loans(profile["financials"], issued_loans(records, self.clock()), closed=refinanced_loans(records), cash_total=cash_disbursed(records))
+        profile["financials"] = with_loans(profile["financials"], issued_loans(records, self.clock()), closed=refinanced_loans(records), cash_total=cash_disbursed(records, self.store.payments()))
+        # Выдачи и списания уже отражены в financials; лимиты к деньгам не прибавляются.
+        profile["accounts"] = [{"account_id": "demo-settlement", "type": "settlement", "title": "Основной расчётный счёт",
+            "currency": "RUB", "balance": profile["financials"].get("cash_balance"),
+            "available_balance": profile["financials"].get("cash_balance"), "number": None, "mode": "simulated"}]
+        from .overdrafts import overdraft_state
+        from credit_engine.revolving import local_date
+        available_overdraft = sum((Decimal(state["available_limit"]) for record in records if belongs_to_client(record)
+                                  if (state := overdraft_state(record, local_date(self.clock())))), Decimal("0.00"))
+        profile["accounts"][0].update(overdraft_available=f"{available_overdraft:.2f}",
+                                      available_for_payments=f'{Decimal(profile["financials"].get("cash_balance") or "0") + available_overdraft:.2f}')
+        profile["checked_at"] = self.clock().isoformat()
+        profile["data_source"] = {"kind": "simulated_bank", "label": "Демо-банк"}
         return profile
 
     def calendar(self):
         result = calendar_data(self.store.list(), self.clock())
+        for payment in self.store.payments():
+            result["events"].append({"event_id": payment["payment_id"], "application_id": "", "date": payment["date"],
+                "amount": payment["request"]["amount"], "direction": "outflow", "kind": "supplier_payment",
+                "title": "Оплата · " + payment["request"]["recipient_name"], "forecast": False,
+                "supplier_payment": payment})
         profile = self.profile()
         for loan in profile["financials"].get("existing_loans", []):
             if loan.get("application_id"):
@@ -61,6 +79,10 @@ class CreditProcess:
                 result["events"].append({"event_id": f"bank:{loan['loan_id']}:{row['date']}", "application_id": "", "loan_id": loan["loan_id"],
                     "date": row["date"], "amount": row["total_payment"], "direction": "outflow", "kind": "existing_loan_payment",
                     "title": "Платёж по действующему кредиту", "forecast": True})
+        for loan in profile["financials"].get("existing_loans", []):
+            terms = read_penalty_terms(loan.get("penalty_terms"))
+            if not loan.get("application_id") and terms:
+                result["penalty_terms"].append({"product_id": f"loan:{loan['loan_id']}", **terms})
         result["events"].sort(key=lambda item: (item["date"], item["event_id"]))
         return result
 
@@ -68,9 +90,14 @@ class CreditProcess:
         if connection is None:
             with self.store.connect(write=True) as connection:
                 return self.sync_portfolio(connection)
+        from .overdrafts import sweep
+        sweep(self, connection)
         records = self.store.records(connection)
         loans = issued_loans(records, self.clock())
-        closed, cash = refinanced_loans(records), cash_disbursed(records)
+        closed, cash = refinanced_loans(records), cash_disbursed(records, self.store.account_payments(connection))
+        current_profile, _ = demo.profile(self.clock())
+        retired = demo.RETIRED_LOAN_IDS - {loan["loan_id"] for loan in current_profile["financials"].get("existing_loans", [])}
+        excluded = set(closed) | retired
         for record in records:
             completion = record.get("completion") or {}
             closure = closed.get("cabinet-loan:" + completion.get("operation_id", ""))
@@ -81,7 +108,7 @@ class CreditProcess:
             if not belongs_to_client(record) or record["state"]["status"] not in EDITABLE_STATES:
                 continue
             known = bank_financials(record)
-            updated = with_loans(known, loans, closed=closed, cash_total=cash)
+            updated = with_loans(known, loans, closed=excluded, cash_total=cash)
             if updated == known:
                 continue
             record["simulator"]["bank_financials"] = updated
@@ -94,7 +121,7 @@ class CreditProcess:
             details = application.get("product_details") or {}
             if details.get("overdraft"):
                 details["overdraft"]["opening_cash_balance"] = updated.get("cash_balance") or "0.00"
-                details["overdraft"] = include_scheduled_payments(details["overdraft"], updated["existing_loans"], closed=closed)
+                details["overdraft"] = include_scheduled_payments(details["overdraft"], updated["existing_loans"], closed=excluded)
             application["application_version"] += 1
             application["confirmation"] = None
             record["field_sources"] = {path: source for path, source in record.get("field_sources", {}).items()
@@ -159,7 +186,7 @@ class CreditProcess:
         with self.store.connect(write=True) as connection:
             if not scenario:
                 records = self.store.records(connection)
-                loans, closed, cash = issued_loans(records, now), refinanced_loans(records), cash_disbursed(records)
+                loans, closed, cash = issued_loans(records, now), refinanced_loans(records), cash_disbursed(records, self.store.account_payments(connection))
                 application["financials"] = with_loans(application["financials"], loans, closed=closed, cash_total=cash)
                 simulator["bank_financials"] = with_loans(simulator["bank_financials"], loans, closed=closed, cash_total=cash)
                 simulator["known_loans"] = deepcopy(application["financials"]["existing_loans"])
@@ -167,6 +194,20 @@ class CreditProcess:
                 if details.get("overdraft"):
                     details["overdraft"] = include_scheduled_payments(details["overdraft"], application["financials"]["existing_loans"], closed=closed)
             self._normalize_product_need(application)
+            self.store.save(connection, record)
+        return self.public(record)
+
+    def repeat(self, identifier):
+        original = self.get(identifier)
+        details = deepcopy(original["application"].get("product_details") or {})
+        if details.get("refinancing"):
+            active_ids = {item["loan_id"] for item in self.profile()["financials"].get("existing_loans", [])
+                          if Decimal(item.get("outstanding_principal") or "0") > 0}
+            details["refinancing"] = {"loan_ids": [value for value in details["refinancing"].get("loan_ids", []) if value in active_ids]}
+        created = self.create(need=deepcopy(original["application"]["need"]), product_details=details)
+        with self.store.connect(write=True) as connection:
+            record = self.store.get(connection, created["application"]["application_id"])
+            event(record, "application_repeated", self.clock(), source_application_id=identifier)
             self.store.save(connection, record)
         return self.public(record)
 
@@ -278,20 +319,20 @@ class CreditProcess:
                                           retry=previous.get("status") in ("check_retry_pending", "needs_checks"))
             if record["application"]["need"].get("preferred_product") == "investment_loan":
                 from credit_engine.investment import investment_options
-                result = investment_options(record["application"], checks, calculated_at=now)
+                result = investment_options(record["application"], checks, calculated_at=now, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 record["recommendation"] = {**result, "recommended_product_id": "investment_loan" if result["options"] else None, "candidates": []}
                 return
             if record["application"]["need"].get("preferred_product") == "revolving_credit_line":
                 from credit_engine.revolving import revolving_options
-                result = revolving_options(record["application"], checks, calculated_at=now)
+                result = revolving_options(record["application"], checks, calculated_at=now, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 record["recommendation"] = {**result, "recommended_product_id": "revolving_credit_line" if result["options"] else None, "candidates": []}
                 return
             if record["application"]["need"].get("purpose") == "refinancing":
                 from credit_engine.refinancing import refinancing_options
-                result = refinancing_options(record["application"], checks, calculated_at=now)
+                result = refinancing_options(record["application"], checks, calculated_at=now, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 record["recommendation"] = {**result, "recommended_product_id": "refinancing" if result["options"] else None, "candidates": []}
                 return
-            record["recommendation"] = recommend_financing(record["application"], checks, calculated_at=now).to_dict()
+            record["recommendation"] = recommend_financing(record["application"], checks, calculated_at=now, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2").to_dict()
             event(record, "recommendations_calculated", now, status=record["recommendation"]["status"],
                   recommended_product_id=record["recommendation"]["recommended_product_id"])
         return self.change(application_id, version, select_mechanism)
@@ -315,7 +356,12 @@ class CreditProcess:
         if stage == "final":
             set_state(record, "under_review", "external_checks", "wait", "Выполняются проверки", now)
             event(record, "review_started", now, retry=retry)
-        result = calculator(record["application"], record["checks"], calculated_at=now, stage=stage).to_dict()
+        result = calculator(record["application"], record["checks"], calculated_at=now, stage=stage, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2").to_dict()
+        from .decision_trace import decision_trace
+        result["decision_trace"] = decision_trace(record["application"], record["checks"], result,
+            calculated_at=now, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
+        if result.get("assessment"):
+            attach_demo_penalties(result["assessment"]["offers"])
         record.update(result=result, readiness=None)
         assessment = result["assessment"]
         record["state"].update(latest_assessment_id=assessment["assessment_id"] if assessment else None, selected_offer_id=None)
@@ -394,6 +440,8 @@ class CreditProcess:
 
     def fulfill(self, application_id, version, offer_id, code):
         def complete_condition(record, now):
+            if record["state"]["status"] not in {"conditions_pending", "ready_to_sign"}:
+                raise ProcessError("condition_not_allowed", "На этом этапе менять условия заявки нельзя.")
             self._selected(record, offer_id)
             readiness = self._readiness(record, now)
             if readiness["status"] not in ("conditions_pending", "ready_to_sign"):
@@ -411,7 +459,7 @@ class CreditProcess:
     def sign(self, application_id, version, offer_id):
         def sign_and_complete(record, now):
             self._selected(record, offer_id)
-            if record["completion"] is not None:
+            if record["completion"] is not None or record["state"]["status"] in {"cancelled", "declined", "out_of_policy"}:
                 return
             readiness = self._readiness(record, now)
             if readiness["status"] != "ready_to_sign":
@@ -438,6 +486,9 @@ class CreditProcess:
             record["completion"] = {"operation_id": str(uuid4()), "offer_id": offer_id, "amount": offer["amount"],
                                     "product_id": offer["product_id"], "completed_at": now.isoformat(), "mode": "simulated",
                                     "type": "limit_opening" if overdraft or revolving else "disbursement"}
+            terms = signed_penalty_terms(offer)
+            if terms:
+                record["completion"]["penalty_terms"] = terms
             if revolving:
                 from credit_engine.revolving import local_date, add_months
                 opened = local_date(now)
@@ -462,6 +513,8 @@ class CreditProcess:
         def cancel_application(record, now):
             if record["signature"] is not None or record["state"]["status"] == "cancelled":
                 raise ProcessError("cancellation_not_allowed", "Заявку уже нельзя отменить.")
+            if record["state"]["status"] not in EDITABLE_STATES | {"submitted", "under_review"}:
+                raise ProcessError("cancellation_not_allowed", "Рассмотрение уже завершено. Итоговую заявку нельзя отменить.")
             set_state(record, "cancelled", "completion", "none", "Заявка отменена", now)
             event(record, "application_cancelled", now)
         return self.change(application_id, version, cancel_application)

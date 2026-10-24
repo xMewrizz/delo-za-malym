@@ -1,14 +1,17 @@
-import { Check, Clock3, FileCheck2, ShieldCheck } from "lucide-react";
+import { PenaltyTermsNote } from "@/shared/ui/penalty-terms-note";
+import { ArrowRight, Check, Clock3, FileCheck2, ShieldCheck } from "lucide-react";
+import { Link } from "react-router";
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { ConfirmAction } from "@/shared/ui/confirm-action";
 import type { ApplicationView, Offer } from "../api/applications";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
+import { completionLifecycle } from "../model/completion-lifecycle";
 
 import { InvestmentTerms } from "./investment-terms";
 import { RefinancingEffect } from "./refinancing-comparison";
-import { CreditLinePanel, RevolvingTerms } from "@/features/credit-line/credit-line-panel";
+import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 
 function OfferCard({
   offer,
@@ -70,6 +73,7 @@ function OfferCard({
           </dd>
         </div>
       </dl>
+      <PenaltyTermsNote value={offer.penalty_terms} />
       {offer.total_repayment && (
         <p className="mt-4 text-xs text-muted-foreground">
           Всего к возврату:{" "}
@@ -107,11 +111,13 @@ function conditionCode(value: unknown): string | null {
 
 export function OfferResults({
   view,
+  onNewSelection,
   busy,
   onSelect,
   onSign,
   onComplete,
 }: {
+  onNewSelection?: () => void;
   view: ApplicationView;
   busy: boolean;
   onSelect: (assessmentId: string, offerId: string) => void;
@@ -126,6 +132,28 @@ export function OfferResults({
   );
   const pending = view.readiness?.pending_conditions || [];
 
+  if (view.completion) {
+    const { replacementId, closed } = completionLifecycle(view.completion);
+    return <Card>
+      <CardHeader>
+        <p className="section-kicker">{closed ? "КРЕДИТ ЗАКРЫТ" : "ОФОРМЛЕНИЕ ЗАВЕРШЕНО"}</p>
+        <h2 className="flex items-center gap-3 text-2xl font-semibold"><Check className="shrink-0 text-primary" />{replacementId ? "Кредит погашен рефинансированием" : closed ? "Кредит погашен" : view.completion.product_id === "refinancing" ? "Рефинансирование завершено" : view.state.status === "limit_opened" ? "Лимит открыт" : "Кредит выдан"}</h2>
+        <p className="text-sm text-muted-foreground">{replacementId ? "По этому договору будущих платежей нет. Условия и график нового кредита доступны в заявке на рефинансирование." : closed ? "Долг погашен полностью. Условия и история заявки сохранены." : "Заявка сохранена в истории. Текущий долг, платежи и операции — в разделе «Моё финансирование»."}</p>
+      </CardHeader>
+      <CardContent className="space-y-5">
+        <div>{closed && <p className="mb-2 text-xs text-muted-foreground">Первоначальная сумма кредита</p>}<p className="text-2xl font-semibold">{formatMoney(view.completion.amount || "0")}</p></div>
+        {!closed && <p className="text-sm text-muted-foreground">{view.completion.product_id === "refinancing" ? "Деньги направлены на погашение выбранных кредитов. Остаток расчётного счёта не увеличился." : view.completion.type === "limit_opening" ? "Открытие лимита не увеличивает остаток на счёте. По кредитной линии деньги зачисляются после выборки." : "Деньги зачислены на расчётный счёт. Остаток счёта увеличился, одновременно возник кредитный долг."}</p>}
+        <div className="flex flex-wrap gap-3">
+          {replacementId && <Button asChild><Link to={`/cabinet?mode=applications&application=${encodeURIComponent(replacementId)}`}>Открыть новый кредит<ArrowRight size={16}/></Link></Button>}
+          <Button asChild variant={replacementId ? "outline" : "default"}><Link to="/cabinet?mode=portfolio">Моё финансирование{!replacementId && <ArrowRight size={16}/>}</Link></Button>
+          {!closed && <Button asChild variant="outline"><Link to={`/cabinet?mode=calendar&product=app:${view.application.application_id}`}>Актуальный график</Link></Button>}
+        </div>
+        {selected && <details><summary className="cursor-pointer py-3 text-sm text-primary">Условия при оформлении</summary><p className="mb-3 text-xs text-muted-foreground">{closed ? "Исходные условия закрытого кредита. Будущих платежей по этому договору нет." : "Снимок исходного предложения. Досрочные платежи и новый график доступны в управлении продуктом."}</p><OfferCard offer={selected} final selected busy={false} canSelect={false} onSelect={() => undefined}/></details>}
+      </CardContent>
+    </Card>;
+  }
+  if (view.state.status === "cancelled") return <Card><CardHeader><p className="section-kicker">ЗАЯВКА ЗАКРЫТА</p><h2 className="text-2xl font-semibold">Вы отменили заявку</h2><p className="text-sm text-muted-foreground">Её условия и история сохранены. Для новой задачи начните отдельный подбор.</p></CardHeader><CardContent>{onNewSelection ? <Button variant="outline" disabled={busy} onClick={onNewSelection}>Новый подбор<ArrowRight size={16}/></Button> : <Button asChild variant="outline"><Link to="/cabinet?mode=applications">Все заявки<ArrowRight size={16}/></Link></Button>}</CardContent></Card>;
+
   return (
     <Card className="gap-0 border border-border bg-card/70">
       <CardHeader className="pb-5">
@@ -137,14 +165,14 @@ export function OfferResults({
             <p className="text-xs font-bold uppercase tracking-widest text-primary">
               Результат
             </p>
-            <h3 className="text-xl font-extrabold tracking-tight">
-              Предложения и оформление
+            <h3 className="text-xl font-semibold tracking-tight">
+              {["declined", "out_of_policy"].includes(view.state.status) ? "Решение по заявке" : "Предложения и оформление"}
             </h3>
           </div>
         </div>
       </CardHeader>
       <CardContent className="space-y-5">
-        {view.result && (
+        {view.result && !assessment && (
           <p className="text-xs text-muted-foreground">
             {(
               {
@@ -201,12 +229,11 @@ export function OfferResults({
             ))}
             {assessment.offers.length === 0 && (
               <p className="text-sm text-muted-foreground">
-                Предложений пока нет. Следующее действие:{" "}
-                {view.state.next_action.label}.
+                {["declined", "out_of_policy"].includes(view.state.status) ? "Рассмотрение завершено. Условия и решение этой заявки больше не меняются. Для другой задачи можно начать новый подбор." : `Предложений пока нет. ${view.state.next_action.label}.`}
               </p>
             )}
             <div className="grid gap-3">
-              {assessment.offers.map((offer) => (
+              {(selected ? [selected] : assessment.offers).map((offer) => (
                 <OfferCard
                   key={offer.offer_id}
                   offer={offer}
@@ -224,6 +251,7 @@ export function OfferResults({
                 />
               ))}
             </div>
+            {selected && assessment.offers.length > 1 && <details><summary className="cursor-pointer py-3 text-sm text-primary">Другие предложения · {assessment.offers.length - 1}</summary><div className="grid gap-3">{assessment.offers.filter(offer => offer.offer_id !== selectedId).map(offer => <OfferCard key={offer.offer_id} offer={offer} final={final} selected={false} busy={busy} canSelect={["offers_ready", "conditions_pending", "ready_to_sign"].includes(view.state.status)} onSelect={() => onSelect(assessment.assessment_id, offer.offer_id)} />)}</div></details>}
           </>
         )}
         {selected && pending.length > 0 && (
@@ -238,7 +266,7 @@ export function OfferResults({
                       key={code + index}
                       label="Подтвердить поручительство"
                       title="Выполнить условие?"
-                      description="В демонстрационном процессе это действие отметит условие выполненным. Проверьте выбранное предложение перед продолжением."
+                      description="Подтвердите поручительство по выбранному предложению. Операция в демо-кабинете."
                       confirmLabel="Подтвердить"
                       disabled={busy}
                       onConfirm={() => onComplete(code, selected.offer_id)}
@@ -255,77 +283,14 @@ export function OfferResults({
               <ShieldCheck className="size-5 text-success" />
               Предложение готово к подписанию
             </p>
-            <p className="mt-2 text-xs text-muted-foreground">
-              Подписание и выдача в этом проекте моделируются.
-            </p>
             <ConfirmAction
               label="Подписать и завершить"
               title="Подписать предложение?"
-              description="Демонстрационное оформление выбранного предложения будет завершено и сохранено. Действие запускается только после вашего подтверждения."
+              description="Подтвердите выбранные условия. После оформления продукт появится в разделе «Моё финансирование». Операция в демо-кабинете."
               confirmLabel="Подписать"
               disabled={busy}
               onConfirm={() => onSign(selected.offer_id)}
             />
-          </div>
-        )}
-        {view.completion && (
-          <div className="rounded-2xl border border-success/30 bg-success/10 p-5">
-            <p className="flex items-center gap-2 text-lg font-extrabold">
-              <Check className="size-5 text-success" />
-              {view.completion.refinanced_by ? "Кредит погашен рефинансированием" : view.completion.product_id === "refinancing" ? "Рефинансирование завершено" : view.state.status === "limit_opened"
-                ? "Лимит открыт"
-                : "Кредит выдан"}
-            </p>
-            <p className="mt-2 text-sm text-muted-foreground">
-              {view.completion.amount
-                ? formatMoney(view.completion.amount) + " · "
-                : ""}
-              Операция выполнена в демонстрационном режиме.
-            </p>
-            {view.completion.product_id === "refinancing" && <p className="mt-3 text-sm">Выбранные кредиты погашены. В календаре и следующих заявках учитывается новый кредит. Дополнительные деньги на счёт не зачислялись.</p>}
-            {view.completion.product_id === "revolving_credit_line" && <div className="mt-4"><p className="mb-4 text-sm">Лимит открыт. Получайте деньги частями и возвращайте их через управление линией. Доступно также в «Моём финансировании».</p><CreditLinePanel applicationId={view.application.application_id} /></div>}
-            {typeof view.completion.refinanced_by === "string" && <a className="mt-3 block font-semibold text-primary underline" href={`/cabinet?mode=applications&application=${encodeURIComponent(view.completion.refinanced_by)}`}>Открыть заменивший кредит</a>}
-            {view.completion.schedule && (
-              <details className="mt-4">
-                <summary className="cursor-pointer text-sm font-semibold text-primary">
-                  {view.completion.refinanced_by ? "Прежний график — будущие платежи заменены новым кредитом" : "Посмотреть график платежей"}
-                </summary>
-                <div className="mt-3 max-h-72 overflow-auto rounded-xl bg-background">
-                  <table aria-label="График погашения выбранного кредита" className="w-full text-left text-xs">
-                    <thead>
-                      <tr className="border-b border-border">
-                        <th className="p-3">Дата</th>
-                        <th className="p-3">Платёж</th>
-                        <th className="p-3">Остаток</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {view.completion.schedule.map((row, index) => (
-                        <tr key={index} className="border-b border-border/70">
-                          <td className="p-3">
-                            {typeof row.date === "string"
-                              ? new Date(
-                                  row.date + "T12:00:00",
-                                ).toLocaleDateString("ru-RU")
-                              : `Месяц ${String(row.month_number || index + 1)}`}
-                          </td>
-                          <td className="p-3">
-                            {typeof row.total_payment === "string"
-                              ? formatMoney(row.total_payment)
-                              : "—"}
-                          </td>
-                          <td className="p-3">
-                            {typeof row.closing_balance === "string"
-                              ? formatMoney(row.closing_balance)
-                              : "—"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              </details>
-            )}
           </div>
         )}
         {view.state.status === "check_retry_pending" && (

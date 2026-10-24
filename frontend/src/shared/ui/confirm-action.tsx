@@ -25,16 +25,16 @@ export function ConfirmAction({
           {label}
         </Button>
       </AlertDialog.Trigger>
-      <AlertDialog.Portal>
-        <AlertDialog.Overlay className="fixed inset-0 z-50 bg-foreground/45 backdrop-blur-sm" />
-        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-50 w-[min(92vw,440px)] -translate-x-1/2 -translate-y-1/2 rounded-[28px] border border-border bg-background p-7 shadow-2xl">
+      <AlertDialog.Portal container={typeof document === "undefined" ? undefined : document.querySelector<HTMLElement>(".cabinet-shell")}>
+        <AlertDialog.Overlay className="fixed inset-0 z-[80] bg-black/60 backdrop-blur-sm" />
+        <AlertDialog.Content className="fixed top-1/2 left-1/2 z-[81] max-h-[86dvh] w-[min(92vw,460px)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-(--radius-panel) sm:rounded-(--radius-dialog) border border-border bg-card p-6 text-foreground shadow-2xl sm:p-7">
           <AlertDialog.Title className="text-xl font-bold tracking-tight">
             {title}
           </AlertDialog.Title>
           <AlertDialog.Description className="mt-3 text-sm leading-relaxed text-muted-foreground">
             {description}
           </AlertDialog.Description>
-          <div className="mt-7 flex flex-wrap justify-end gap-3">
+          <div className="mt-6 flex flex-wrap justify-end gap-3">
             <AlertDialog.Cancel asChild>
               <Button variant="outline">Вернуться</Button>
             </AlertDialog.Cancel>

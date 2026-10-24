@@ -1,0 +1,49 @@
+.penalty-overlay { position:fixed; inset:0; z-index:60; background:#0009; backdrop-filter:blur(6px); }
+.penalty-dialog { position:fixed; top:50%; left:50%; transform:translate(-50%,-50%); z-index:61; width:min(94vw,760px); max-height:90dvh; display:flex; flex-direction:column; border:1px solid var(--border); border-radius:24px; background:var(--card); color:var(--foreground); box-shadow:0 30px 100px #0004; overflow:hidden; }
+.penalty-dialog>header { display:flex; justify-content:space-between; align-items:flex-start; gap:20px; padding:27px 30px 23px; border-bottom:1px solid var(--border); }
+.penalty-dialog>header>div>p:first-child { font-size:9px; letter-spacing:.12em; color:var(--primary); }
+.penalty-dialog>header h2 { margin-top:11px; font-size:28px; line-height:1.2; font-weight:550; letter-spacing:-.04em; }
+.penalty-dialog>header>div>p:last-child { margin-top:12px; max-width:520px; font-size:12px; line-height:1.8; color:var(--muted-foreground); }
+.penalty-dialog-body { min-height:0; overflow-y:auto; overscroll-behavior:contain; scrollbar-width:thin; scrollbar-color:var(--border) transparent; padding:26px 30px 30px; }
+.penalty-form { display:grid; gap:22px; font-size:12px; line-height:1.8; }
+.penalty-step-title { display:flex; align-items:center; gap:12px; }.penalty-step-title>span { font-family:var(--app-font-mono); color:var(--primary); font-size:10px; }.penalty-step-title h3 { font-size:15px; font-weight:550; }
+.penalty-period { display:grid; grid-template-columns:1fr 1fr; gap:18px; }.penalty-period input { min-width:0; }
+.penalty-product-list { min-width:0; padding:0; border:1px solid var(--border); border-radius:15px; overflow:hidden; }
+.penalty-selection-actions { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:8px 17px; background:var(--background); font-size:10px; color:var(--muted-foreground); }
+.penalty-selection-actions button { color:var(--primary); min-height:32px; cursor:pointer; }
+.penalty-product-option { display:flex; align-items:center; gap:13px; padding:18px; cursor:pointer; }.penalty-product-option+.penalty-product-option { border-top:1px solid var(--border); }.penalty-product-option:has(input:checked) { background:var(--accent); }
+.penalty-product-option input { width:17px; height:17px; accent-color:var(--primary); flex-shrink:0; }.penalty-product-option>span { flex:1; min-width:0; }.penalty-product-option strong { display:block; font-size:12px; font-weight:550; line-height:1.6; }.penalty-product-option small { display:block; margin-top:5px; color:var(--muted-foreground); font-size:10px; }.penalty-product-option>b { font-size:12px; font-weight:550; text-align:right; font-variant-numeric:tabular-nums; }
+.penalty-no-payments { display:flex; gap:13px; padding:18px; border:1px dashed var(--border); border-radius:14px; color:var(--muted-foreground); }.penalty-no-payments>svg { color:var(--primary); flex-shrink:0; margin-top:3px; }
+.penalty-individual-rates>summary { cursor:pointer; color:var(--primary); min-height:36px; padding-block:5px; }.penalty-individual-rates>div { display:grid; gap:18px; margin-top:18px; }
+.penalty-assumption,.penalty-formula { color:var(--muted-foreground); font-size:11px; line-height:1.9; }.penalty-form>[data-slot=button] { justify-self:start; }
+.penalty-result { display:grid; gap:18px; padding:25px; border:1px solid var(--border); border-radius:18px; background:var(--background); }.penalty-result>p:first-child { font-size:9px; color:var(--muted-foreground); letter-spacing:.08em; }.penalty-result h3 { font-size:18px; font-weight:550; margin-top:-7px; }.penalty-result-total { font-size:40px; font-weight:550; line-height:1.3; letter-spacing:-.045em; color:var(--primary); overflow-wrap:anywhere; }
+.penalty-result dl { display:grid; gap:9px; }.penalty-result dl>div { display:flex; justify-content:space-between; align-items:baseline; gap:20px; font-size:12px; }.penalty-result dt { color:var(--muted-foreground); }.penalty-result dd { text-align:right; }
+.penalty-result-products details { border-top:1px solid var(--border); }.penalty-result-products summary { display:flex; align-items:center; justify-content:space-between; gap:20px; padding-block:15px; min-height:44px; font-size:12px; cursor:pointer; list-style:none; }.penalty-result-products summary::-webkit-details-marker { display:none; }.penalty-result-products small { display:block; color:var(--muted-foreground); font-size:10px; margin-top:5px; }.penalty-calculation-rows>div { display:flex; justify-content:space-between; gap:20px; padding:12px; margin-bottom:8px; background:var(--card); border-radius:8px; font-size:11px; }
+.penalty-dialog summary:focus-visible,.penalty-selection-actions button:focus-visible { outline:2px solid var(--ring); outline-offset:3px; }
+@media(max-width:560px) { .penalty-dialog { top:auto; bottom:0; width:100%; max-height:94dvh; transform:translateX(-50%); border-radius:22px 22px 0 0; }.penalty-dialog>header { padding:23px 20px; }.penalty-dialog>header h2 { font-size:24px; }.penalty-dialog-body { padding:24px 20px; }.penalty-period { grid-template-columns:1fr; gap:18px; }.penalty-product-option { padding:15px; flex-wrap:wrap; }.penalty-product-option>b { margin-left:30px; }.penalty-result { padding:20px; }.penalty-result-total { font-size:32px; }.penalty-result-products summary { flex-wrap:wrap; gap:8px; }.penalty-result-products summary>strong { margin-left:auto; } }
+
+.penalty-contract-rates{display:grid;gap:10px}.penalty-contract-rates>div{display:flex;align-items:center;justify-content:space-between;gap:20px;padding:16px;border:1px solid var(--border);border-radius:12px;background:var(--background);font-size:13px}.penalty-contract-rates strong{font-weight:550}.penalty-contract-rates small{display:block;color:var(--muted-foreground);font-size:12px;line-height:1.7;margin-top:5px}.penalty-contract-rates b{color:var(--primary);white-space:nowrap;font-weight:550}.penalty-custom-toggle{display:flex;align-items:center;gap:10px;font-size:13px;cursor:pointer;min-height:40px}.penalty-custom-toggle input{width:18px;height:18px;accent-color:var(--primary)}@media(max-width:560px){.penalty-contract-rates>div{flex-wrap:wrap}.penalty-contract-rates b{margin-left:auto}}
+
+.penalty-no-payments { flex-wrap: wrap; }.penalty-no-payments>p { flex: 1; min-width: 160px; }.penalty-no-payments>[data-slot=button] { margin-left: 29px; white-space: normal; height: auto; text-align: left; }
+
+.penalty-result { scroll-margin-block: 18px; }.penalty-result:focus-visible { outline: 2px solid var(--ring); outline-offset: 3px; }
+
+.penalty-dialog>header h2 { margin-top: 0; }
+.penalty-result>p:first-child { font-size: 12px; letter-spacing: 0; }
+.penalty-result dl { grid-template-columns: repeat(2,minmax(0,1fr)); gap: 12px; }
+.penalty-result dl>div { display: grid; gap: 8px; padding: 15px; border: 1px solid var(--border); border-radius: 12px; background: var(--card); }
+.penalty-result dl>div:last-child { background: var(--accent); border-color: transparent; }
+.penalty-result dd { text-align: left; font-size: 19px; font-weight: 550; overflow-wrap: anywhere; }
+.penalty-result-products summary>span { flex: 1; min-width: 0; }
+.penalty-result-products summary>strong { white-space: nowrap; }
+.penalty-result-products summary>svg { flex-shrink: 0; color: var(--muted-foreground); transition: transform .15s; }
+.penalty-result-products details[open] summary>svg,.penalty-method[open]>summary>svg { transform: rotate(180deg); }
+.penalty-calculation-rows>p { color: var(--muted-foreground); font-size: 10px; padding: 0 12px 12px; }
+.penalty-method { border-top: 1px solid var(--border); }
+.penalty-method>summary { display: flex; justify-content: space-between; gap: 12px; align-items: center; min-height: 44px; color: var(--primary); cursor: pointer; list-style: none; }
+.penalty-method>summary::-webkit-details-marker { display: none; }
+.penalty-method>div { color: var(--muted-foreground); font-size: 11px; line-height: 1.8; display: grid; gap: 8px; padding-bottom: 10px; }
+.penalty-result-actions { display: flex; gap: 10px; justify-content: space-between; }
+.penalty-result-actions [data-slot=button] { min-height: 44px; font-size: 12px; }
+@media(max-width:560px) { .penalty-result { gap: 16px; padding: 18px; }.penalty-result dl { gap: 8px; }.penalty-result dl>div { padding: 11px; }.penalty-result dt { font-size: 10px; }.penalty-result dd { font-size: 16px; }.penalty-result-products summary { display: grid; grid-template-columns: 1fr auto; gap: 7px 12px; }.penalty-result-products summary>span { grid-column: 1; }.penalty-result-products summary>strong { grid-column: 1; grid-row: 2; margin-left: 0; }.penalty-result-products summary>svg { grid-column: 2; grid-row: 1/span 2; }.penalty-result-actions [data-slot=button] { padding-inline: 12px; } }
+

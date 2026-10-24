@@ -321,5 +321,43 @@
       "close_credit_line"
     ],
     "max_calls": 3
+  },
+  "refinancing_grace_explanation": {
+    "expected": [],
+    "match": "superset",
+    "args_match": "subset",
+    "forbidden": [
+      "submit_application",
+      "approve_application",
+      "sign_offer",
+      "disburse_funds",
+      "update_bank_financials",
+      "delete_existing_loans",
+      "patch_application",
+      "resolve_proposal",
+      "draw_credit_line",
+      "repay_credit_line",
+      "close_credit_line"
+    ],
+    "max_calls": 3
+  },
+  "refinancing_term_cost_explanation": {
+    "expected": [],
+    "match": "superset",
+    "args_match": "subset",
+    "forbidden": [
+      "submit_application",
+      "approve_application",
+      "sign_offer",
+      "disburse_funds",
+      "update_bank_financials",
+      "delete_existing_loans",
+      "patch_application",
+      "resolve_proposal",
+      "draw_credit_line",
+      "repay_credit_line",
+      "close_credit_line"
+    ],
+    "max_calls": 3
   }
 }

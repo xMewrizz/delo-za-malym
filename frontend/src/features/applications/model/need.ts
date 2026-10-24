@@ -1,12 +1,14 @@
 import type { ApplicationView } from "../api/applications";
 
 export type NeedDraft = {
+  entryTask?: string;
   purpose: string;
   preferredProduct: string;
   requestedAmount: string;
   termMonths: string;
   financingPattern: string;
   minimumAmount: string;
+  amountFlexibility?: string;
   ownFunds: string;
   neededBy: string;
   recurring: string;
@@ -30,6 +32,7 @@ export function mergeNeedDraft(
   if (!base || typeof base !== "object" || !draft || typeof draft !== "object")
     return result;
   for (const key of Object.keys(result) as (keyof NeedDraft)[]) {
+    if (key === "entryTask" && ["purpose", "preferredProduct", "financingPattern"].some(field => current[field as keyof NeedDraft] !== (base as Record<string, unknown>)[field] && current[field as keyof NeedDraft] !== (draft as Record<string, unknown>)[field])) continue;
     const saved = (draft as Record<string, unknown>)[key];
     if (
       typeof saved === "string" &&
@@ -43,12 +46,14 @@ export function mergeNeedDraft(
 export function draftFromApplication(view: ApplicationView): NeedDraft {
   const need = view.application.need;
   return {
+    entryTask: undefined,
     purpose: need.purpose || "",
     preferredProduct: need.preferred_product || "",
     requestedAmount: need.requested_amount || "",
     termMonths: need.term_months?.toString() || "",
     financingPattern: need.financing_pattern || "",
     minimumAmount: need.minimum_acceptable_amount || "",
+    amountFlexibility: need.minimum_acceptable_amount && need.requested_amount ? Number(need.minimum_acceptable_amount) < Number(need.requested_amount) ? "flexible" : "exact" : "",
     ownFunds: need.own_funds || "",
     neededBy: need.needed_by || "",
     recurring: need.recurring == null ? "" : String(need.recurring),
@@ -83,6 +88,17 @@ export class NeedValidationError extends Error {
   }
 }
 
+export function validateAmountChoice(draft: NeedDraft) {
+  if (draft.amountFlexibility !== "exact" && draft.amountFlexibility !== "flexible") throw new NeedValidationError("amountFlexibility", "Выберите, нужна ли вся сумма или подойдёт меньшая.");
+  if (draft.amountFlexibility === "flexible") {
+    let minimum: string | null;
+    try { minimum = normalizeMoneyInput(draft.minimumAmount); }
+    catch (cause) { throw new NeedValidationError("minimumAmount", (cause as Error).message); }
+    if (!minimum) throw new NeedValidationError("minimumAmount", "Укажите минимальную сумму, с которой сможете решить задачу.");
+    if (Number(minimum) > Number(normalizeMoneyInput(draft.requestedAmount))) throw new NeedValidationError("minimumAmount", "Минимальная сумма не может превышать нужную сумму.");
+  }
+}
+
 export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
   const term = draft.termMonths.trim();
   if (term && (!/^\d+$/.test(term) || Number(term) < 1 || Number(term) > 120)) {
@@ -101,6 +117,9 @@ export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
     if (!draft.ownFunds.trim()) throw new NeedValidationError("ownFunds", "Укажите собственный взнос.");
     if (Number(money("ownFunds", true)) >= Number(projectCost)) throw new NeedValidationError("ownFunds", "Собственный взнос должен быть меньше стоимости проекта.");
   }
+  if (!investment && draft.amountFlexibility !== "exact" && draft.requestedAmount.trim() && draft.minimumAmount.trim() && Number(money("minimumAmount")) > Number(money("requestedAmount"))) {
+    throw new NeedValidationError("minimumAmount", "Минимальная сумма не может превышать нужную сумму.");
+  }
   return {
     ...(investment ? { "need.project_cost": projectCost, "need.principal_grace_months": Number(draft.graceMonths || "0"), "need.preferred_product": "investment_loan" } : {}),
     "need.purpose": draft.purpose || null,
@@ -108,7 +127,7 @@ export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
     "need.requested_amount": investment ? null : money("requestedAmount"),
     "need.term_months": term ? Number(term) : null,
     "need.financing_pattern": draft.financingPattern || null,
-    "need.minimum_acceptable_amount": investment ? null : money("minimumAmount"),
+    "need.minimum_acceptable_amount": investment ? null : draft.amountFlexibility === "exact" ? money("requestedAmount") : money("minimumAmount"),
     "need.own_funds": money("ownFunds", true),
     "need.needed_by": draft.neededBy || null,
     "need.recurring":

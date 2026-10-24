@@ -1,0 +1,63 @@
+.need-wizard [hidden] { display:none !important; }
+.need-wizard { display:flex; flex-direction:column; gap:20px; }
+.need-step-fields { display:flex; flex-direction:column; gap:24px; min-width:0; }
+.need-wizard :is(input,button,[role=combobox]) { scroll-margin-block:100px; }
+.selection-workspace [data-slot=card]:has(.need-wizard) { overflow:visible; }
+.need-progress { display:flex; flex-wrap:wrap; gap:6px; padding:0; margin:0; list-style:none; }
+.need-progress li { min-width:0; }
+.need-progress button { min-height:36px; display:flex; gap:7px; align-items:center; padding:8px 12px; border-radius:999px; text-align:left; color:var(--muted-foreground); font-size:12px; }
+.need-progress button span { display:grid; place-items:center; width:12px; height:12px; flex-shrink:0; }
+.need-progress button i { width:5px; height:5px; background:currentColor; border-radius:50%; }
+.need-progress button[aria-current=step] { background:var(--accent); color:var(--accent-foreground); }
+.need-progress button:focus-visible { outline:2px solid var(--ring); outline-offset:3px; }
+.need-progress button:disabled { cursor:default; }
+.need-step-heading p { font-size:12px; color:var(--muted-foreground); margin-bottom:6px; }
+.need-step-heading h2 { font-size:clamp(21px,2vw,28px); font-weight:600; line-height:1.3; }
+.need-task-choices { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:10px; }
+.need-task-picker { display:grid; gap:16px; min-width:0; }
+.need-task-choices > button { min-height:64px; gap:12px; justify-content:flex-start; white-space:normal; text-align:left; padding:14px; border-color:var(--input); }
+.need-task-choices > button>span { flex:1; }
+.need-task-choices > button>svg { flex-shrink:0; color:var(--accent-foreground); }
+.need-task-choices > button[aria-pressed=true] { background:var(--accent); color:var(--foreground); border-color:var(--accent-foreground); }
+.need-task-followup { display:grid; gap:18px; padding:18px 20px; border-radius:14px; background:var(--background); border:1px solid var(--border); animation:need-reveal 180ms ease-out; }
+.need-task-followup>p { font-size:13px; line-height:1.6; color:var(--muted-foreground); max-width:70ch; }
+.need-task-followup .form-field { max-width:560px; }
+.need-selected-task { display:flex; align-items:center; gap:12px; justify-content:space-between; border-bottom:1px solid var(--border); padding-bottom:12px; font-size:13px; }
+.need-selected-task>span { color:var(--muted-foreground); }
+.need-selected-task>button { flex-shrink:0; }
+.need-step-content { animation:need-reveal 180ms ease-out; }
+.need-wizard :is(button,summary):focus-visible { outline:2px solid var(--accent-foreground); outline-offset:3px; }
+.need-task-picker:focus { outline:none; }
+.need-amount-choice{grid-column:1/-1;min-width:0;border:0;padding:0;margin-top:3px}
+.need-amount-choice>legend{font-size:14px;font-weight:550;line-height:1.5;padding:0}
+.need-amount-choice>p:first-of-type{font-size:12px;line-height:1.7;color:var(--muted-foreground);margin-top:7px}
+.need-amount-options{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+.need-amount-options>button{display:flex;align-items:flex-start;gap:12px;min-height:88px;padding:18px;text-align:left;border:1px solid var(--input);border-radius:14px;background:var(--background);cursor:pointer}
+.need-amount-options>button[aria-pressed=true]{background:var(--accent);border-color:var(--primary)}
+.need-amount-options strong{display:block;font-size:14px;font-weight:550;line-height:1.5}
+.need-amount-options small{display:block;margin-top:5px;font-size:12px;line-height:1.6;color:var(--muted-foreground)}
+.need-amount-radio{display:grid;place-items:center;flex-shrink:0;width:18px;height:18px;margin-top:2px;border:1px solid var(--input);border-radius:50%;color:var(--primary)}
+.need-amount-options>button[aria-pressed=true] .need-amount-radio{border-color:var(--primary);background:var(--card)}
+.need-amount-choice[aria-invalid=true]{outline:1px solid var(--destructive);outline-offset:8px;border-radius:10px}
+.need-amount-choice>p[role=alert]{margin-top:12px}
+.need-minimum-field{max-width:520px;margin-top:20px;animation:need-reveal .25s ease-out}
+.need-wizard .ui-disclosure{background:var(--background)}
+.need-wizard .ui-disclosure-content>.form-field{max-width:400px}
+@media(max-width:600px){.need-amount-options{grid-template-columns:1fr;gap:10px}.need-amount-options>button{min-height:76px;padding:15px}.need-amount-options strong{font-size:13px}}
+
+@keyframes need-reveal { from { opacity:0; transform:translateY(5px); } to { opacity:1; transform:translateY(0); } }
+
+.need-project-fields { display:grid; gap:20px; grid-column:1/-1; grid-template-columns:repeat(2,minmax(0,1fr)); }
+.need-project-fields > p { grid-column:1/-1; }
+.need-step-actions { position:sticky; bottom:0; z-index:1; display:flex; gap:12px; align-items:center; border-top:1px solid var(--border); padding:16px 0; background:var(--card); }
+.need-step-actions>button[type=submit] { margin-left:auto; }
+.need-wizard[data-step="0"] .need-step-actions { position:static; }
+.invoice-panel { border-top:1px solid var(--border); padding:12px 0; font-size:13px; }
+.invoice-panel > summary { display:flex; align-items:center; gap:8px; cursor:pointer; min-height:36px; color:var(--primary); font-weight:550; list-style:none; }
+.invoice-panel > summary::-webkit-details-marker { display:none; }
+.invoice-panel > summary::after { content:'+'; margin-left:auto; font-size:20px; }
+.invoice-panel[open] > summary::after { content:'−'; }
+.invoice-panel > summary:focus-visible { outline:2px solid var(--ring); outline-offset:3px; border-radius:6px; }
+.invoice-panel > summary span { color:var(--muted-foreground); }
+.invoice-import-content { padding:12px 0 4px; }
+@media(max-width:600px) { .need-task-choices { grid-template-columns:repeat(2,minmax(0,1fr)); } .need-task-choices>button { padding:12px; gap:8px; font-size:12px; } .need-task-choices>button>svg:first-child { width:16px; } .need-task-choices>button>svg:last-child:not(:first-child) { display:none; } .need-task-followup { padding:14px; } .need-progress { gap:4px; } .need-progress button { font-size:11px; padding:8px; gap:5px; } .need-project-fields { grid-template-columns:1fr; } .need-step-actions > button[type=submit] { flex:1; } .need-selected-task { align-items:flex-start; gap:6px; } .need-selected-task>span { padding-top:8px; } }

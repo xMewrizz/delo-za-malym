@@ -11,6 +11,77 @@ from backend.portfolio import include_scheduled_payments
 
 
 class PortfolioTests(unittest.TestCase):
+    def test_calendar_exposes_contract_interest_and_payment_components_without_mutating_debt(self):
+        issued = self.issue(self.create())
+        identifier = issued["application"]["application_id"]
+        before = self.client.get(f"/api/applications/{identifier}").json()
+        loan = self.client.get(f"/api/applications/{identifier}/loan").json()
+        calendar = self.client.get("/api/calendar").json()
+        account = next(item for item in calendar["accounts"] if item["application_id"] == identifier)
+        self.assertEqual(account["annual_rate_percent"], loan["annual_rate_percent"])
+        self.assertEqual(account["accrued_interest"], loan["accrued_interest"])
+        payment = next(item for item in calendar["events"] if item["application_id"] == identifier and item["kind"] == "loan_payment")
+        self.assertEqual(Decimal(payment["principal_amount"]) + Decimal(payment["interest_amount"]), Decimal(payment["amount"]))
+        self.assertEqual(self.client.get(f"/api/applications/{identifier}").json(), before)
+
+    def test_repeat_creates_a_draft_with_current_money_without_changing_the_original(self):
+        original = self.issue(self.create())
+        identifier = original["application"]["application_id"]
+        before = self.client.get("/api/profile").json()
+        result = self.client.post(f"/api/applications/{identifier}/repeat", json={})
+        self.assertEqual(result.status_code, 201, result.text)
+        repeated = result.json()
+        self.assertNotEqual(repeated["application"]["application_id"], identifier)
+        self.assertEqual(repeated["application"]["need"], original["application"]["need"])
+        self.assertEqual(repeated["application"]["financials"]["cash_balance"], before["financials"]["cash_balance"])
+        self.assertEqual(repeated["state"]["status"], "draft")
+        self.assertIsNone(repeated["completion"])
+        self.assertTrue(any(item["type"] == "application_repeated" for item in repeated["events"]))
+        self.assertEqual(self.client.get(f"/api/applications/{identifier}").json(), original)
+        self.assertEqual(self.client.get("/api/profile").json(), before)
+
+    def test_default_profile_and_legacy_draft_drop_only_the_seed_debt(self):
+        from copy import deepcopy
+        from backend import demo
+        self.assertEqual(self.client.get("/api/profile").json()["financials"]["existing_loans"], [])
+        issued = self.issue(self.create())
+        draft = self.create()
+        identifier = draft["application"]["application_id"]
+        sample, _ = demo.profile(self.now, include_sample_loan=True)
+        process = self.client.app.state.process
+        with process.store.connect(write=True) as connection:
+            record = process.store.get(connection, identifier)
+            for financials in (record["application"]["financials"], record["simulator"]["bank_financials"]):
+                financials["existing_loans"].insert(0, deepcopy(sample["financials"]["existing_loans"][0]))
+            record["simulator"]["known_loans"] = deepcopy(record["application"]["financials"]["existing_loans"])
+            record["application"]["product_details"] = {"overdraft": {
+                "start_date": "2026-10-22", "end_date": "2026-12-01", "opening_cash_balance": "800000.00",
+                "transactions": [{"transaction_id": "old-payment", "date": "2026-11-15", "direction": "outflow", "amount": "35000.00"},
+                    {"transaction_id": "manual-expense", "date": "2026-11-05", "direction": "outflow", "amount": "10000.00"}],
+                "existing_debt_payments": [{"loan_id": "existing-001", "transaction_id": "old-payment"}]}}
+            process.store.save(connection, record)
+        before = self.client.get("/api/profile").json()["financials"]["cash_balance"]
+        process.sync_portfolio()
+        migrated = self.client.get("/api/applications/" + identifier).json()
+        self.assertFalse(any(loan["loan_id"] == "existing-001" for loan in migrated["application"]["financials"]["existing_loans"]))
+        self.assertEqual(migrated["application"]["financials"]["existing_loans"][0]["application_id"], issued["application"]["application_id"])
+        plan = migrated["application"]["product_details"]["overdraft"]
+        self.assertFalse(any(row["transaction_id"] == "old-payment" for row in plan["transactions"]))
+        self.assertTrue(any(row["transaction_id"] == "manual-expense" for row in plan["transactions"]))
+        self.assertEqual(self.client.get("/api/profile").json()["financials"]["cash_balance"], before)
+        self.assertFalse(any(item["kind"] == "existing_loan_payment" for item in self.client.get("/api/calendar").json()["events"]))
+        process.sync_portfolio()
+        self.assertEqual(self.client.get("/api/applications/" + identifier).json(), migrated)
+
+    def test_issuance_and_schedule_use_the_same_moscow_day_after_utc_date_changes(self):
+        self.now = datetime.fromisoformat("2026-10-22T22:30:00+00:00")
+        first = self.issue(self.create())
+        calendar = self.client.get("/api/calendar").json()
+        received = next(event for event in calendar["events"] if event["application_id"] == first["application"]["application_id"] and event["kind"] == "loan_received")
+        self.assertEqual(received["date"], "2026-10-23")
+        self.assertEqual(calendar["today"], "2026-10-23")
+        self.assertEqual(first["completion"]["schedule"][0]["date"], "2026-11-23")
+
     def setUp(self):
         self.directory = TemporaryDirectory()
         self.path = Path(self.directory.name) / "portfolio.sqlite3"
@@ -59,7 +130,7 @@ class PortfolioTests(unittest.TestCase):
         self.assertEqual(Decimal(metrics["existing_monthly_debt_service"]), base_debt + Decimal(new_loans[0]["monthly_payment"]))
         calendar = self.client.get("/api/calendar").json()
         bank_payments = [item for item in calendar["events"] if item["kind"] == "existing_loan_payment"]
-        self.assertTrue(bank_payments)
+        self.assertEqual(bank_payments, [])
         self.assertTrue(all(item["loan_id"] in {loan["loan_id"] for loan in baseline["financials"]["existing_loans"]} for item in bank_payments))
         payments = [item for item in calendar["events"] if item["application_id"] == first["application"]["application_id"] and item["direction"] == "outflow"]
         self.assertEqual(len(payments), 12)
@@ -87,6 +158,63 @@ class PortfolioTests(unittest.TestCase):
             "offer_id": second["state"]["selected_offer_id"], "confirmed": True})
         self.assertEqual(response.status_code, 409)
         self.assertEqual(len(self.client.get("/api/calendar").json()["accounts"]), 1)
+
+    def test_equipment_then_second_credit_uses_post_grace_capacity_and_restores_both_loans(self):
+        second = self.create()
+        before = self.action(second, "explorations", product_id="working_capital_loan")
+        baseline_options = before["explorations"][-1]["result"]["options"]
+        baseline = next(offer for offer in baseline_options if offer["term_months"] == 12)
+        investment = self.client.post("/api/applications", json={"need": {
+            "purpose": "investment", "preferred_product": "investment_loan", "project_cost": "1000000.00",
+            "own_funds": "200000.00", "principal_grace_months": 3, "term_months": 36}})
+        self.assertEqual(investment.status_code, 201, investment.text)
+        first = self.issue(investment.json())
+        first_id = first["application"]["application_id"]
+        first_schedule = first["completion"]["schedule"]
+        self.assertEqual(len(first_schedule), 36)
+        self.assertTrue(all(row["principal_payment"] == "0.00" and row["total_payment"] == "12000.00" for row in first_schedule[:3]))
+        maximum = max(Decimal(row["total_payment"]) for row in first_schedule)
+
+        url = f"/api/applications/{second['application']['application_id']}"
+        stale = self.client.post(url + "/explorations", json={"base_application_version": before["application"]["application_version"], "product_id": "working_capital_loan"})
+        self.assertEqual(stale.status_code, 409)
+        second = self.client.get(url).json()
+        self.assertIsNone(second["result"])
+        self.assertIsNone(second["application"]["confirmation"])
+        loan = next(loan for loan in second["application"]["financials"]["existing_loans"] if loan.get("application_id") == first_id)
+        self.assertEqual(loan["product_id"], "investment_loan")
+        self.assertEqual(Decimal(loan["monthly_payment"]), maximum)
+        second = self.action(second, "explorations", product_id="working_capital_loan")
+        exploration = second["explorations"][-1]
+        options = exploration["result"]["options"]
+        self.assertIn(12, [offer["term_months"] for offer in options])
+        selected = next(offer for offer in options if offer["term_months"] == 18)
+        self.assertEqual(selected["amount"], "500000.00")
+        self.assertEqual(Decimal(selected["available_monthly_payment"]), Decimal(baseline["available_monthly_payment"]) - maximum)
+        self.assertNotEqual(Decimal(selected["available_monthly_payment"]), Decimal(baseline["available_monthly_payment"]) - Decimal("12000.00"))
+        second = self.action(second, "explorations/" + exploration["exploration_id"] + "/apply", option_id=selected["option_id"], confirmed=True)
+        second = self.ready(second)
+        offer_id = second["state"]["selected_offer_id"]
+        for condition in second["result"]["assessment"]["offers"][0]["conditions"]:
+            second = self.action(second, "conditions/" + condition["code"] + "/complete", offer_id=offer_id, confirmed=True)
+        second = self.action(second, "sign", offer_id=offer_id, confirmed=True)
+        second_id = second["application"]["application_id"]
+        self.assertEqual(second["completion"]["product_id"], "working_capital_loan")
+        self.assertEqual(second["application"]["need"]["term_months"], 18)
+
+        profile = self.client.get("/api/profile").json()
+        self.assertEqual(profile["financials"]["cash_balance"], "1600000.00")
+        own_loans = [loan for loan in profile["financials"]["existing_loans"] if loan.get("application_id")]
+        self.assertEqual({loan["application_id"] for loan in own_loans}, {first_id, second_id})
+        calendar = self.client.get("/api/calendar").json()
+        for record in (first, second):
+            payments = [event for event in calendar["events"] if event["application_id"] == record["application"]["application_id"] and event["direction"] == "outflow"]
+            expected = record["completion"]["schedule"]
+            self.assertEqual([(row["date"], row["amount"]) for row in payments], [(row["date"], row["total_payment"]) for row in expected])
+        self.client.__exit__(None, None, None)
+        self.client = TestClient(create_app(self.path, clock=lambda: self.now)).__enter__()
+        self.assertEqual(self.client.get("/api/profile").json(), profile)
+        self.assertEqual(self.client.get("/api/calendar").json(), calendar)
 
     def test_bank_schedule_added_to_cash_plan_once_and_client_cannot_erase_debt(self):
         first = self.issue(self.create())

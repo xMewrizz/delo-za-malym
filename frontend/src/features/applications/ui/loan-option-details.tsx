@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { Dialog } from "radix-ui";
+import { ArrowUpRight, CalendarDays, X } from "lucide-react";
 import { getErrorMessage } from "@/shared/api/client";
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
@@ -7,6 +9,7 @@ import { ConfirmAction } from "@/shared/ui/confirm-action";
 import type { ApplicationView, Offer } from "../api/applications";
 import { getLoanCashFlow } from "../api/cashflow";
 import { CashFlowChart } from "./cash-flow-chart";
+import "./offer-comparison.css";
 
 const dateLabel = (value: string) =>
   new Date(value + "T12:00:00").toLocaleDateString("ru-RU");
@@ -65,14 +68,18 @@ export function LoanOptionDetails({
         )
       : [];
   return (
-    <details
-      className="loan-calendar mt-4 border-t border-border pt-3"
-      onToggle={(event) => setOpen(event.currentTarget.open)}
-    >
-      <summary className="cursor-pointer text-xs font-bold text-primary">
-        Платежи по датам и остаток денег
-      </summary>
-      <div className="mt-3 space-y-4">
+    <Dialog.Root open={open} onOpenChange={(next) => { setOpen(next); if (next) setPage(0); }}>
+      <div className="loan-calendar">
+        <Dialog.Trigger asChild><Button type="button" variant="ghost" className="loan-calendar-trigger"><CalendarDays aria-hidden="true" /><span>Платежи по датам и остаток денег</span><ArrowUpRight aria-hidden="true" /></Button></Dialog.Trigger>
+      </div>
+      <Dialog.Portal container={typeof document === "undefined" ? undefined : document.querySelector<HTMLElement>(".cabinet-shell")}>
+        <Dialog.Overlay className="loan-calendar-overlay" />
+        <Dialog.Content className="loan-calendar-panel" aria-modal="true">
+          <div className="loan-calendar-heading">
+            <div><Dialog.Title>Платежи и остаток денег</Dialog.Title><Dialog.Description>{formatMoney(option.amount)}{option.term_months ? ` · ${option.term_months} мес.` : ""}{option.monthly_payment ? ` · ${formatMoney(option.monthly_payment)} в месяц` : ""}</Dialog.Description></div>
+            <Dialog.Close asChild><Button variant="ghost" className="loan-calendar-close" aria-label="Закрыть график платежей"><X aria-hidden="true" /></Button></Dialog.Close>
+          </div>
+      <div className="loan-calendar-scroll space-y-4" role="region" aria-label="График платежей и денежный план" tabIndex={0}>
         {!current && (
           <p className="text-xs text-muted-foreground">
             Данные изменились. Пересчитайте варианты для нового графика.
@@ -300,6 +307,8 @@ export function LoanOptionDetails({
           </>
         )}
       </div>
-    </details>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
   );
 }

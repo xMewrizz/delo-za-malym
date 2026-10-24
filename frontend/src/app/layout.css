@@ -6,6 +6,7 @@
 .app-navigation { display: flex; align-items: center; gap: clamp(19px, 2.5vw, 38px); }
 .app-navigation a { position: relative; padding: 10px 0; color: var(--muted-foreground); font-size: 14px; font-weight: 650; text-decoration: none; white-space: nowrap; transition: color var(--motion-duration); }
 .app-navigation a:hover,
+.app-navigation a[aria-current=page],
 .app-navigation a.active { color: var(--foreground); }
 .app-navigation a.active::after { content: ''; position: absolute; right: 0; bottom: 3px; left: 0; height: 2px; border-radius: 2px; background: var(--primary); }
 .app-header-action[data-slot="button"] { min-height: 48px; border-radius: 12px; background: var(--header-action); box-shadow: 0 8px 18px color-mix(in srgb, var(--header-action) 12%, transparent); color: var(--primary-foreground); font-size: 14px; }

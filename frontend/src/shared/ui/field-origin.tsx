@@ -25,10 +25,7 @@ export function FieldOrigin({ source }: { source: unknown }) {
           target.open = true;
           target.scrollIntoView({
             block: "nearest",
-            behavior: window.matchMedia?.("(prefers-reduced-motion: reduce)")
-              ?.matches
-              ? "auto"
-              : "smooth",
+            behavior: "smooth",
           });
         }
       }}

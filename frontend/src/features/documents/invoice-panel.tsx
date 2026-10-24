@@ -84,18 +84,19 @@ export function InvoicePanel({
   const error = upload.error || use.error;
   const busy = upload.isPending || use.isPending;
   if (view.application.need.preferred_product === "refinancing" && !readOnly) return null;
+  if (!editable && (!parsed.success || !parsed.data.length)) return null;
   return (
-    <section
-      className="invoice-panel rounded-2xl border border-border bg-card p-4"
+    <details
+      className="invoice-panel"
       aria-label="Счета поставщиков"
+      open={parsed.success && parsed.data.some(invoice => invoice.status === "extracted") ? true : undefined}
     >
+      <summary><FileUp className="size-4" aria-hidden="true" />{readOnly || !editable ? "Счёт поставщика" : "Заполнить из счёта PDF"}{parsed.success && parsed.data.length > 0 && <span>{parsed.data.length}</span>}</summary>
+      <div className="invoice-import-content">
       <div className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h3 className="text-sm font-bold">{readOnly ? "Счёт поставщика" : "Есть счёт на оплату?"}</h3>
-          {!readOnly && <p className="mt-2 max-w-xl text-sm text-muted-foreground">{view.application.need.preferred_product === "investment_loan" ? "Счёт на оборудование поможет заполнить стоимость проекта. Проверьте сумму; если в проект входят другие расходы, укажите полную стоимость вручную." : "Сумма и дата оплаты появятся в будущих расходах. Нехватку денег рассчитаем по банковскому остатку и другим операциям."}</p>}
-          <p className="mt-1 text-xs text-muted-foreground">
-            Необязательно · текстовый PDF, до 2 МБ и 8 страниц
-          </p>
+          {editable && <p className="text-sm text-muted-foreground">{view.application.need.preferred_product === "investment_loan" ? "Распознаем стоимость оборудования. Перед заполнением проверьте сумму." : "Распознаем сумму и дату платежа. Перед добавлением проверьте их."}</p>}
+          {editable && <p className="mt-1 text-xs text-muted-foreground">Текстовый PDF · до 2 МБ · до 8 страниц</p>}
         </div>
         {editable && (
           <label className="inline-flex cursor-pointer items-center gap-2 rounded-xl border border-border bg-background px-3 py-2 text-sm font-semibold has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-4 has-[:focus-visible]:outline-ring">
@@ -137,7 +138,8 @@ export function InvoicePanel({
             onUse={(values) => use.mutate({ invoice, values })}
           />
         ))}
-    </section>
+      </div>
+    </details>
   );
 }
 

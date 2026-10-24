@@ -1,7 +1,8 @@
 import { RefinancingWorkspace } from "@/features/applications/ui/refinancing-loans";
 import { useEffect, useRef, useState, type FormEvent, type ReactNode } from "react";
+import { Link } from "react-router";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ArrowUp, Plus, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, Plus, RefreshCw } from "lucide-react";
 import {
   applicationKeys,
   ExplorationPanel,
@@ -25,9 +26,13 @@ import {
   type ChatView,
 } from "../api/chat";
 import { chatKeys, chatQueries } from "../model/queries";
+import { conversationMessages } from "../model/conversation-messages";
 import { pendingProposal, projectApplication } from "../model/projection";
+import { useConversationScroll } from "../model/use-conversation-scroll";
+import { useLumaMotion } from "../model/use-luma-motion";
 import { ClarificationCard } from "./clarification-card";
 import { CollectedData } from "./collected-data";
+import { AssistantWorkspace, type WorkspaceSection } from "./assistant-workspace";
 
 export function AssistantPanel({
   applicationId,
@@ -35,7 +40,11 @@ export function AssistantPanel({
   actions,
   onRecordUpdated,
   renderDocuments,
+  onNewTask,
+  startingTask = false,
 }: {
+  onNewTask: () => void;
+  startingTask?: boolean;
   applicationId: string;
   record: ApplicationView;
   actions: ApplicationActions;
@@ -46,17 +55,21 @@ export function AssistantPanel({
   ) => ReactNode;
 }) {
   const [mobilePanel, setMobilePanel] = useState<"conversation" | "workspace">("conversation");
+  const motionRoot = useRef<HTMLDivElement>(null);
+  const [workspaceSection, setWorkspaceSection] = useState<WorkspaceSection>(record.explorations.length ? "offers" : "data");
+  const [resultNavigation, setResultNavigation] = useState<string | null>(null);
+  const offersPanel = useRef<HTMLDivElement>(null);
   const panelNavigation = useRef<HTMLDivElement>(null);
   const conversationHeading = useRef<HTMLHeadingElement>(null);
   const workspaceHeading = useRef<HTMLHeadingElement>(null);
   const previousPanel = useRef(mobilePanel);
   useEffect(() => {
-    if (previousPanel.current !== mobilePanel && window.matchMedia?.("(max-width: 900px)").matches) {
+    if (previousPanel.current !== mobilePanel && !resultNavigation && window.matchMedia?.("(max-width: 900px)").matches) {
       (mobilePanel === "conversation" ? conversationHeading : workspaceHeading).current?.focus({ preventScroll: true });
       panelNavigation.current?.scrollIntoView({ block: "start" });
     }
     previousPanel.current = mobilePanel;
-  }, [mobilePanel]);
+  }, [mobilePanel, resultNavigation]);
   function showPanel(panel: "conversation" | "workspace") {
     setMobilePanel(panel);
   }
@@ -69,8 +82,7 @@ export function AssistantPanel({
     `delo-message:${applicationId}`,
     "",
   );
-  const messageBox = useRef<HTMLTextAreaElement>(null),
-    log = useRef<HTMLDivElement>(null);
+  const messageBox = useRef<HTMLTextAreaElement>(null);
   const initialized = useRef(false),
     sendIdentity = useRef({ text: "", id: "" }),
     answerIdentity = useRef({ text: "", id: "" });
@@ -80,6 +92,7 @@ export function AssistantPanel({
     ...chatQueries.detail(chatId || ""),
     enabled: Boolean(chatId),
   });
+  useLumaMotion(motionRoot, chat.data?.chat.chat_id || null);
 
   function accept(view: ChatView) {
     queryClient.setQueryData(chatKeys.detail(view.chat.chat_id), view);
@@ -155,7 +168,14 @@ export function AssistantPanel({
         confirm,
       );
     },
-    onSuccess: accept,
+    onSuccess: (view, { confirm }) => {
+      accept(view);
+      if (confirm && view.record.explorations.length && !offersPanel.current?.closest(".assistant-layout")?.closest("[hidden]")) {
+        setWorkspaceSection("offers");
+        setMobilePanel("workspace");
+        setResultNavigation(view.chat.chat_id);
+      }
+    },
     onError: recover,
   });
   const answer = useMutation({
@@ -181,6 +201,13 @@ export function AssistantPanel({
     onError: recover,
   });
   const pending = pendingProposal(chat.data);
+  useEffect(() => {
+    if (!resultNavigation || resultNavigation !== chatId || pending || !offersPanel.current) return;
+    const panel = offersPanel.current;
+    panel.scrollTop = 0;
+    panel.focus({ preventScroll: true });
+    setResultNavigation(null);
+  }, [resultNavigation, chatId, pending]);
   const edit = useMutation({
     mutationFn: ({
       changes,
@@ -215,6 +242,7 @@ export function AssistantPanel({
     enabled: Boolean(chatId && pending && !pending.conflicts?.length),
   });
   const busy =
+    startingTask ||
     create.isPending ||
     send.isPending ||
     resolve.isPending ||
@@ -244,9 +272,13 @@ export function AssistantPanel({
     )
       ? send.variables
       : null;
-  useEffect(() => {
-    if (log.current) log.current.scrollTop = log.current.scrollHeight;
-  }, [chat.data?.chat.chat_version, send.isPending]);
+  const replying = send.isPending || answer.isPending;
+  const { log, unread, onScroll, jumpToLatest } = useConversationScroll(
+    chatId,
+    chat.data?.chat.messages.length || 0,
+    replying,
+    mobilePanel === "conversation",
+  );
   function submit(event: FormEvent) {
     event.preventDefault();
     const text = message.trim();
@@ -261,7 +293,7 @@ export function AssistantPanel({
     });
   }
   return (
-    <div className="assistant-layout" data-mobile-panel={mobilePanel}>
+    <div className="assistant-layout" ref={motionRoot} data-mobile-panel={mobilePanel}>
       <div className="assistant-mobile-navigation" ref={panelNavigation}>
         <div className="assistant-panel-switch" role="group" aria-label="Диалог и собранные данные">
           <Button variant={mobilePanel === "conversation" ? "default" : "outline"} aria-pressed={mobilePanel === "conversation"} onClick={() => showPanel("conversation")}>Диалог</Button>
@@ -272,7 +304,7 @@ export function AssistantPanel({
         <CardHeader className="pb-4">
           <div className="flex items-center justify-between gap-3">
             <div className="luma-conversation-heading">
-              <LumaAvatar size={44} active={send.isPending} />
+              <LumaAvatar size={44} active={replying} />
               <div><h2 ref={conversationHeading} tabIndex={-1}>Лума</h2><p>Ваш финансовый ИИ-ассистент</p></div>
             </div>
             <Button
@@ -281,8 +313,8 @@ export function AssistantPanel({
               className="assistant-icon-control"
               title="Новый диалог"
               aria-label="Новый диалог"
-              disabled={busy || !editable}
-              onClick={() => create.mutate()}
+              disabled={busy || startingTask}
+              onClick={() => editable ? create.mutate() : onNewTask()}
             >
               <Plus />
             </Button>
@@ -301,7 +333,16 @@ export function AssistantPanel({
               <Button
                 size="sm"
                 variant="ghost"
-                onClick={() => {
+                disabled={busy || list.isFetching || chat.isFetching}
+                onClick={async () => {
+                  if (create.isError && !chatId) {
+                    const refreshed = await list.refetch();
+                    if (refreshed.isSuccess) {
+                      if (!refreshed.data.length) create.mutate();
+                      else create.reset();
+                    }
+                    return;
+                  }
                   void chat.refetch();
                   void list.refetch();
                   create.reset();
@@ -338,12 +379,14 @@ export function AssistantPanel({
           )}
           <div
             ref={log}
+            onScroll={onScroll}
             className="assistant-messages"
             role="log"
+            tabIndex={0}
             aria-label="Переписка"
             aria-live="polite"
           >
-            {chat.isFetching && (
+            {chat.isPending && (
               <p className="text-xs text-muted-foreground">Загружаем диалог…</p>
             )}
             {!chat.data?.chat.messages.length && !outgoing && (
@@ -358,20 +401,28 @@ export function AssistantPanel({
                 <small>Предложения проверяете вы. Отправка заявки — после вашего подтверждения.</small>
               </div>
             )}
-            {chat.data?.chat.messages.map((item) => (
+            {conversationMessages(chat.data?.chat.messages ?? []).map(({ message: item, clarification }) => (
               <div
                 className={`assistant-message ${item.role === "user" ? "assistant-message-user" : ""}`}
                 key={item.message_id}
+                data-message-key={item.role === "user" ? `user:${item.request_id || item.message_id}` : `assistant:${item.message_id}`}
               >
                 <p className="luma-message-author">
                   {item.role !== "user" && <LumaMark size={16} />}
                   {item.role === "user" ? "Вы" : "Лума"}
                 </p>
-                <p className="whitespace-pre-wrap">{item.text}</p>
+                {clarification ? (
+                  <>
+                    <p className="whitespace-pre-wrap">{clarification.question}</p>
+                    <p className="luma-clarification-answer">{clarification.answer}</p>
+                  </>
+                ) : (
+                  <p className="whitespace-pre-wrap">{item.text}</p>
+                )}
               </div>
             ))}
             {outgoing && (
-              <div className="assistant-message assistant-message-user assistant-message-outgoing">
+              <div className="assistant-message assistant-message-user assistant-message-outgoing" data-message-key={`user:${outgoing.id}`}>
                 <p className="mb-1 text-xs font-bold opacity-60">Вы</p>
                 <p className="whitespace-pre-wrap">{outgoing.text}</p>
                 <p className="mt-2 text-xs opacity-75">
@@ -379,12 +430,26 @@ export function AssistantPanel({
                 </p>
               </div>
             )}
-            {send.isPending && (
+            {replying && (
               <div role="status" className="luma-thinking">
-                <LumaAvatar size={26} active />Лума разбирается в задаче…
+                <LumaAvatar size={26} active /><span>Лума разбирается в задаче</span><span className="luma-thinking-dots" aria-hidden="true"><i /><i /><i /></span>
               </div>
             )}
+            {chat.data?.clarification && editable && (
+              <ClarificationCard
+                key={chat.data.clarification.question_id}
+                card={chat.data.clarification}
+                busy={busy || userTurns >= limit}
+                onAnswer={(value) => answer.mutate(value)}
+                onFreeText={() => messageBox.current?.focus()}
+              />
+            )}
           </div>
+          {unread && (
+            <Button variant="outline" size="sm" onClick={jumpToLatest}>
+              <ArrowDown /> К новым сообщениям
+            </Button>
+          )}
           {sendError && send.variables && (
             <Button
               variant="outline"
@@ -399,17 +464,8 @@ export function AssistantPanel({
               Повторить запрос
             </Button>
           )}
-          {chat.data?.clarification && editable && (
-            <ClarificationCard
-              key={chat.data.clarification.question_id}
-              card={chat.data.clarification}
-              busy={busy || userTurns >= limit}
-              onAnswer={(value) => answer.mutate(value)}
-              onFreeText={() => messageBox.current?.focus()}
-            />
-          )}
           {pending && !chat.data?.clarification && (
-            <Button className="assistant-mobile-review" variant="outline" onClick={() => showPanel("workspace")}>Проверить собранные данные</Button>
+            <Button className="assistant-mobile-review" variant="outline" onClick={() => { setWorkspaceSection("data"); showPanel("workspace"); }}>Проверить собранные данные</Button>
           )}
           {userTurns >= limit && (
             <p className="text-sm text-muted-foreground">
@@ -417,7 +473,10 @@ export function AssistantPanel({
               данные сохранятся.
             </p>
           )}
-          <form onSubmit={submit} className="flex items-end gap-2">
+          {!editable && <div className="luma-task-state" role="status"><strong>Диалог по этой заявке завершён</strong><p>История сохранена. Для новой задачи начните отдельный подбор.</p><div><Button asChild variant="outline" size="sm"><Link to={`/cabinet?mode=applications&application=${applicationId}`}>Открыть заявку</Link></Button><Button size="sm" disabled={startingTask} onClick={onNewTask}>{startingTask ? "Создаём…" : "Новая задача с Лумой"}</Button></div></div>}
+          {editable && !chat.data && <p role="status" className="text-sm text-muted-foreground">{error ? "Диалог пока недоступен. Повторите загрузку выше." : "Подключаем диалог…"}</p>}
+          {editable && <p className="text-xs text-muted-foreground">{chat.data?.clarification ? `Следующий шаг: ${chat.data.clarification.title}` : pending ? "Следующий шаг: проверить и подтвердить данные" : "Опишите задачу или уточните условия"}</p>}
+          <form onSubmit={submit} className="assistant-composer flex items-end gap-3">
             <Textarea
               ref={messageBox}
               aria-label="Сообщение ассистенту"
@@ -454,14 +513,16 @@ export function AssistantPanel({
               <ArrowUp />
             </Button>
           </form>
-          <p className="text-xs text-muted-foreground">
-            Enter — отправить · Shift + Enter — новая строка
-          </p>
         </CardContent>
       </Card>
-      <div className="assistant-working-area space-y-5">
-        <h2 ref={workspaceHeading} tabIndex={-1} className="sr-only">Данные и предложения</h2>
-        <div className="assistant-update-status" data-busy={busy || preview.isFetching}><i aria-hidden="true" /><span>{busy ? "Обсуждаем задачу — данные появятся здесь" : preview.isFetching ? "Обновляем предварительный расчёт" : "Данные из разговора · обновляются после ответа"}</span></div>
+      <AssistantWorkspace
+        section={workspaceSection}
+        onSectionChange={setWorkspaceSection}
+        headingRef={workspaceHeading}
+        offersRef={offersPanel}
+        updating={busy || preview.isFetching}
+        pending={Boolean(pending)}
+        data={<>
         <CollectedData
           view={projected}
           proposal={pending}
@@ -469,6 +530,7 @@ export function AssistantPanel({
           busy={busy || !editable}
           loading={preview.isFetching}
           onEdit={(changes, plan) => edit.mutate({ changes, plan })}
+          expenseImport={chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
         />
         {preview.error && (
           <p role="alert" className="text-sm text-destructive">
@@ -482,8 +544,18 @@ export function AssistantPanel({
             </Button>
           </p>
         )}
-        {pending && (
-          <div className="flex flex-wrap gap-3">
+        {!pending && record.application.need.preferred_product === "refinancing" && <RefinancingWorkspace view={record} busy={busy || !editable} onSave={actions.save} onExplore={() => { setWorkspaceSection("offers"); actions.explore("refinancing", {}); }} />}
+        {!pending && record.explorations.length > 0 && (
+          <FinancialSupplement
+            key={`${applicationId}:${record.application.application_version}`}
+            view={record}
+            busy={busy || !editable}
+            onSave={actions.save}
+          />
+        )}
+        </>}
+        footer={pending && <>
+            {chat.data?.clarification && <p>Уточните оставшиеся вопросы в диалоге, затем подтвердите данные.</p>}
             <Button
               disabled={
                 busy ||
@@ -507,22 +579,28 @@ export function AssistantPanel({
             >
               Отклонить изменения
             </Button>
+        </>}
+        offers={<>
+        {pending ? (
+          <div className="assistant-workspace-empty">
+            <h3>Сначала проверим данные</h3>
+            <p>Есть неподтверждённые изменения. Уточните суммы и даты — после подтверждения здесь появится актуальное сравнение.</p>
+            <Button variant="outline" onClick={() => setWorkspaceSection("data")}>Проверить изменения</Button>
           </div>
-        )}
-        {!pending && record.application.need.preferred_product === "refinancing" && <RefinancingWorkspace view={record} busy={busy || !editable} onSave={actions.save} onExplore={() => actions.explore("refinancing", {})} />}
-        {!pending && record.explorations.length > 0 && (
-          <FinancialSupplement
-            key={`${applicationId}:${record.application.application_version}`}
-            view={record}
-            busy={busy || !editable}
-            onSave={actions.save}
-          />
+        ) : !record.explorations.length && (
+          <div className="assistant-workspace-empty">
+            <h3>Подберём условия под вашу задачу</h3>
+            <p>Расскажите Луме о планах и подтвердите собранные данные. Здесь можно будет сравнить платёж, срок и стоимость финансирования.</p>
+            <Button variant="outline" onClick={() => setWorkspaceSection("data")}>Посмотреть данные</Button>
+          </div>
         )}
         {!pending && record.explorations.length > 0 && (
           <ExplorationPanel
             key={record.application.application_id}
             compact
+            focused
             view={record}
+            onEditNeed={() => { setWorkspaceSection("data"); setMobilePanel("conversation"); messageBox.current?.focus({preventScroll:true}); }}
             busy={busy || !editable}
             onExplore={actions.explore}
             onSavePlan={(plan) =>
@@ -531,8 +609,8 @@ export function AssistantPanel({
             onApply={actions.apply}
           />
         )}
-        {chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
-      </div>
+        </>}
+      />
     </div>
   );
 }

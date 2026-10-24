@@ -3,6 +3,7 @@ export {
   offerSchema,
   flowDaysSchema,
   createApplication,
+  repeatApplication,
   createScenario,
   getApplication,
   listApplications,

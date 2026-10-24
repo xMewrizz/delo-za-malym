@@ -3,10 +3,19 @@
 :root {
   --app-font-sans: 'Manrope', ui-sans-serif, system-ui, sans-serif;
   --app-font-mono: 'JetBrains Mono', ui-monospace, monospace;
+  --app-font-label: var(--app-font-sans);
+  --label-font-size: 11px;
+  --label-font-weight: 550;
+  --label-line-height: 1.6;
+  --label-letter-spacing: .08em;
   --layout-max-width: 100%;
   --layout-gutter: clamp(24px, 4vw, 80px);
   --layout-header-height: 6.5rem;
-  --control-height: 3rem;
+  --control-height: 2.75rem;
+  --control-height-lg: 3rem;
+  --radius-control: 10px;
+  --radius-panel: 20px;
+  --radius-dialog: 24px;
   --motion-duration: 180ms;
   --card-padding: 2rem;
   --background: #ffffff;
@@ -64,9 +73,9 @@
   --action: var(--lime);
   --action-hover: #cce945;
   --action-foreground: #202414;
-  --growth: #c9e88a;
-  --growth-surface: #252b1e;
-  --growth-border: #495337;
+  --growth: #e0ff53;
+  --growth-surface: #27262e;
+  --growth-border: #57515f;
   --violet: #b672ff;
   --lilac: #c29dff;
   --periwinkle: #9d94ff;
@@ -128,12 +137,12 @@
   --stage: #f6f6f2;
   --surface-raised: #eeedf1;
   --chart-1: #7544d8;
-  --chart-2: #4c650b;
+  --chart-2: #7544d8;
   --brand-ink: #7544d8;
-  --brand-detail: #617d14;
-  --growth: #4c650b;
-  --growth-surface: #f0f6de;
-  --growth-border: #cedbac;
+  --brand-detail: #e0ff53;
+  --growth: #7544d8;
+  --growth-surface: #f0edf4;
+  --growth-border: #d6ccdf;
   --luma-ink: #6535a6;
   --luma-surface: #f5f0fc;
   --luma-highlight: #ece0fb;
@@ -146,7 +155,7 @@
   --plot-grid: #1a19210a;
 }
 /* Cabinet surfaces stay neutral; saturated color belongs to actions and data. */
-:root .cabinet-shell {
+:root .cabinet-shell, :root .landing-shell {
   --muted: var(--secondary);
   --card-foreground: var(--foreground);
   --secondary-foreground: var(--foreground);
@@ -161,13 +170,17 @@
   --accent: #2d2839;
   --accent-foreground: #d6c2fa;
   --chart-1: #aa88df;
-  --growth-surface: #242d20;
-  --growth-border: #46563a;
+  --growth: #e0ff53;
+  --growth-surface: #26292d;
+  --growth-border: #606b3c;
+  --highlight-surface: #e0ff53;
+  --highlight-foreground: #202414;
+  --highlight-muted: #474e2a;
   --luma-surface: #23212c;
   --luma-highlight: #2e283b;
   --luma-border: #43394f;
 }
-:root[data-theme="light"] .cabinet-shell {
+:root[data-theme="light"] .cabinet-shell, :root[data-theme="light"] .landing-shell {
   --background: #f3f5f4;
   --foreground: #1b2024;
   --card: #ffffff;
@@ -179,8 +192,9 @@
   --accent: #f0eaf9;
   --accent-foreground: #643297;
   --chart-1: #7544d8;
-  --growth-surface: #eff5e3;
-  --growth-border: #ccd9b6;
+  --growth: #7544d8;
+  --growth-surface: #f0edf4;
+  --growth-border: #d6ccdf;
   --luma-surface: #f5f2fa;
   --luma-highlight: #ece5f6;
   --luma-border: #dcd1e9;

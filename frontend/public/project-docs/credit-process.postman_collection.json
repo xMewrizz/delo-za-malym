@@ -1,0 +1,215 @@
+{
+  "info": {
+    "name": "Дело за малым — кредит от подбора до выдачи",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:8000"
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Создать пример кредита",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/demo/scenarios/working_capital_loan/01_approved",
+        "body": {
+          "mode": "raw",
+          "raw": "{}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP успешен\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set(\"applicationId\", r.application.application_id);",
+              "pm.collectionVariables.set(\"version\", r.application.application_version);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Рассчитать несколько вариантов",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}/explorations",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"base_application_version\": {{version}}, \"product_id\": \"working_capital_loan\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP успешен\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "const r = pm.response.json();",
+              "const e = r.explorations[r.explorations.length-1];",
+              "pm.collectionVariables.set(\"explorationId\", e.exploration_id);",
+              "pm.collectionVariables.set(\"optionId\", e.result.options[0].option_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Подтвердить выбранные условия",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}/explorations/{{explorationId}}/apply",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"base_application_version\": {{version}}, \"option_id\": \"{{optionId}}\", \"confirmed\": true}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP успешен\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set(\"version\", r.application.application_version);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Отправить на рассмотрение",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}/submit",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"base_application_version\": {{version}}, \"confirmed\": true}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      },
+      "event": [
+        {
+          "listen": "test",
+          "script": {
+            "type": "text/javascript",
+            "exec": [
+              "pm.test(\"HTTP успешен\", () => pm.expect(pm.response.code).to.be.oneOf([200,201]));",
+              "const r = pm.response.json();",
+              "pm.collectionVariables.set(\"assessmentId\", r.result.assessment.assessment_id);",
+              "pm.collectionVariables.set(\"offerId\", r.result.assessment.offers[0].offer_id);"
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Выбрать итоговое предложение",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}/select-offer",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"base_application_version\": {{version}}, \"assessment_id\": \"{{assessmentId}}\", \"offer_id\": \"{{offerId}}\"}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "6. Смоделировать подписание и выдачу",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}/sign",
+        "body": {
+          "mode": "raw",
+          "raw": "{\"base_application_version\": {{version}}, \"offer_id\": \"{{offerId}}\", \"confirmed\": true}",
+          "options": {
+            "raw": {
+              "language": "json"
+            }
+          }
+        }
+      }
+    },
+    {
+      "name": "7. Получить сохранённый результат",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "url": "{{baseUrl}}/api/applications/{{applicationId}}"
+      }
+    }
+  ]
+}

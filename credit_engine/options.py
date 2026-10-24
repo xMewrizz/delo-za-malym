@@ -19,7 +19,7 @@ def _baseline(application):
     return result.to_dict().get("calculation")
 
 
-def loan_options(application, checks, *, calculated_at, preferences=None, exploration_id=None):
+def loan_options(application, checks, *, calculated_at, preferences=None, exploration_id=None, seasonal=False):
     """Проверить все сроки политики; меньшие суммы — только с подтверждённым минимумом."""
     preferences = preferences or {}
     identity = exploration_id or str(uuid4())
@@ -42,7 +42,7 @@ def loan_options(application, checks, *, calculated_at, preferences=None, explor
     for term in policy.terms:
         candidate = deepcopy(projection)
         candidate["need"]["term_months"] = term
-        evaluated = assess_application(candidate, checks, calculated_at=calculated_at, stage="preliminary").to_dict()
+        evaluated = assess_application(candidate, checks, calculated_at=calculated_at, stage="preliminary", seasonal=seasonal).to_dict()
         evaluations.append(evaluated)
         assessment = evaluated.get("assessment") or {}
         for offer in assessment.get("offers", []):
@@ -102,7 +102,7 @@ def loan_options(application, checks, *, calculated_at, preferences=None, explor
             "preferences": preferences, "required_information": unique(questions), "issues": unique(issues), "reasons": unique(reasons)}
 
 
-def overdraft_options(application, checks, *, calculated_at, delay=None, exploration_id=None):
+def overdraft_options(application, checks, *, calculated_at, delay=None, exploration_id=None, seasonal=False):
     """Потребность в лимите и проверка изменённого плана; даты исходной заявки сохраняются."""
     projection = deepcopy(application)
     projection["need"]["preferred_product"] = "overdraft"
@@ -130,7 +130,7 @@ def overdraft_options(application, checks, *, calculated_at, delay=None, explora
         requested = projection["need"].get("requested_amount")
         if requested is None or (valid_requested and Decimal(requested) < suggested):
             projection["need"]["requested_amount"] = f"{suggested:.2f}"
-    evaluated = assess_overdraft(projection, checks, calculated_at=calculated_at, stage="preliminary").to_dict()
+    evaluated = assess_overdraft(projection, checks, calculated_at=calculated_at, stage="preliminary", seasonal=seasonal).to_dict()
     assessment = evaluated.get("assessment") or {}
     verified_calculation = evaluated.get("overdraft_calculation")
     options = []

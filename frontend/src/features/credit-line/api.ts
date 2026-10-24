@@ -15,3 +15,5 @@ export const lineKey = (id: string) => ["credit-line", id] as const;
 export const getLine = (id: string, signal?: AbortSignal) => apiRequest(`/applications/${id}/credit-line`, lineSchema, { signal });
 export const postLineOperation = (id: string, operation: LineOperation) => apiRequest(`/applications/${id}/credit-line/operations`, lineSchema,
   { method: "POST", body: JSON.stringify({ ...operation, confirmed: true }) });
+
+export const lineOperationSchema: z.ZodType<LineOperation> = z.object({ kind: z.enum(["draw", "repay", "close"]), amount: z.string().optional(), base_line_version: z.number(), request_id: z.string().uuid() });

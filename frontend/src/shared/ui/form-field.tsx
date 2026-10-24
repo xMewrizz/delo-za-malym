@@ -23,7 +23,7 @@ export function FormField({
   error?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="form-field">
       <Label htmlFor={id} className="text-xs font-semibold text-foreground">
         {label}
       </Label>
@@ -49,6 +49,7 @@ export function ChoiceField({
   hint,
   disabled,
   error,
+  emptyLabel = "Не указано",
 }: {
   id: string;
   label: string;
@@ -58,9 +59,10 @@ export function ChoiceField({
   hint?: ReactNode;
   disabled?: boolean;
   error?: string;
+  emptyLabel?: string;
 }) {
   return (
-    <div className="space-y-2">
+    <div className="form-field">
       <Label htmlFor={id} className="text-xs font-semibold text-foreground">
         {label}
       </Label>
@@ -83,7 +85,7 @@ export function ChoiceField({
           position="popper"
           className="max-h-72 rounded-xl border border-border p-1"
         >
-          <SelectItem value="__empty__">Не указано</SelectItem>
+          <SelectItem value="__empty__">{emptyLabel}</SelectItem>
           {options.map((option) => (
             <SelectItem key={option.value} value={option.value}>
               {option.label}

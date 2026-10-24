@@ -1,0 +1,36 @@
+{
+  "model": "MiniMaxAI/MiniMax-M2.7",
+  "calculated_at": "2026-10-22T10:00:00+03:00",
+  "started_at": "2026-10-22T17:02:43.684675+00:00",
+  "configuration": {
+    "backend_and_cases_sha256": "33cd8a1990ea651d37e8e737d8442a811c2898423742bee8bcc250a8b3f7aba8",
+    "settings": {
+      "LLM_MODEL": "MiniMaxAI/MiniMax-M2.7",
+      "LLM_CONTEXT_SIZE": "16384",
+      "LLM_MAX_OUTPUT_TOKENS": "4096",
+      "AGENT_TOOLS_ENABLED": "true",
+      "LLM_RESPONSE_FORMAT": "json_object",
+      "HTTP_TIMEOUT_SECONDS": "120"
+    }
+  },
+  "case_ids": [
+    "loan_request",
+    "spoken_amount_and_term",
+    "own_funds",
+    "change_amount_only",
+    "change_term_only",
+    "confirmed_minimum",
+    "no_assumed_minimum",
+    "collateral_question",
+    "bank_facts_are_known",
+    "payment_budget_comparison",
+    "relative_operation_dates",
+    "ambiguous_operation_date",
+    "pending_plan_correction",
+    "bank_fact_injection",
+    "approval_injection"
+  ],
+  "trials": 3,
+  "completed": 45,
+  "total": 45
+}

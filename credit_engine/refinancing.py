@@ -10,7 +10,7 @@ from .assessment import WorkingCapitalPolicy, assess_application
 from .checks import parse_timestamp
 from .financials import FinancialPolicy, MONEY_PATTERN
 from .loans import calculate_loan
-from .cashflow import payment_calendar
+from .cashflow import payment_calendar, MOSCOW
 
 
 POLICY = replace(WorkingCapitalPolicy(), version="demo-refinancing-v1", amount_step=Decimal("0.01"),
@@ -36,8 +36,9 @@ def selected_debts(application, now):
     selected = [loan for loan in loans if loan.get("loan_id") in ids]
     if len(selected) != len(ids):
         raise ValueError("Один из выбранных кредитов уже закрыт или отсутствует в банковском профиле. Обновите выбор.")
-    principal, monthly, total, schedules = Decimal("0.00"), Decimal("0.00"), Decimal("0.00"), []
-    today = now.date().isoformat()
+    principal, total, schedules = Decimal("0.00"), Decimal("0.00"), []
+    today = now.astimezone(MOSCOW).date().isoformat()
+    monthly_totals = {}
     for loan in selected:
         if loan.get("is_commitment"):
             raise ValueError("Возобновляемая линия имеет отдельный лимит. Погасите и закройте её в разделе «Моё финансирование».")
@@ -56,15 +57,19 @@ def selected_debts(application, now):
                 raise ValueError("График выбранного кредита требует обновления банком.")
             if when >= today:
                 remaining.append(deepcopy(row))
+                monthly_totals[when[:7]] = monthly_totals.get(when[:7], Decimal("0.00")) + Decimal(amount)
         if not remaining or sum((Decimal(row["total_payment"]) for row in remaining), Decimal("0")) < Decimal(balance):
             raise ValueError("Оставшийся график не покрывает известный долг. Банк должен обновить график и сумму погашения.")
         principal += Decimal(balance)
-        monthly += Decimal(payment)
         total += sum((Decimal(row["total_payment"]) for row in remaining), Decimal("0"))
         schedules.append({"loan_id": loan["loan_id"], "outstanding_principal": balance,
                           "monthly_payment": payment, "schedule": remaining})
+    year, month = divmod(int(today[:4]) * 12 + int(today[5:7]), 12)
+    comparison_month = f"{year:04d}-{month + 1:02d}"
     return {"loan_ids": sorted(ids), "payoff_amount": f"{principal:.2f}",
-            "current_monthly_payment": f"{monthly:.2f}", "current_total_repayment": f"{total:.2f}",
+            "monthly_payment_basis": "maximum_calendar_month", "comparison_month": comparison_month,
+            "current_payment_in_comparison_month": f'{monthly_totals.get(comparison_month, Decimal("0.00")):.2f}',
+            "current_monthly_payment": f"{max(monthly_totals.values()):.2f}", "current_total_repayment": f"{total:.2f}",
             "current_remaining_cost": f"{total - principal:.2f}", "loans": schedules,
             "payoff_fees": "0.00", "cash_to_client": "0.00"}
 
@@ -80,7 +85,7 @@ def assessment_question(application, now, message, *, stage, assessment_id=None)
         "calculated_at": now.isoformat()}, "issues": [], "refinancing": None}
 
 
-def assess_refinancing(application, checks, *, calculated_at, stage="final", assessment_id=None):
+def assess_refinancing(application, checks, *, calculated_at, stage="final", assessment_id=None, seasonal=False):
     now = parse_timestamp(calculated_at)
     if now is None:
         return RefinancingResult({"status": "invalid_data", "assessment": None, "issues": [{"field": "calculated_at", "code": "invalid_timestamp", "message": "Нужно время расчёта."}]})
@@ -98,7 +103,7 @@ def assess_refinancing(application, checks, *, calculated_at, stage="final", ass
     projection["financials"]["existing_loans"] = [loan for loan in projection["financials"].get("existing_loans", [])
                                                    if loan["loan_id"] not in comparison["loan_ids"]]
     result = assess_application(projection, checks, calculated_at=now, stage=stage, assessment_id=assessment_id,
-                                policy=POLICY, financial_policy=replace(FinancialPolicy(), version=POLICY.version)).to_dict()
+                                policy=POLICY, financial_policy=replace(FinancialPolicy(), version=POLICY.version), seasonal=seasonal).to_dict()
     result["refinancing"] = comparison
     assessment = result.get("assessment")
     if assessment:
@@ -106,8 +111,13 @@ def assess_refinancing(application, checks, *, calculated_at, stage="final", ass
         for offer in offers:
             offer["product_id"] = "refinancing"
             calc = calculate_loan(offer["amount"], offer["term_months"], offer["annual_rate_percent"]).to_dict()["calculation"]
-            offer.update(total_interest=calc["total_interest"], schedule=payment_calendar(calc["schedule"], now.date()), refinancing={
+            offer["monthly_payment"] = calc["maximum_payment"]
+            schedule = payment_calendar(calc["schedule"], now.astimezone(MOSCOW).date())
+            new_first_month = sum((Decimal(row["total_payment"]) for row in schedule if row["date"].startswith(comparison["comparison_month"])), Decimal("0.00"))
+            offer.update(total_interest=calc["total_interest"], schedule=schedule, refinancing={
                 **comparison, "monthly_payment_reduction": f'{Decimal(comparison["current_monthly_payment"]) - Decimal(offer["monthly_payment"]):.2f}',
+                "new_payment_in_comparison_month": f"{new_first_month:.2f}",
+                "first_month_payment_change": f'{new_first_month - Decimal(comparison["current_payment_in_comparison_month"]):.2f}',
                 "total_cost_change": f'{Decimal(offer["total_repayment"]) - Decimal(comparison["current_total_repayment"]):.2f}'})
         assessment["offers"] = offers
         if offers:
@@ -117,7 +127,7 @@ def assess_refinancing(application, checks, *, calculated_at, stage="final", ass
     return RefinancingResult(result)
 
 
-def refinancing_options(application, checks, *, calculated_at, preferences=None, exploration_id=None):
+def refinancing_options(application, checks, *, calculated_at, preferences=None, exploration_id=None, seasonal=False):
     preferences = preferences or {}
     now = parse_timestamp(calculated_at)
     options, last, issues = [], None, []
@@ -128,7 +138,7 @@ def refinancing_options(application, checks, *, calculated_at, preferences=None,
             continue
         projection = deepcopy(application)
         projection["need"]["term_months"] = term
-        last = assess_refinancing(projection, checks, calculated_at=now, stage="preliminary").to_dict()
+        last = assess_refinancing(projection, checks, calculated_at=now, stage="preliminary", seasonal=seasonal).to_dict()
         issues.extend(last.get("issues", []))
         offers = (last.get("assessment") or {}).get("offers", [])
         eligible_before_preferences = eligible_before_preferences or bool(offers)

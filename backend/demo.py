@@ -8,6 +8,7 @@ from scripts.run_credit_scenarios import load_scenarios
 
 PRODUCTS = ("working_capital_loan", "overdraft")
 SUPPORTED_PRODUCTS = (*PRODUCTS, "refinancing", "revolving_credit_line", "investment_loan")
+RETIRED_LOAN_IDS = {"existing-001"}
 
 
 def shifted_month(month: str, delta: int) -> str:
@@ -43,8 +44,24 @@ def scenario_data(product: str, scenario_id: str, now: datetime):
     }
 
 
-def profile(now: datetime):
+def profile(now: datetime, *, include_sample_loan=False):
     application, simulator = scenario_data("working_capital_loan", "01_approved", now)
+    # История обычного кабинета отличается от стабильной контрольной фикстуры.
+    # Один месяц отражает закупку запаса; её эффект виден в квартальном потоке.
+    history = (
+        ("782450.00", "525203.00", "46947.00"),
+        ("916800.00", "586342.00", "55008.00"),
+        ("824250.00", "813095.00", "49455.00"),
+        ("1047600.00", "690544.00", "62856.00"),
+        ("1144350.00", "841989.00", "68661.00"),
+        ("1284550.00", "925827.00", "77073.00"),
+    )
+    for row, (inflow, outflow, taxes) in zip(application["financials"]["monthly"], history):
+        row.update(operating_inflow=inflow, operating_outflow=outflow, taxes=taxes)
+    # Общий кабинет содержит только оформленные клиентом продукты.
+    # Старый долг остаётся доступен только как явная тестовая фикстура.
+    if not include_sample_loan:
+        application["financials"]["existing_loans"] = []
     # График существующего кредита приходит из демонстрационного банковского профиля.
     for loan in application["financials"].get("existing_loans", []):
         maturity = date.fromisoformat(loan["maturity_date"])
@@ -58,6 +75,7 @@ def profile(now: datetime):
             month = shifted_month(current.strftime("%Y-%m"), 1)
             current = date.fromisoformat(month + "-15")
         loan["schedule"] = schedule
+    simulator["cash_flow_policy"] = "seasonal-v2"
     simulator["known_loans"] = deepcopy(application["financials"].get("existing_loans", []))
     simulator["bank_financials"] = deepcopy(application["financials"])
     return {"client_id": "demo-client", "company_name": "ООО «Север»", "business": application["business"],

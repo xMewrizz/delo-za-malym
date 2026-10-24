@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { penaltyTermsSchema } from "@/shared/lib/penalty-terms";
 import { apiRequest } from "@/shared/api/client";
 
 const money = z.string();
@@ -15,6 +16,7 @@ const reason = z
 export const offerSchema = z
   .object({
     offer_id: z.string(),
+    penalty_terms: penaltyTermsSchema.nullable().optional().catch(null),
     product_id: z.string(),
     amount: money,
     term_months: z.number().nullable().optional(),
@@ -49,6 +51,7 @@ const need = z
 const financials = z
   .object({
     cash_balance: money.nullable().optional(),
+    portfolio_cash_total: money.optional(),
     monthly: z
       .array(
         z
@@ -68,6 +71,7 @@ const financials = z
           .object({
             loan_id: z.string(),
             application_id: z.string().optional(),
+            product_id: z.string().optional(),
             maturity_date: z.string().optional(),
             schedule: z.array(z.object({ date: z.string(), total_payment: money }).passthrough()).optional(),
             monthly_payment: money.nullable().optional(),
@@ -243,11 +247,15 @@ export const applicationListSchema = z.array(
 export const profileSchema = z
   .object({
     company_name: z.string(),
+    checked_at: z.string().optional(),
+    data_source: z.object({ kind: z.literal("simulated_bank"), label: z.string() }).optional(),
+    accounts: z.array(z.object({ account_id: z.string(), type: z.literal("settlement"), title: z.string(), currency: z.literal("RUB"), balance: money.nullable(), available_balance: money.nullable(), overdraft_available: money.optional(), available_for_payments: money.optional(), number: z.string().nullable(), mode: z.literal("simulated") })).optional(),
     business: z
       .object({
         inn: z.string(),
         activity: z.string(),
         registered_at: z.string(),
+        legal_form: z.string().optional(),
       })
       .passthrough(),
     financials,
@@ -278,6 +286,7 @@ const post = (url: `/${string}`, body: Record<string, unknown>) =>
 
 export const getProfile = (signal?: AbortSignal) =>
   apiRequest("/profile", profileSchema, { signal });
+export const syncDemoProfile = () => apiRequest("/profile/sync", profileSchema, { method: "POST" });
 export const listApplications = (signal?: AbortSignal) =>
   apiRequest("/applications", applicationListSchema, { signal });
 export const getApplication = (id: string, signal?: AbortSignal) =>
@@ -285,6 +294,7 @@ export const getApplication = (id: string, signal?: AbortSignal) =>
 export const listScenarios = (signal?: AbortSignal) =>
   apiRequest("/demo/scenarios", scenariosSchema, { signal });
 export const createApplication = () => post("/applications", {});
+export const repeatApplication = (id: string) => post(path(id, "/repeat"), {});
 export const createScenario = (productId: string, scenarioId: string) =>
   post(
     `/demo/scenarios/${encodeURIComponent(productId)}/${encodeURIComponent(scenarioId)}`,

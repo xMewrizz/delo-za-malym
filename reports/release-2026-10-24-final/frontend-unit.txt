@@ -1,0 +1,13 @@
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+
+ Test Files  42 passed (42)
+      Tests  136 passed (136)
+   Start at  19:53:28
+   Duration  14.72s (environment 45%, tests 27%, import 25%, transform 2%)
+
+     Import  190 modules were evaluated 609 times · 12.79s total, 25% of tracked time
+             ~777ms faster with isolate: false — shared modules are evaluated once per worker instead of once per file
+             learn more: https://vitest.dev/guide/improving-performance#test-isolation
+

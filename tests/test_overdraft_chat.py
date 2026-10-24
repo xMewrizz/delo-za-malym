@@ -24,6 +24,12 @@ class PlanAssistant:
 
 class OverdraftChatTests(unittest.TestCase):
     def setUp(self):
+        from backend import demo
+        from unittest.mock import patch
+        original_profile = demo.profile
+        fixture = patch("backend.demo.profile", side_effect=lambda now: original_profile(now, include_sample_loan=True))
+        fixture.start()
+        self.addCleanup(fixture.stop)
         self.directory = TemporaryDirectory()
         self.now = datetime.fromisoformat("2026-10-21T15:00:00+03:00")
         self.assistant = PlanAssistant()

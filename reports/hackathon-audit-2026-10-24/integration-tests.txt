@@ -1,0 +1,266 @@
+
+> delo-za-malym-frontend@0.0.0 test:integration
+> vitest run src/integration
+
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > opens a revolving line, draws and repays money while restoring the limit
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > opens a revolving line, draws and repays money while restoring the limit
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > opens a revolving line, draws and repays money while restoring the limit
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to PaymentCalendar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to Presence inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to Presence inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+stderr | src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+An update to CabinetPage inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+An update to PaymentCalendar inside a test was not wrapped in act(...).
+
+When testing, code that causes React state updates should be wrapped into act(...):
+
+act(() => {
+  /* fire events that update state */
+});
+/* assert on the output */
+
+This ensures that you're testing the behavior the user would see in the browser. Learn more at https://react.dev/link/wrap-tests-with-act
+
+ ❯ src/integration/cabinet.integration.test.tsx (16 tests | 7 failed) 26857ms
+   ❯ React cabinet with real FastAPI (16)
+     × completes a manual loan, independently collects the assistant plan and restores unsaved input 654ms
+     × guides a manual cash gap to overdraft options without repeating product selection 7353ms
+     × uses a real invoice as a future expense without overwriting the credit amount or bank data 321ms
+     × refinances selected bank loans through comparison, signing and the shared calendar 287ms
+     × opens a revolving line, draws and repays money while restoring the limit 1424ms
+     × finances equipment, explains the first debt during a second application and restores both calendars 2333ms
+     × refinances the equipment loan during grace without promising lower immediate payments or duplicating cash 6342ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 7 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > completes a manual loan, independently collects the assistant plan and restores unsaved input
+AssertionError: The preceding form step must be valid: expected 1 to be greater than 1
+ ❯ needPage src/integration/cabinet.integration.test.tsx:68:64
+     66|   while(current() >= 0 && current() < target) {
+     67|     const before = current(); await click("Продолжить");
+     68|     expect(current(), "The preceding form step must be valid").toBeGre…
+       |                                                                ^
+     69|   }
+     70| }
+ ❯ input src/integration/cabinet.integration.test.tsx:74:36
+ ❯ src/integration/cabinet.integration.test.tsx:188:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > guides a manual cash gap to overdraft options without repeating product selection
+Error: Timeout: real overdraft options; нансированиеЗаявки15Моё финансированиеПлатёжный календарьЛумаИИ-ассистентОбсудим ваши планыПомощь и документацияНа сайт проектаДемо-кабинет · реальных списаний нетЛичный кабинет/Получить финансированиеОплатить счётСветлаяСООО «Север»Финансирование под вашу задачуВыберите цель, проверьте параметры и сравните условия по данным бизнеса.Подобрать продуктС ЛумойНовый подборЗадачаПредложенияПроверка и отправкаВаш запросСравниваем условия по этим параметрам.Запрошенная суммаРассчитаем по платежам и остаткуКак возвращатьПосле поступления денегЖелаемый срокПодберём подходящийИзменить задачуСравнение условийУточним условия подбораНа эту сумму не нашли подходящих условийПлатёж или сумма не укладываются в условия продукта с учётом текущей нагрузки бизнеса. Можно изменить запрос и попробовать другие параметры.Допустимого лимита недостаточно для расходов из подтверждённого плана.Изменить данныеИзменить параметры сравненияУточните платёж или диапазон сроков и получите другие варианты.Рассчитаем: ОвердрафтЛимит и проценты определим по сохранённым поступлениям и расходам.ПродуктОвердрафт до поступления денегНе указаноКредит на оборотные целиОвердрафт до поступления денегВозобновляемая кредитная линияУчтём остаток на счёте и указанные даты платежей и поступлений. Если сведений не хватает, покажем, что нужно уточнить.Показать вариантыЕсли поступление задержитсяСравните исходный план с более поздним поступлением денег.Проверим, хватит ли лимита и как изменятся проценты. Сохранённые даты останутся прежними до выбора условий.Какое поступление задержитсяНе указаноНе указано1 000 000 ₽ · 31.10.2026Без выбора сохраняем исходные даты.На сколько дней позжеСравнить с задержкойДополнительная проверка потребностиМожно отдельно проверить соответствие задачи продуктам или оценить точные параметры без сравнения вариантов.Подобрать продуктПроверить выбранные параметрыПодберём финансирование в разговореРасскажите о задаче обычными словами. Лума уточнит детали и соберёт отдельный вариант.Начать подбор
+ ❯ until src/integration/cabinet.integration.test.tsx:25:9
+     23|     if (await condition()) return;
+     24|   }
+     25|   throw new Error(
+       |         ^
+     26|     `Timeout: ${label}; ${document.body.textContent?.slice(-2000)}`,
+     27|   );
+ ❯ src/integration/cabinet.integration.test.tsx:593:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > uses a real invoice as a future expense without overwriting the credit amount or bank data
+AssertionError: The preceding form step must be valid: expected 1 to be greater than 1
+ ❯ needPage src/integration/cabinet.integration.test.tsx:68:64
+     66|   while(current() >= 0 && current() < target) {
+     67|     const before = current(); await click("Продолжить");
+     68|     expect(current(), "The preceding form step must be valid").toBeGre…
+       |                                                                ^
+     69|   }
+     70| }
+ ❯ input src/integration/cabinet.integration.test.tsx:74:36
+ ❯ src/integration/cabinet.integration.test.tsx:701:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > refinances selected bank loans through comparison, signing and the shared calendar
+AssertionError: expected 0 to be greater than 0
+ ❯ src/integration/cabinet.integration.test.tsx:982:31
+    980|     expect(document.querySelector("#need-amount")).toBeNull();
+    981|     const checkboxes = document.querySelectorAll<HTMLInputElement>('[a…
+    982|     expect(checkboxes.length).toBeGreaterThan(0);
+       |                               ^
+    983|     for (const checkbox of checkboxes) await act(async () => checkbox.…
+    984|     await click("Посмотреть подходящие предложения");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > opens a revolving line, draws and repays money while restoring the limit
+TypeError: Cannot read properties of undefined (reading 'amount')
+ ❯ src/pages/financing-portfolio.tsx:77:152
+     75|   const available = sumDisplayAmounts(active.filter(product => product…
+     76|   const nextDate = active.map(product => product.nextPayment?.date).fi…
+     77|   const nextAmount = sumDisplayAmounts(active.filter(product => produc…
+       |                                                                                                                                                        ^
+     78|   const tabs = [
+     79|     { id: "all", label: "Все активные", count: active.length },
+ ❯ FinancingPortfolio src/pages/financing-portfolio.tsx:77:105
+ ❯ Object.react_stack_bottom_frame node_modules/react-dom/cjs/react-dom-client.development.js:28571:20
+ ❯ renderWithHooks node_modules/react-dom/cjs/react-dom-client.development.js:8030:22
+ ❯ updateFunctionComponent node_modules/react-dom/cjs/react-dom-client.development.js:10569:19
+ ❯ beginWork node_modules/react-dom/cjs/react-dom-client.development.js:12205:18
+ ❯ runWithFiberInDEV node_modules/react-dom/cjs/react-dom-client.development.js:1048:13
+ ❯ performUnitOfWork node_modules/react-dom/cjs/react-dom-client.development.js:19176:22
+ ❯ workLoopSync node_modules/react-dom/cjs/react-dom-client.development.js:19004:41
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > finances equipment, explains the first debt during a second application and restores both calendars
+AssertionError: The preceding form step must be valid: expected 1 to be greater than 1
+ ❯ needPage src/integration/cabinet.integration.test.tsx:68:64
+     66|   while(current() >= 0 && current() < target) {
+     67|     const before = current(); await click("Продолжить");
+     68|     expect(current(), "The preceding form step must be valid").toBeGre…
+       |                                                                ^
+     69|   }
+     70| }
+ ❯ input src/integration/cabinet.integration.test.tsx:74:36
+ ❯ src/integration/cabinet.integration.test.tsx:1121:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/7]⎯
+
+ FAIL  src/integration/cabinet.integration.test.tsx > React cabinet with real FastAPI > refinances the equipment loan during grace without promising lower immediate payments or duplicating cash
+Error: Timeout: ready button: Назад; СООО «Север»Бизнес-кабинетВАШЕ ДЕЛООбзорДанные бизнесаПолучить финансированиеЗаявки17Моё финансированиеПлатёжный календарьЛумаИИ-ассистентОбсудим ваши планыПомощь и документацияНа сайт проектаДемо-кабинет · реальных списаний нетЛичный кабинет/Получить финансированиеОплатить счётСветлаяСООО «Север»Финансирование под вашу задачуВыберите цель, проверьте параметры и сравните условия по данным бизнеса.Подобрать продуктС ЛумойНовый подборЗадачаПредложенияПроверка и отправкаЗадачаСуммаУсловия возвратаШаг 1 из 3На что нужны деньги?Выберите задачу или конкретный продуктЗакупить товарДождаться выручкиКупить оборудованиеОбъединить кредитыРегулярные закупкиЯ знаю продуктНужная сумма, ₽Если банк сможет предложить меньшеСразу учтём, с какой суммой вы сможете решить задачу.Нужна вся суммаМеньшую сумму не рассматриваюПодойдёт меньшеУкажу минимальную суммуСрок, месяцевМожно оставить пустым — сравним доступные сроки.Дополнительные условияДата получения денег — если она важна для вашей задачи.Когда нужны деньги — необязательноПродолжитьПодберём финансирование в разговореРасскажите о задаче обычными словами. Лума уточнит детали и соберёт отдельный вариант.Начать подбор
+ ❯ until src/integration/cabinet.integration.test.tsx:25:9
+     23|     if (await condition()) return;
+     24|   }
+     25|   throw new Error(
+       |         ^
+     26|     `Timeout: ${label}; ${document.body.textContent?.slice(-2000)}`,
+     27|   );
+ ❯ click src/integration/cabinet.integration.test.tsx:52:3
+ ❯ needPage src/integration/cabinet.integration.test.tsx:65:29
+ ❯ click src/integration/cabinet.integration.test.tsx:43:50
+ ❯ src/integration/cabinet.integration.test.tsx:1161:5
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/7]⎯
+
+
+ Test Files  1 failed | 1 passed (2)
+      Tests  7 failed | 12 passed (19)
+   Start at  16:03:46
+   Duration  30.57s (tests 86%, import 6%, environment 5%, transform 3%)
+

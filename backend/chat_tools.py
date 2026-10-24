@@ -123,15 +123,15 @@ class CabinetTools:
                 checks = demo.simulate_checks(snapshot["application"], snapshot["simulator"], self.now)
                 if snapshot["application"]["need"].get("preferred_product") == "investment_loan":
                     from credit_engine.investment import investment_options
-                    result = investment_options(snapshot["application"], checks, calculated_at=self.now)
+                    result = investment_options(snapshot["application"], checks, calculated_at=self.now, seasonal=snapshot.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 elif snapshot["application"]["need"].get("preferred_product") == "revolving_credit_line":
                     from credit_engine.revolving import revolving_options
-                    result = revolving_options(snapshot["application"], checks, calculated_at=self.now)
+                    result = revolving_options(snapshot["application"], checks, calculated_at=self.now, seasonal=snapshot.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 elif snapshot["application"]["need"].get("purpose") == "refinancing":
                     from credit_engine.refinancing import refinancing_options
-                    result = refinancing_options(snapshot["application"], checks, calculated_at=self.now)
+                    result = refinancing_options(snapshot["application"], checks, calculated_at=self.now, seasonal=snapshot.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
                 else:
-                    result = recommend_financing(snapshot["application"], checks, calculated_at=self.now).to_dict()
+                    result = recommend_financing(snapshot["application"], checks, calculated_at=self.now, seasonal=snapshot.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2").to_dict()
             else:
                 self.process._assess(snapshot, self.now, stage="preliminary")
                 result = snapshot["result"]

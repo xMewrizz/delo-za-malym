@@ -1,5 +1,7 @@
 import { Link } from 'react-router'
+import { ArrowLeft } from 'lucide-react'
+import { Button } from '@/shared/ui/button'
 
 export function NotFoundPage() {
-  return <div className="space-y-4"><h1 className="text-3xl font-semibold">Страница не найдена</h1><Link to="/" className="text-primary underline underline-offset-4">Вернуться к продуктам</Link></div>
+  return <section className="not-found-page"><p className="section-kicker">404 / Страница не найдена</p><h1 className="text-3xl font-semibold tracking-tight">Здесь пока ничего нет.</h1><p>Перейдите на главную, чтобы посмотреть возможности сервиса и открыть кабинет.</p><Button asChild variant="outline"><Link to="/"><ArrowLeft aria-hidden="true" />На главную</Link></Button></section>
 }

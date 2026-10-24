@@ -122,7 +122,7 @@ class ChatService:
             chat["messages"].extend([
                 {"message_id": str(uuid4()), "role": "user", "text": label, "created_at": now,
                  "request_id": request_id, "clarification_answer": identity, "clarification_question": card["title"]},
-                {"message_id": str(uuid4()), "role": "assistant", "text": "Учёл ответ в черновике.",
+                {"message_id": str(uuid4()), "role": "assistant", "text": "Учла ответ в черновике.",
                  "intent": "propose_changes", "question": None, "proposal": proposal,
                  "created_at": now, "mode": "form", "model": None, "tools": []}])
             chat["chat_version"] += 1
@@ -251,7 +251,7 @@ class ChatService:
                   "tools": list(tools)}
         if reply.overdraft_plan is not None:
             issues = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock(), proposal["changes"])
-            answer["text"] = "Собрал будущие операции. Проверьте суммы и даты в карточке."
+            answer["text"] = "Собрала будущие операции. Проверьте суммы и даты в карточке."
             answer["question"] = issues[0]["message"] if issues else None
         # Не держим блокировку SQLite, пока модель генерирует ответ.
         with self.store.connect(write=True) as connection:

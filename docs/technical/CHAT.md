@@ -18,6 +18,14 @@ uv run --env-file .env --frozen uvicorn backend.main:app --host 127.0.0.1 --port
 
 Кабинет использует корневой `.env` (шаблон `.env.example`). Лабораторный `scr/delo_za_malyn/settings/.env` можно явно передать через `--env-file` вместо него.
 
+## Проверяемый локальный маршрут
+
+`uv run --frozen python -m scripts.start_demo --luma` поднимает наполненный кабинет
+на порту 18007 и Ollama на 11436. Используется точная Instruct-версия
+`qwen3:4b-instruct-2507-q4_K_M`, ID `0edcdef34593`, лицензия Apache 2.0.
+Оба API-ключа пусты. Это отдельный маршрут, который не читает личный `.env` и
+не использует Dahl. [Команды и приёмка](../DEMO.md).
+
 ## Подключение модели
 
 В корневом `.env` указать:

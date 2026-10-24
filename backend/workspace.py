@@ -52,15 +52,15 @@ class ProductWorkspace:
         identifier = str(uuid4())
         try:
             if product_id == "working_capital_loan":
-                result = loan_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
+                result = loan_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
             elif product_id == "overdraft":
-                result = overdraft_options(record["application"], checks, calculated_at=now, delay=delay, exploration_id=identifier)
+                result = overdraft_options(record["application"], checks, calculated_at=now, delay=delay, exploration_id=identifier, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
             elif product_id == "refinancing":
-                result = refinancing_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
+                result = refinancing_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
             elif product_id == "revolving_credit_line":
-                result = revolving_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
+                result = revolving_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
             elif product_id == "investment_loan":
-                result = investment_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier)
+                result = investment_options(record["application"], checks, calculated_at=now, preferences=preferences, exploration_id=identifier, seasonal=record.get("simulator", {}).get("cash_flow_policy") == "seasonal-v2")
             else:
                 raise ValueError("Продукт не поддерживается.")
         except ValueError as exc:
@@ -70,6 +70,8 @@ class ProductWorkspace:
             "valid_until": (now + timedelta(days=7)).isoformat(), "product_id": product_id, "result": result}, now)
 
     def save_exploration_record(self, record, exploration, now):
+        from .penalty_terms import attach_demo_penalties
+        attach_demo_penalties(exploration["result"].get("options", []))
         self.process._version(record, exploration["application_version"])
         if record["state"]["status"] not in EDITABLE_STATES:
             raise ProcessError("exploration_not_allowed", "Оформление уже завершено. Создайте новую заявку.")

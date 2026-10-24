@@ -95,8 +95,8 @@ class InvestmentTests(unittest.TestCase):
         app = view["application"]
         _, simulator = demo.profile(self.now)
         checks = demo.simulate_checks(app, simulator, self.now)
-        result = assess_investment(app, checks, calculated_at=self.now, stage="preliminary").to_dict()
-        # 60 тысяч процентов укладываются в доступные 70 тысяч, платёж после отсрочки — нет.
+        result = assess_investment(app, checks, calculated_at=self.now, stage="preliminary", seasonal=True).to_dict()
+        # Проценты укладываются в доступную нагрузку, платёж после отсрочки — нет.
         self.assertLess(Decimal("60000"), Decimal(result["financial_metrics"]["available_monthly_payment"]))
         self.assertEqual(result["assessment"]["offers"], [])
         self.assertEqual(result["assessment"]["required_information"][0]["field"], "need.own_funds")

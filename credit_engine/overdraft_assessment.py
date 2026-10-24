@@ -2,7 +2,7 @@
 
 from calendar import monthrange
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
 from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, localcontext
 from typing import Any
@@ -113,10 +113,14 @@ def assess_overdraft(
     *, calculated_at: datetime | str, stage: str = "final", assessment_id: str | None = None,
     policy: OverdraftCreditPolicy = OverdraftCreditPolicy(),
     financial_policy: FinancialPolicy = FinancialPolicy(version="demo-overdraft-v1"),
+    seasonal: bool = False,
 ) -> OverdraftAssessmentResult:
     """Вернуть решение по овердрафту, не изменяя заявку или внешний контекст Decimal."""
     if policy.version != financial_policy.version:
         raise ValueError("Версии кредитной и финансовой политик должны совпадать")
+    if seasonal:
+        policy = replace(policy, version=policy.version.removesuffix("-v1") + "-seasonal-v2")
+        financial_policy = replace(financial_policy, version=policy.version, allow_seasonal_cash_flow=True)
     # Сохраняем точность для больших денежных значений, включая вложенные операции.
     def lengths(value):
         if isinstance(value, str):
@@ -242,7 +246,7 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
     if age < policy.minimum_business_months:
         return finish("out_of_policy", "insufficient_business_history", "Возраст бизнеса меньше требуемого для овердрафта.")
     if financials.status == "out_of_policy":
-        return finish("out_of_policy", "nonpositive_monthly_cash_flow", "История с неположительным отдельным месяцем пока не входит в автоматическую политику овердрафта.")
+        return finish("out_of_policy", financials.issues[0].code, financials.issues[0].message)
     scoring = calculate_risk_score(metrics, checks["credit_history"]["category"])
     if scoring.status == "needs_information":
         return finish("needs_information", "incomplete_scoring_data", "Нужны сведения для оценки риска.", fields=scoring.issues)

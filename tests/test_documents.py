@@ -32,6 +32,12 @@ class InvoiceExtractionTests(unittest.TestCase):
 
 class InvoiceApiTests(unittest.TestCase):
     def setUp(self):
+        from backend import demo
+        from unittest.mock import patch
+        original_profile = demo.profile
+        fixture = patch("backend.demo.profile", side_effect=lambda now: original_profile(now, include_sample_loan=True))
+        fixture.start()
+        self.addCleanup(fixture.stop)
         self.directory = TemporaryDirectory()
         self.path = Path(self.directory.name) / "test.sqlite3"
         self.app = create_app(self.path, assistant=DemoAssistant(), clock=lambda: datetime.fromisoformat("2026-10-22T12:00:00+03:00"))

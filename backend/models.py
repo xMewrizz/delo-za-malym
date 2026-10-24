@@ -271,6 +271,136 @@ class ApplyOption(ConfirmedAction):
     option_id: str = Field(min_length=1)
 
 
+class LoanPaymentPreview(RequestModel):
+    base_loan_version: StrictInt = Field(ge=1)
+    amount: str = Field(pattern=r"^[0-9]{1,12}\.[0-9]{2}$")
+    execution_date: date | None = None
+    payment_kind: Literal["early", "regular"] = "early"
+    strategy: Literal["reduce_payment", "reduce_term"] = "reduce_payment"
+    full_repayment: StrictBool = False
+
+    @field_validator("amount")
+    @classmethod
+    def positive_amount(cls, value):
+        if float(value) <= 0:
+            raise ValueError("Укажите положительную сумму.")
+        return value
+
+
+class LoanPaymentRequest(LoanPaymentPreview):
+    request_id: UUID
+    calculated_on: date
+    confirmed: StrictBool
+
+    @model_validator(mode="after")
+    def payment_confirmed(self):
+        if not self.confirmed:
+            raise ValueError("Подтвердите платёж.")
+        return self
+
+
+class CancelLoanOrder(RequestModel):
+    base_loan_version: StrictInt = Field(ge=1)
+
+
+class OverdraftPreview(RequestModel):
+    base_account_version: str = Field(pattern=r"^[0-9a-f]{64}$")
+    kind: Literal["expense", "receipt"]
+    amount: str = Field(pattern=r"^[0-9]{1,12}\.[0-9]{2}$")
+    purpose: Literal["supplier", "payroll", "tax", "operating", "revenue"]
+
+    @model_validator(mode="after")
+    def valid_operation(self):
+        from decimal import Decimal
+        if Decimal(self.amount) <= 0:
+            raise ValueError("Укажите положительную сумму.")
+        if (self.kind == "receipt") != (self.purpose == "revenue"):
+            raise ValueError("Выберите назначение операции.")
+        return self
+
+
+class OverdraftOperation(OverdraftPreview):
+    request_id: UUID
+    calculated_on: date
+    confirmed: StrictBool
+
+    @model_validator(mode="after")
+    def operation_confirmed(self):
+        if not self.confirmed:
+            raise ValueError("Подтвердите операцию.")
+        return self
+
+
+class SupplierPaymentPreview(RequestModel):
+    base_account_version: str = Field(pattern=r"^[0-9a-f]{64}$")
+    overdraft_application_id: str | None = Field(default=None, max_length=100)
+    recipient_name: str = Field(min_length=2, max_length=160)
+    recipient_inn: str = Field(pattern=r"^(?:[0-9]{10}|[0-9]{12})$")
+    recipient_account: str = Field(pattern=r"^[0-9]{20}$")
+    recipient_bik: str = Field(pattern=r"^[0-9]{9}$")
+    amount: str = Field(pattern=r"^[0-9]{1,12}\.[0-9]{2}$")
+    purpose: str = Field(min_length=5, max_length=210)
+    invoice_number: str = Field(default="", max_length=80)
+
+    @model_validator(mode="after")
+    def valid_payment(self):
+        from decimal import Decimal
+        from .supplier_payments import validate_requisites
+        if Decimal(self.amount) <= 0:
+            raise ValueError("Укажите положительную сумму.")
+        validate_requisites(self)
+        return self
+
+
+class SupplierPaymentOperation(SupplierPaymentPreview):
+    request_id: UUID
+    calculated_on: date
+    confirmed: StrictBool
+
+    @model_validator(mode="after")
+    def payment_confirmed(self):
+        if not self.confirmed:
+            raise ValueError("Подтвердите платёж.")
+        return self
+
+
+class PenaltyProduct(RequestModel):
+    product_id: str = Field(min_length=6, max_length=150)
+    daily_rate_percent: str | None = Field(default=None, pattern=r"^(?:\d{1,3})(?:\.\d{1,6})?$")
+    rate_source: Literal["manual", "contract"] = "manual"
+    terms_id: str | None = Field(default=None, min_length=1, max_length=200)
+
+    @field_validator("daily_rate_percent")
+    @classmethod
+    def bounded_rate(cls, value):
+        from decimal import Decimal
+        if value is not None and not 0 <= Decimal(value) <= 100:
+            raise ValueError("Ставка должна быть от 0 до 100% в день.")
+        return value
+
+    @model_validator(mode="after")
+    def explicit_rate_source(self):
+        if self.rate_source == "contract" and (self.daily_rate_percent is not None or self.terms_id is None):
+            raise ValueError("Для договорной ставки передайте идентификатор условий без ручной ставки.")
+        if self.rate_source == "manual" and (self.daily_rate_percent is None or self.terms_id is not None):
+            raise ValueError("Для сценария укажите ставку вручную без идентификатора договора.")
+        return self
+
+
+class PenaltyPreviewRequest(RequestModel):
+    from_date: date
+    target_date: date
+    products: list[PenaltyProduct] = Field(min_length=1, max_length=100)
+
+    @model_validator(mode="after")
+    def valid_period(self):
+        if not 0 < (self.target_date - self.from_date).days <= 3660:
+            raise ValueError("Выберите период от 1 дня до 10 лет.")
+        if len({item.product_id for item in self.products}) != len(self.products):
+            raise ValueError("Продукты не должны повторяться.")
+        return self
+
+
 class ImportCSV(VersionAction):
     filename: str = Field(min_length=1, max_length=120)
     content: str = Field(min_length=1, max_length=150000)

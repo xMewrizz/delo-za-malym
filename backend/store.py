@@ -28,7 +28,11 @@ class Store:
                 application_id TEXT NOT NULL,
                 content BLOB NOT NULL
             )""")
-            connection.execute("PRAGMA user_version=2")
+            connection.execute("PRAGMA user_version=3")
+            connection.execute("""CREATE TABLE IF NOT EXISTS account_payments (
+                request_id TEXT PRIMARY KEY,
+                payload TEXT NOT NULL
+            )""")
 
     @contextmanager
     def connect(self, *, write=False):
@@ -65,6 +69,14 @@ class Store:
     def list(self):
         with self.connect() as connection:
             return self.records(connection)
+
+    @staticmethod
+    def account_payments(connection):
+        return [json.loads(row[0]) for row in connection.execute("SELECT payload FROM account_payments ORDER BY rowid")]
+
+    def payments(self):
+        with self.connect() as connection:
+            return self.account_payments(connection)
 
     @staticmethod
     def get_chat(connection, chat_id):

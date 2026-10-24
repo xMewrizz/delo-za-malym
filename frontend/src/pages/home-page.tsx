@@ -1,52 +1,97 @@
-import { ArrowDown, ArrowRight, ArrowUpRight, Check, ChevronDown, Layers3 } from "lucide-react";
+import { ArrowDown, ArrowRight, ArrowUpRight, ChevronDown } from "lucide-react";
+import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
 import { Link } from "react-router";
-import { LumaAvatar } from "@/shared/ui/luma-mark";
-import { ProductsCatalog } from "@/features/products";
-import { upcomingProducts } from "@/shared/lib/product-directions";
+import { gsap } from "gsap";
+import { ScrollTrigger } from "gsap/ScrollTrigger";
+import { LumaScrollStory, ProductScrollShowcase } from "./home-scroll-stories";
+import { HomeCalendarPreview } from "./home-calendar-preview";
+import { HomeCabinetShowcase } from "./home-cabinet-preview";
+import { useLandingWheel } from "./use-landing-wheel";
 import { Button } from "@/shared/ui/button";
-import "./home-next.css";
+import { LumaMark } from "@/shared/ui/luma-mark";
+import "./home-epic.css";
+import "./home-scroll-stories.css";
+import "./home-art-direction.css";
+
+gsap.registerPlugin(ScrollTrigger);
 
 const questions = [
-  { title: "С чего начать, если не знаю, какой нужен продукт?", text: "Начните с задачи: закупить товар, оплатить расходы до поступления выручки или сравнить способы финансирования. В кабинете можно заполнить форму или обсудить всё с Лумой — финансовым ИИ-ассистентом." },
-  { title: "Нужно ли заново заполнять данные компании?", text: "Сведения о компании, остаток и известные банку обязательства уже есть в профиле. Для подбора уточняются задача и недостающие данные." },
-  { title: "Где посмотреть сумму, ставку и платежи?", text: "В кабинете после подбора под ваш бизнес. Предварительные варианты можно сравнить и изменить. Итоговое предложение появится после рассмотрения заявки." },
-  { title: "Лума может отправить заявку за меня?", text: "Изменения можно проверить и исправить. Выбор условий, отправка заявки и подписание требуют отдельного подтверждения." },
+  { title: "Я не знаю, какой продукт нужен. С чего начать?", text: "Расскажите, что планируете: закупку, новый проект или расходы до выручки. Лума уточнит сумму и сроки, а кабинет покажет подходящие варианты. Можно заполнить запрос самостоятельно." },
+  { title: "Откуда берутся данные о моём бизнесе?", text: "Сведения о компании, остаток на счёте и известные банку обязательства уже есть в профиле. Для подбора нужно уточнить вашу задачу и недостающие данные." },
+  { title: "Где посмотреть проценты и будущие платежи?", text: "Ставка, проценты и состав платежей видны в условиях и графике продукта. Календарь объединяет обязательства, а сценарий задержки помогает оценить пени на выбранную дату." },
+  { title: "Лума может сама отправить заявку или списать деньги?", text: "Нет. Заполненные данные можно исправить. Отправку заявки, выбранные условия и операции с деньгами вы подтверждаете отдельно." },
 ];
 
-export function HomePage() {
-  return <div className="next-home">
-    <section className="next-hero" aria-labelledby="hero-title">
-      <div className="next-hero-copy">
-        <p className="next-eyebrow"><span /> БОЛЬШОМУ ДЕЛУ — ВОЗМОЖНОСТИ</p>
-        <h1 id="hero-title">Ваш бизнес.<br />Следующий<br /><span>масштаб<ArrowUpRight aria-hidden="true" /></span></h1>
-        <p className="next-hero-lead">Деньги на то, что вы задумали.<br />С понятным планом и Лумой рядом.</p>
-        <div className="next-hero-actions"><Button asChild size="lg"><Link to="/cabinet">Войти в кабинет<ArrowUpRight /></Link></Button><a href="#products">Найти своё решение<ArrowDown size={17} /></a></div>
-        <div className="next-hero-proof"><span><Check size={14} />Данные бизнеса уже под рукой</span><span><Check size={14} />Решение за вами</span></div>
-      </div>
-      <div className="next-hero-scene">
-        <div className="next-scene-orbit" aria-hidden="true" /><span className="next-scene-coordinate" aria-hidden="true">ОТ ИДЕИ К ДЕЙСТВИЮ / 01</span>
-        <img src="/images/finance-sculpture.webp" width="1200" height="800" alt="" className="next-finance-object" fetchPriority="high" />
-        <div className="next-object-tag"><span className="next-tag-star" aria-hidden="true">✳</span><div><span>Планы становятся ближе</span><strong>Дело за малым.</strong></div></div>
-        <Link className="next-scene-assistant" to="/cabinet?mode=assistant"><LumaAvatar size={40} /><span><strong>Лума на вашей стороне</strong><small>Финансовый ИИ-ассистент</small></span><ArrowUpRight size={18} /></Link>
-      </div>
-    </section>
-    <div className="next-principles" aria-label="Как устроен сервис"><span><i>01</i>Сначала ваша задача</span><span><i>02</i>Затем подходящие условия</span><span><i>03</i>Всё под вашим контролем</span><Layers3 aria-hidden="true" /></div>
+/** Masked typography, perspective assembly, inter-section parallax and staggered reveals.
+ * All timelines belong to this route; matchMedia reverts them when the layout changes. */
+function useLandingMotion(root: RefObject<HTMLDivElement | null>, motion: boolean) {
+  useLayoutEffect(() => {
+    if (!root.current || !motion) return;
+    const media = gsap.matchMedia();
+    const context = gsap.context(() => {
+      media.add("all", () => {
+        gsap.from(".ep-title-word", { yPercent: 115, rotate: 4, duration: 1.05, stagger: .1, ease: "power4.out", clearProps: "transform" });
+        gsap.from(".ep-hero-intro", { y: 24, opacity: 0, duration: .8, delay: .3, clearProps: "all" });
+        gsap.from(".ep-sculpture-arrive", { y: 28, rotate: -4, opacity: 0, duration: 1.6, delay: .15, ease: "power3.out", clearProps: "all" });
+        gsap.utils.toArray<HTMLElement>("[data-ep-reveal]").forEach(element => {
+          gsap.from(element, { y: 38, opacity: 0, duration: .85, ease: "power3.out", clearProps: "all", scrollTrigger: { trigger: element, start: "top 82%", once: true } });
+        });
+      });
+      media.add("(min-width: 900px) and (pointer: fine)", () => {
+        gsap.to(".ep-sculpture-scroll", { y: -55, rotate: 4, scale: .96, ease: "none", scrollTrigger: { trigger: ".ep-hero-main", start: "top top", end: "bottom top", scrub: 1.4 } });
+        gsap.to(".ep-hero-orbit", { rotate: 40, y: -90, ease: "none", scrollTrigger: { trigger: ".ep-hero", start: "top top", end: "bottom top", scrub: 1 } });
+        gsap.utils.toArray<HTMLElement>(".ep-journey li").forEach(element => {
+          gsap.fromTo(element, { x: 24, opacity: .4 }, { x: 0, opacity: 1, duration: .75, ease: "power2.out", clearProps: "all", scrollTrigger: { trigger: element, start: "top 75%", once: true } });
+        });
+        gsap.fromTo(".ep-journey .ep-section-heading", { y: 30 }, { y: -40, ease: "none", scrollTrigger: { trigger: ".ep-journey", start: "top bottom", end: "bottom top", scrub: 1 } });
+        gsap.fromTo(".ep-final h2", { xPercent: -8, opacity: .2 }, { xPercent: 0, opacity: 1, ease: "none", scrollTrigger: { trigger: ".ep-final", start: "top 90%", end: "top 25%", scrub: .8 } });
+      });
+    }, root);
+    let mounted = true;
+    void document.fonts.ready.then(() => { if (mounted) ScrollTrigger.refresh(); });
+    return () => { mounted = false; media.revert(); context.revert(); };
+  }, [root, motion]);
+}
 
-    <section className="next-capabilities" id="capabilities" aria-labelledby="capabilities-title"><div className="next-section-heading"><p className="next-eyebrow">БОЛЬШЕ ЯСНОСТИ. МЕНЬШЕ РУТИНЫ.</p><h2 id="capabilities-title">Финансы, которые<br />работают <em className="silver-text">вместе с вами.</em></h2></div>
-      <div className="next-bento"><Link to="/cabinet" className="next-bento-dashboard"><div><span className="next-card-label">01 / КОНТРОЛЬ</span><h3>Вся картина.<br />Один кабинет.</h3><p>Остаток, поступления, заявки и платежи — чтобы видеть следующий шаг.</p></div><div className="next-mini-visual" aria-hidden="true"><span>ПРОСТРАНСТВО ВАШЕГО БИЗНЕСА</span><div className="next-mini-metrics"><i /><i /><i /></div><div className="next-mini-bars">{[42, 65, 51, 82, 72, 100].map((height, index) => <i key={index} style={{ height: height + "%" }} />)}</div><small>Ваши данные. В понятном виде.</small></div><ArrowUpRight className="next-card-arrow" /></Link>
-        <Link to="/cabinet?mode=assistant" className="next-bento-ai"><span className="next-card-label">02 / ДИАЛОГ</span><LumaAvatar className="next-ai-symbol" size={64} /><h3>Можно просто<br />рассказать.</h3><p>Лума уточнит детали и объяснит варианты простыми словами. Суммы, даты и варианты появятся рядом с разговором.</p><span className="next-link-text">Обсудить с Лумой<ArrowUpRight size={18} /></span></Link>
-        <Link to="/cabinet?mode=calendar" className="next-bento-calendar"><span className="next-card-label">03 / ПЛАН</span><div className="next-calendar-symbol" aria-hidden="true">{Array.from({ length: 15 }, (_, index) => <i key={index} />)}</div><h3>Знать, что впереди.</h3><p>Общий платёжный календарь или график одного продукта. Ближайшие обязательства — перед глазами.</p><span className="next-link-text">Открыть календарь<ArrowUpRight size={18} /></span></Link>
+function SceneLayers() {
+  return <><div className="ep-scene-base depth-0" data-depth="0" aria-hidden="true" /><div className="ep-scene-light depth-1" data-depth="1" aria-hidden="true" /></>;
+}
+
+export function HomePage() {
+  const root = useRef<HTMLDivElement>(null);
+  useLandingWheel(root);
+  const motion = true;
+  useLandingMotion(root, motion);
+  useEffect(() => {
+    const element = root.current, hero = element?.querySelector('.ep-hero');
+    if (!element || !hero) return;
+    let intersecting = false;
+    const update = () => { element.dataset.heroActive = String(intersecting && !document.hidden); };
+    const observer = new IntersectionObserver(([entry]) => { intersecting = entry.isIntersecting; update(); });
+    observer.observe(hero); document.addEventListener('visibilitychange', update);
+    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', update); };
+  }, []);
+  return <div className="ep-home" ref={root} data-motion={motion ? "on" : "off"} data-motion-engine="gsap">
+    <section className="scene ep-hero" aria-labelledby="hero-title" data-scene="hero">
+      <SceneLayers />
+      <div className="ep-hero-orbit depth-2" data-depth="2" aria-hidden="true"><LumaMark size={420} /></div>
+      <div className="ep-hero-main">
+        <div className="ep-hero-copy depth-4" data-depth="4"><p className="ep-eyebrow ep-hero-intro"><span className="ep-online" />ФИНАНСИРОВАНИЕ ДЛЯ ВАШЕГО БИЗНЕСА</p><h1 id="hero-title" aria-label="Большие планы. Дело за малым."><span className="ep-title-mask" aria-hidden="true"><span className="ep-title-word">Большие планы.</span></span><span className="ep-title-mask ep-title-accent" aria-hidden="true"><span className="ep-title-word">Дело за малым.</span></span></h1><div className="ep-hero-intro ep-hero-bottom"><p>Финансирование и платежи бизнеса — в одном кабинете.</p><div className="ep-hero-actions"><Button asChild size="lg"><Link to="/cabinet?mode=manual">Подобрать финансирование<ArrowUpRight /></Link></Button><a href="#products">Посмотреть продукты<ArrowDown size={16} /></a></div></div></div>
+        <div className="ep-hero-sculpture depth-3" data-depth="3" aria-hidden="true"><div className="ep-sculpture-scroll"><div className="ep-sculpture-arrive"><div className="ep-sculpture-float"><img src="/images/finance-sculpture.webp" alt="" width="1200" height="800" fetchPriority="high" /><div className="ep-sculpture-caption"><LumaMark size={23} /><span>Большие планы<br /><strong>начинаются с вашего дела</strong></span></div></div></div></div><span className="ep-sculpture-shadow" /></div>
       </div>
+      <HomeCabinetShowcase />
     </section>
-    <section id="products" className="next-products" aria-labelledby="products-heading"><div className="next-section-heading next-heading-row"><div><p className="next-eyebrow">РАЗНЫЕ ЗАДАЧИ — РАЗНЫЕ РЕШЕНИЯ</p><h2 id="products-heading">Капитал для<br /><em className="silver-text">вашего движения.</em></h2></div><p>Выберите направление.<br />Условия подберём в кабинете<br />с учётом вашего бизнеса.</p></div><ProductsCatalog />
-      {upcomingProducts.length > 0 && <><div className="next-horizons-heading"><span>Следующие возможности</span><span>В разработке</span></div><div className="next-horizons">{upcomingProducts.map(product => <article key={product.id}><span>{product.number}<ArrowUpRight size={17} /></span><h3>{product.name}</h3><p>{product.description}</p><small>Скоро</small></article>)}</div></>}
-    </section>
-    <section className="next-journey" id="selection-guide" aria-labelledby="guide-heading"><div className="next-section-heading"><p className="next-eyebrow">ОТ «НУЖНЫ ДЕНЬГИ» К ПОНЯТНОМУ ПЛАНУ</p><h2 id="guide-heading">Ваше дело.<br /><em>Ваш следующий шаг.</em></h2></div><ol>{[
-      ["Расскажите о задаче", "В форме или в разговоре. Нужна закупка, запас оборотных средств или деньги до выручки?"],
-      ["Посмотрите на варианты", "Сравните сумму, платёж и сроки. Обсудите с Лумой, что изменится при другом сценарии."],
-      ["Выберите и подтвердите", "Проверьте данные и отправьте заявку. Статус, документы и дальнейшие действия останутся в кабинете."],
-    ].map(([title, text], index) => <li key={title}><span>0{index + 1}</span><div><h3>{title}</h3><p>{text}</p></div><ArrowUpRight aria-hidden="true" /></li>)}</ol></section>
-    <section className="next-faq" id="questions" aria-labelledby="questions-heading"><div className="next-section-heading"><p className="next-eyebrow">БЕЗ БАНКОВСКОГО СЛОВАРЯ</p><h2 id="questions-heading">Есть вопрос?<br /><em>Разберёмся.</em></h2></div><div>{questions.map(question => <details key={question.title}><summary>{question.title}<ChevronDown size={19} /></summary><p>{question.text}</p></details>)}</div></section>
-    <section className="next-final"><span className="next-final-star" aria-hidden="true">✳</span><p>Большие планы начинаются с одного шага.</p><h2>Дальше —<br />дело за вами.</h2><Button asChild size="lg"><Link to="/cabinet">Открыть кабинет<ArrowRight /></Link></Button></section>
+
+    <section className="scene ep-live-section" id="capabilities" aria-labelledby="luma-title" data-scene="live-form"><SceneLayers /><div className="ep-section-heading depth-4" data-depth="4" data-ep-reveal><p className="ep-eyebrow"><LumaMark size={20} />ЗНАКОМЬТЕСЬ, ЛУМА</p><h2 id="luma-title">Из ваших слов —<br /><em>в понятный план.</em></h2><p>Обсуждайте задачу и смотрите, как заполняется запрос.<br className="ep-desktop-break" /> Суммы, сроки и изменения — перед глазами.</p></div><div className="depth-3" data-depth="3"><LumaScrollStory motion={motion} /></div><div className="ep-live-links depth-4" data-depth="4"><Link to="/cabinet?mode=assistant">Обсудить свою задачу<LumaMark size={21} /><ArrowUpRight size={16} /></Link><Link to="/cabinet?mode=manual">Или заполнить самостоятельно<ArrowRight size={15} /></Link></div></section>
+
+    <section className="scene ep-control-section" aria-labelledby="control-title" data-scene="control"><SceneLayers /><div className="ep-section-heading ep-heading-row depth-4" data-depth="4" data-ep-reveal><div><p className="ep-eyebrow">КРЕДИТЫ ПОД КОНТРОЛЕМ</p><h2 id="control-title">Платежи —<br className="ep-mobile-break" /> <em>перед глазами.</em></h2></div><p>График, проценты и сумма к оплате.<br />Всё рядом с выбранной датой.</p></div><div className="ep-control-board depth-3" data-depth="3" data-ep-reveal><HomeCalendarPreview /></div></section>
+
+    <section className="scene ep-products-section" id="products" aria-labelledby="products-heading" data-scene="products"><SceneLayers /><div className="ep-section-heading ep-heading-row depth-4" data-depth="4" data-ep-reveal><div><p className="ep-eyebrow">НА КАЖДЫЙ СЛЕДУЮЩИЙ ШАГ</p><h2 id="products-heading">Разные задачи.<br /><em>Свои решения.</em></h2></div><p>Закупка, расходы до выручки,<br />оборудование или новый график.<br />Начните с того, что нужно делу.</p></div><div className="depth-3" data-depth="3"><ProductScrollShowcase motion={motion} /></div></section>
+
+    <section className="scene ep-journey" id="selection-guide" aria-labelledby="guide-title" data-scene="journey"><SceneLayers /><div className="ep-section-heading depth-4" data-depth="4" data-ep-reveal><p className="ep-eyebrow">ВАША ЗАДАЧА. ВАШЕ РЕШЕНИЕ.</p><h2 id="guide-title">От первого слова —<br /><em>до следующего шага.</em></h2></div><ol className="depth-3" data-depth="3">{[["Расскажите о планах", "В разговоре с Лумой или в короткой форме. Данные бизнеса уже под рукой."], ["Сравните предложения", "Посмотрите суммы, сроки и платежи. Проверьте, что изменится в другом сценарии."], ["Выберите и подтвердите", "Вы решаете, когда отправить заявку. Дальше — её статус, продукты и платежи в кабинете."]].map(([title, text], index) => <li key={title}><span>0{index + 1}</span><div><h3>{title}</h3><p>{text}</p></div><ArrowUpRight size={22} aria-hidden="true" /></li>)}</ol></section>
+
+    <section className="scene ep-faq" id="questions" aria-labelledby="questions-title" data-scene="questions"><SceneLayers /><div className="ep-section-heading depth-4" data-depth="4" data-ep-reveal><h2 id="questions-title">Разберёмся<br /> <em>по делу.</em></h2></div><div className="ep-faq-list depth-3" data-depth="3" data-ep-reveal>{questions.map(question => <details key={question.title}><summary>{question.title}<ChevronDown size={19} aria-hidden="true" /></summary><p>{question.text}</p></details>)}</div></section>
+
+    <section className="scene ep-final" aria-labelledby="final-title" data-scene="next-step"><SceneLayers /><div className="depth-4 ep-final-copy" data-depth="4"><p className="ep-eyebrow">СЛЕДУЮЩИЙ ШАГ — ВАШ</p><h2 id="final-title">Планы есть.<br /><em>Дело за малым.</em></h2><div><Button asChild size="lg"><Link to="/cabinet?mode=manual">Подобрать финансирование<ArrowUpRight /></Link></Button><Link className="ep-final-manual" to="/cabinet?mode=assistant">Обсудить с Лумой<ArrowRight size={16} /></Link></div></div></section>
   </div>;
 }

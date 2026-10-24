@@ -20,8 +20,11 @@ class FinancialPolicy:
     history_months: int = 6
     debt_service_fraction: Decimal = Decimal("0.70")
     version: str = "demo-v1"
+    allow_seasonal_cash_flow: bool = False
 
     def __post_init__(self) -> None:
+        if type(self.allow_seasonal_cash_flow) is not bool:
+            raise ValueError("allow_seasonal_cash_flow должен быть bool")
         if type(self.history_months) is not int or self.history_months < 1:
             raise ValueError("history_months должен быть положительным целым числом")
         ratio = self.debt_service_fraction
@@ -287,7 +290,18 @@ def _calculate(
     total_flow = sum((row.cash_flow for row in flows), ZERO)
     minimum = min(row.cash_flow for row in flows)
     debt_service = sum(payments, ZERO).quantize(CENT)
-    positive_flow = max(ZERO, minimum)
+    underwriting = minimum
+    seasonal_supported = False
+    if policy.allow_seasonal_cash_flow and minimum <= ZERO and len(flows) >= 3:
+        # Скользящий квартал сглаживает разовую закупку, но не скрывает
+        # устойчивый дефицит: проверяются все окна, а не только последнее.
+        quarterly = tuple(sum((row.cash_flow for row in flows[index:index + 3]), ZERO) / 3
+                          for index in range(len(flows) - 2))
+        seasonal_supported = (total_flow > ZERO and min(quarterly) > ZERO
+                              and sum(row.cash_flow <= ZERO for row in flows) <= 2)
+        if seasonal_supported:
+            underwriting = min(total_flow / count, min(quarterly)).quantize(CENT, rounding=ROUND_DOWN)
+    positive_flow = max(ZERO, underwriting)
     # Лимит округляется вниз: округление вверх нарушило бы ограничение нагрузки.
     limit = (positive_flow * policy.debt_service_fraction).quantize(CENT, rounding=ROUND_DOWN)
     mean_inflow = inflow / count
@@ -299,9 +313,9 @@ def _calculate(
         average_monthly_taxes=(taxes / count).quantize(CENT),
         average_monthly_cash_flow=(total_flow / count).quantize(CENT),
         minimum_monthly_cash_flow=minimum,
-        underwriting_cash_flow=minimum,
+        underwriting_cash_flow=underwriting,
         existing_monthly_debt_service=debt_service,
-        cash_flow_after_existing_debt=minimum - debt_service,
+        cash_flow_after_existing_debt=underwriting - debt_service,
         operating_reserve=positive_flow - limit,
         total_debt_service_limit=limit,
         available_monthly_payment=max(ZERO, limit - debt_service).quantize(CENT),
@@ -312,10 +326,10 @@ def _calculate(
     )
     issues = ()
     status = "calculated"
-    if total_flow > ZERO and minimum <= ZERO:
+    if total_flow > ZERO and minimum <= ZERO and not seasonal_supported:
         status = "out_of_policy"
         issues = (CalculationIssue(
-            "financials.monthly", "nonpositive_monthly_cash_flow",
-            "При положительном среднем потоке есть неположительный месяц; нужна модель календаря денежных потоков.",
+            "financials.monthly", "unstable_seasonal_cash_flow" if policy.allow_seasonal_cash_flow else "nonpositive_monthly_cash_flow",
+            "История не проходит автоматическую оценку сезонности: нужен положительный поток в каждом скользящем квартале и не более двух неположительных месяцев." if policy.allow_seasonal_cash_flow else "При положительном среднем потоке есть неположительный месяц; нужна модель календаря денежных потоков.",
         ),)
     return FinancialMetricsResult(status, as_of.isoformat(), policy.version, metrics, issues)

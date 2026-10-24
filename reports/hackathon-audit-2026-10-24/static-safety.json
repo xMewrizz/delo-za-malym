@@ -1,0 +1,7 @@
+{
+  "scope": "working-tree text files, tracked and untracked, respecting rg ignore rules; selected key patterns only",
+  "files_scanned": 406,
+  "matches": [],
+  "env_excluded": true,
+  "ci_workflows": []
+}

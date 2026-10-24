@@ -38,14 +38,14 @@ class LineResult:
         return deepcopy(self.result)
 
 
-def assess_revolving(application, checks, *, calculated_at, stage="final", assessment_id=None):
+def assess_revolving(application, checks, *, calculated_at, stage="final", assessment_id=None, seasonal=False):
     projection = deepcopy(application)
     need = projection["need"]
     # Общая оценка риска и консервативный резерв на обслуживание всего лимита.
     need["preferred_product"] = "working_capital_loan"
     need["financing_pattern"] = "gradual_repayment"
     result = assess_application(projection, checks, calculated_at=calculated_at, stage=stage, assessment_id=assessment_id,
-        policy=POLICY, financial_policy=replace(FinancialPolicy(), version=POLICY.version)).to_dict()
+        policy=POLICY, financial_policy=replace(FinancialPolicy(), version=POLICY.version), seasonal=seasonal).to_dict()
     assessment = result.get("assessment")
     if assessment:
         for offer in assessment["offers"]:
@@ -56,7 +56,7 @@ def assess_revolving(application, checks, *, calculated_at, stage="final", asses
     return LineResult(result)
 
 
-def revolving_options(application, checks, *, calculated_at, preferences=None, exploration_id=None):
+def revolving_options(application, checks, *, calculated_at, preferences=None, exploration_id=None, seasonal=False):
     preferences = preferences or {}
     identity = exploration_id or str(uuid4())
     options, evaluations = [], []
@@ -67,7 +67,7 @@ def revolving_options(application, checks, *, calculated_at, preferences=None, e
             continue
         projection = deepcopy(application)
         projection["need"].update(preferred_product=PRODUCT, requested_amount=requested, term_months=term)
-        result = assess_revolving(projection, checks, calculated_at=calculated_at, stage="preliminary").to_dict()
+        result = assess_revolving(projection, checks, calculated_at=calculated_at, stage="preliminary", seasonal=seasonal).to_dict()
         evaluations.append(result)
         for offer in (result.get("assessment") or {}).get("offers", []):
             if offer["term_months"] != term:

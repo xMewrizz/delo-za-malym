@@ -161,7 +161,7 @@ class InvoiceDocuments:
                     if pending:
                         pending["status"] = "superseded"
                 chat["messages"].append({"message_id": str(uuid4()), "role": "assistant", "created_at": now.isoformat(),
-                                         "text": "Проверенный счёт сохранён." if proposal is None else "Учёл данные счёта в рабочем черновике. Проверьте значения рядом.",
+                                         "text": "Проверенный счёт сохранён." if proposal is None else "Учла данные счёта в рабочем черновике. Проверьте значения рядом.",
                                          "mode": "document", "proposal": proposal, "document_id": document_id})
                 chat["chat_version"] += 1
                 self.store.save_chat(connection, chat)

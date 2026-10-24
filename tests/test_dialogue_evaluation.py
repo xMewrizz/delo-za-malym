@@ -3,10 +3,18 @@ import unittest
 from unittest.mock import Mock
 
 from backend.service import ProcessError
-from scripts.run_dialogue_evaluation import evaluate, export_trial, failure_category
+from scripts.run_dialogue_evaluation import check_case, evaluate, export_trial, failure_category
 
 
 class DialogueEvaluationTests(unittest.TestCase):
+    def test_explanation_requires_each_concept_without_enforcing_one_wording(self):
+        before = {"need": {}}
+        case = {"expect": {"required_any_phrases": [["отсроч", "льгот"], ["перв", "ближайш"], ["выраст", "выше"]]}}
+        view = {"record": {"application": before, "state": {"status": "draft"}}, "chat": {"messages": [{"text": "В льготный период платёж ниже, но при замене кредита ближайшие выплаты могут вырасти."}]}}
+        self.assertEqual(check_case(case, before, view), [])
+        view["chat"]["messages"][0]["text"] = "Платёж всегда будет ниже."
+        self.assertTrue(check_case(case, before, view))
+
     def test_timeout_requires_transport_evidence(self):
         result = {"passed": False, "issues": ["assistant_unavailable"], "model_outputs": []}
         self.assertEqual(failure_category(result), "unavailable_unclassified")

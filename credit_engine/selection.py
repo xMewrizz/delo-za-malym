@@ -42,7 +42,7 @@ class FinancingSelectionResult:
 
 
 def recommend_financing(application: Mapping, checks: Mapping | None, *, calculated_at: datetime | str,
-                        recommendation_id: str | None = None) -> FinancingSelectionResult:
+                        recommendation_id: str | None = None, seasonal: bool = False) -> FinancingSelectionResult:
     """Сравнить два продукта, сохранив подтверждённую заявку и её предпочтения."""
     identifier = recommendation_id if recommendation_id is not None else str(uuid4())
     now = parse_timestamp(calculated_at)
@@ -51,7 +51,8 @@ def recommend_financing(application: Mapping, checks: Mapping | None, *, calcula
     def finish(status, *, recommended=None, candidates=(), questions=(), reasons=(), issues=()):
         return FinancingSelectionResult(status, identifier, **identity, recommended_product_id=recommended,
                                         candidates=tuple(candidates), required_information=tuple(questions),
-                                        reasons=tuple(reasons), issues=tuple(issues), calculated_at=now.isoformat() if now else None)
+                                        reasons=tuple(reasons), issues=tuple(issues), calculated_at=now.isoformat() if now else None,
+                                        policy_version="demo-selection-seasonal-v2" if seasonal else "demo-selection-v1")
 
     def invalid(field, code, message):
         return finish("invalid_data", issues=(CalculationIssue(field, code, message),))
@@ -120,7 +121,7 @@ def recommend_financing(application: Mapping, checks: Mapping | None, *, calcula
         projection["need"] = dict(projection["need"], preferred_product=None)
         calculator = assess_overdraft if product == "overdraft" else assess_application
         evaluated = calculator(projection, checks, calculated_at=now, stage="preliminary",
-                               assessment_id=f"{identifier}-{product}").to_dict()
+                               assessment_id=f"{identifier}-{product}", seasonal=seasonal).to_dict()
         candidate["evaluation"] = evaluated
         assessment = evaluated["assessment"]
         if assessment:
