@@ -1,11 +1,11 @@
 export type GuideSection = {id:string;title:string;body:string};
 export const documentationGroups = [
-  {title:"Проверка проекта",ids:["start","case-alignment","jury-checks"]},
+  {title:"Главное для организаторов",ids:["case-alignment","scoring","affordability","decision","quality"]},
+  {title:"Проверка проекта",ids:["start","jury-checks","process-model","data-sources"]},
   {title:"Кабинет и подбор",ids:["workspace","business-data","selection","luma"]},
-  {title:"Кредитный конвейер",ids:["process-model","data-sources","scoring","affordability","decision"]},
   {title:"Продукты",ids:["working-capital","overdraft","credit-line","refinancing","investment"]},
   {title:"Оформление и обслуживание",ids:["comparison","application","servicing","supplier-payments","calendar"]},
-  {title:"Устройство и ограничения",ids:["architecture","data-model","api","reliability","model-compliance","deployment","quality","scope"]},
+  {title:"Устройство и ограничения",ids:["architecture","data-model","api","reliability","model-compliance","deployment","scope"]},
 ];
 
 export function parseGuide(markdown:string):GuideSection[] {

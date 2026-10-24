@@ -19,6 +19,7 @@ describe("documentation reader",()=>{
    const links=[...host.querySelectorAll<HTMLAnchorElement>(".documentation-toc nav a")];
    expect(links).toHaveLength(30);
    expect(links.every(link=>host.querySelector(link.hash))).toBe(true);
+   expect(links.slice(0,5).map(link=>link.hash)).toEqual(["#case-alignment","#scoring","#affordability","#decision","#quality"]);
    expect(document.activeElement?.id).toBe("credit-line-title");
    expect(scroll).toHaveBeenCalled();
    expect(host.querySelectorAll(".documentation-table-scroll table").length).toBeGreaterThan(4);
@@ -32,6 +33,14 @@ describe("documentation reader",()=>{
    await act(async()=>links.find(link=>link.hash==="#servicing")!.click());
    await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
    expect(scroll.mock.calls.length).toBeGreaterThan(previous);
+   const mechanics=host.querySelector('.documentation-mechanics')!;
+   expect(mechanics.compareDocumentPosition(host.querySelector('#start')!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+   const scoring=mechanics.querySelector<HTMLAnchorElement>('a[href$="#scoring"]')!;
+   await act(async()=>scoring.click());
+   await act(async()=>{await new Promise(resolve=>setTimeout(resolve,30));});
+   expect(document.activeElement?.id).toBe("scoring-title");
+   expect(host.querySelector('#scoring table')?.textContent).toContain("Баллы");
+   expect(host.querySelector('#decision')?.textContent).toContain("Пример всей цепочки");
   }finally{await act(async()=>root.unmount());host.remove();}
  });
 });

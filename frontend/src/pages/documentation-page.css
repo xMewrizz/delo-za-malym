@@ -16,6 +16,17 @@
 .documentation-toc nav a[aria-current=location]{color:var(--accent-foreground);background:var(--accent);border-left-color:var(--primary)}
 .documentation-toc-toggle{display:none}
 .documentation-content{min-width:0;max-width:900px}
+.documentation-mechanics{margin-bottom:48px;padding-bottom:40px;border-bottom:1px solid var(--border)}
+.documentation-mechanics-heading h2{font-size:24px;line-height:1.4;letter-spacing:-.03em;font-weight:550}
+.documentation-mechanics-heading p{margin-top:9px}
+.documentation-mechanics-links{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:24px}
+.documentation-mechanics-links>a{position:relative;display:block;padding:22px;border:1px solid var(--border);border-radius:16px;background:var(--card);color:var(--foreground);text-decoration:none;transition:border-color .18s,background .18s}
+.documentation-mechanics-links>a:hover{border-color:var(--primary);background:var(--secondary)}
+.documentation-mechanic-index{font-size:11px;color:var(--primary);font-variant-numeric:tabular-nums}
+.documentation-content .documentation-mechanics-links h3{font-size:18px;line-height:1.45;letter-spacing:-.025em;margin:14px 20px 9px 0;font-weight:550}
+.documentation-content .documentation-mechanics-links p{font-size:13px;line-height:1.7;margin:0;color:var(--muted-foreground)}
+.documentation-mechanics-links svg{position:absolute;top:22px;right:22px;color:var(--primary)}
+@media(max-width:580px){.documentation-mechanics{margin-bottom:34px;padding-bottom:28px}.documentation-mechanics-links{grid-template-columns:1fr}.documentation-mechanics-links>a{padding:20px}}
 .documentation-content>section{padding-bottom:52px;margin-bottom:48px;border-bottom:1px solid var(--border);scroll-margin-top:130px}
 .documentation-section-heading{display:flex;align-items:center;gap:14px;margin-bottom:24px}
 .documentation-section-heading>span{color:var(--primary);font-size:11px;font-variant-numeric:tabular-nums}
