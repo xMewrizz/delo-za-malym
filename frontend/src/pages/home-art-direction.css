@@ -104,7 +104,7 @@
 .ep-home .ep-control-section h2{font-size:clamp(31px,3.8vw,56px);line-height:1.15;margin-top:16px}
 .ep-control-section .ep-heading-row>p:last-child:not(.ep-eyebrow){font-size:13px;max-width:30ch}
 .ep-control-board{max-width:1200px;margin-inline:auto}
-.ep-home .ep-final{padding:80px 0 90px;min-height:0;overflow:hidden;border-top:1px solid var(--border);background:var(--background)}
+.ep-home .ep-final{padding:80px 0 90px;min-height:0;overflow:hidden;border-top:0;background:var(--background)}
 .ep-home .ep-final h2{font-size:clamp(48px,6vw,88px);line-height:1.13;letter-spacing:-.06em;max-width:none;margin:24px 0 30px}
 
 

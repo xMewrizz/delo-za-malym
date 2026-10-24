@@ -33,7 +33,7 @@ export function HomeCabinetShowcase() {
     const context=gsap.context(()=>{
       gsap.from(".ep-overview-copy",{y:16,opacity:0,duration:.55,ease:"power2.out",clearProps:"all",scrollTrigger:{trigger:host.current,start:"top 75%",once:true}});
       media.add("(min-width:1101px) and (min-height:760px)",()=>{
-        const trigger=ScrollTrigger.create({trigger:host.current,start:"top 112px",end:()=>`+=${Math.round(window.innerHeight*.95)}`,invalidateOnRefresh:true,onUpdate:self=>setActive(current=>overviewChapterAt(self.progress,current))});
+        const trigger=ScrollTrigger.create({trigger:host.current,start:"top 112px",end:()=>`+=${Math.max(0,(host.current?.offsetHeight||0)-(host.current?.querySelector<HTMLElement>(".ep-overview-stage")?.offsetHeight||0))}`,invalidateOnRefresh:true,onUpdate:self=>setActive(current=>overviewChapterAt(self.progress,current))});
         return()=>{trigger.kill();setActive(0);};
       });
     },host);
