@@ -1,0 +1,15 @@
+
+> delo-za-malym-frontend@0.0.0 test
+> vitest run
+
+
+ RUN  v5.0.5 C:/Users/user/Documents/Alfa_Hack/frontend
+
+
+ Test Files  46 passed | 3 skipped (49)
+      Tests  154 passed | 20 skipped (174)
+   Start at  01:18:17
+   Duration  16.34s (environment 44%, import 28%, tests 25%, transform 3%)
+
+    Isolate  49 workers spawned · ~1.59s startup each (spawn + environment, per file)
+             at least ~3.61s faster with isolate: false — reuses workers across files instead of one per file

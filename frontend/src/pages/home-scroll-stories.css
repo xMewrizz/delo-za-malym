@@ -166,8 +166,8 @@
 }
 
 /* A fixed scroll runway and native sticky keep scene exits continuous in both directions. */
-.ep-live-scroll[data-scrub=on]{height:calc(100svh + max(1800px,220svh));overflow-anchor:none}
-.ep-product-scroll[data-scrub=on]{height:calc(100svh + max(2400px,280svh));overflow-anchor:none}
+.ep-live-scroll[data-scrub=on]{height:calc(100svh + max(5600px,650svh));overflow-anchor:none}
+.ep-product-scroll[data-scrub=on]{height:calc(100svh + max(3600px,420svh));overflow-anchor:none}
 html:has(.ep-home){scroll-behavior:auto}
 
 /* Short laptop windows keep the scroll story instead of silently dropping to a static card. */

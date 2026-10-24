@@ -18,6 +18,10 @@ const chapters = [
   { short: "Выбор", label: "Последнее слово — за вами", text: "В примере выбран оборотный кредит. Отправка заявки — отдельный шаг.", user: "Выбираю оборотный кредит.", reply: "Выбранный вариант сохранён. Проверьте условия — заявку отправите, когда будете готовы." },
 ];
 
+// Each chapter reserves most of its scroll distance for reading the settled content.
+const lumaStep = 8;
+const lumaDuration = chapters.length * lumaStep;
+
 /** Native CSS sticky owns the layout. GSAP only scrubs content, so leaving a scene never removes a pin spacer. */
 export function LumaScrollStory({ motion }: { motion: boolean }) {
   const host = useRef<HTMLDivElement>(null), pin = useRef<HTMLDivElement>(null);
@@ -31,10 +35,10 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
       if (!host.current || !pin.current) return;
       const select = gsap.utils.selector(host.current);
       let lastPhase = -1, lastFilled = -1;
-      const tl = gsap.timeline({ defaults: { ease: "power2.inOut" }, scrollTrigger: { id: "landing-luma", trigger: host.current, start: "top top", end: "bottom bottom", scrub: .85, invalidateOnRefresh: true }, onUpdate: () => {
+      const tl = gsap.timeline({ defaults: { ease: "power2.inOut" }, scrollTrigger: { id: "landing-luma", trigger: host.current, start: "top top", end: "bottom bottom", scrub: .4, invalidateOnRefresh: true }, onUpdate: () => {
         const time = tl.time();
-        const nextPhase = Math.min(4, Math.floor(time / 4));
-        const nextFilled = Math.min(3, Math.max(0, Math.floor((time + 2.1) / 4)));
+        const nextPhase = Math.min(4, Math.floor(time / lumaStep));
+        const nextFilled = Math.min(3, Math.max(0, Math.floor((time + lumaStep - 1.9) / lumaStep)));
         // React owns semantic state only. GSAP updates the visual playhead without rerendering every frame.
         if (nextPhase !== lastPhase) { lastPhase = nextPhase; setPhase(nextPhase); }
         if (nextFilled !== lastFilled) { lastFilled = nextFilled; setFilled(nextFilled); }
@@ -48,10 +52,10 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
       gsap.set(select(".ep-story-offers,.ep-story-selected"), { autoAlpha: 0, y: 6 });
       gsap.set(select(".ep-story-field-glow"), { opacity: 0 });
       gsap.set(select(".ep-story-sync"), { opacity: .3, scale: .85 });
-      tl.fromTo(select(".ep-story-progress>i"), { scaleX: 0 }, { scaleX: 1, duration: 20, ease: "none" }, 0);
+      tl.fromTo(select(".ep-story-progress>i"), { scaleX: 0 }, { scaleX: 1, duration: lumaDuration, ease: "none" }, 0);
       for (let index = 0; index < 5; index++) {
-        const start = index * 4;
-        tl.addLabel(chapters[index].short, start + 3);
+        const start = index * lumaStep;
+        tl.addLabel(chapters[index].short, start + 4);
         if (index) {
           tl.to(select(`[data-story-message="${index - 1}"]`), { autoAlpha: 0, y: 0, duration: .5 }, start);
           tl.to(select(`[data-story-message="${index}"]`), { autoAlpha: 1, y: 0, duration: .7, ease:"sine.inOut" }, start + .45);
@@ -66,12 +70,12 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
           tl.to(select(".ep-story-sync"), { opacity: 1, scale: 1, duration: .65 }, at - .2).to(select(".ep-story-sync"), { opacity: .3, scale: .9, duration: 1 }, at + .6);
         }
       }
-      tl.to(select(".ep-story-request"), { autoAlpha: 0, y: -4, duration: .65 }, 12.25);
-      tl.to(select(".ep-story-offers"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 12.8);
-      tl.fromTo(select(".ep-story-offer"), { y: 4, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, stagger: .18, ease:"sine.inOut" }, 12.9);
-      tl.to(select(".ep-story-offers"), { autoAlpha: 0, y: -4, duration: .65 }, 16.25);
-      tl.to(select(".ep-story-selected"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 16.8);
-      tl.fromTo(select(".ep-story-selected-check"), { scale: .96, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "sine.inOut" }, 17.1);
+      tl.to(select(".ep-story-request"), { autoAlpha: 0, y: -4, duration: .65 }, 3*lumaStep+.25);
+      tl.to(select(".ep-story-offers"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 3*lumaStep+.8);
+      tl.fromTo(select(".ep-story-offer"), { y: 4, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, stagger: .18, ease:"sine.inOut" }, 3*lumaStep+.9);
+      tl.to(select(".ep-story-offers"), { autoAlpha: 0, y: -4, duration: .65 }, 4*lumaStep+.25);
+      tl.to(select(".ep-story-selected"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 4*lumaStep+.8);
+      tl.fromTo(select(".ep-story-selected-check"), { scale: .96, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "sine.inOut" }, 4*lumaStep+1.1);
       return () => { timeline.current = null; };
     }, host);
     return () => { media.revert(); timeline.current = null; };
@@ -79,8 +83,8 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
   const seek = (index: number) => {
     const trigger = timeline.current?.scrollTrigger;
     if (trigger) {
-      window.scrollTo({top:trigger.start + (trigger.end-trigger.start) * ((index*4+3)/20),behavior:"instant"});
-      trigger.update(); trigger.getTween()?.progress(1); timeline.current?.time(index*4+3);
+      window.scrollTo({top:trigger.start + (trigger.end-trigger.start) * ((index*lumaStep+4)/lumaDuration),behavior:"instant"});
+      trigger.update(); trigger.getTween()?.progress(1); timeline.current?.time(index*lumaStep+4);
     }
     else { setPhase(index); setFilled(Math.min(3, index + 1)); }
   };

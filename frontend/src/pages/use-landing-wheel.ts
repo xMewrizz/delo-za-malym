@@ -2,8 +2,8 @@ import {useEffect, type RefObject} from "react";
 
 /** Limit both wheel travel and actual velocity, including across scene boundaries. */
 export function installLandingWheel(root: HTMLElement) {
-  let frame = 0, target = window.scrollY, lastFrame = 0, writing = false;
-  const cancel = () => {cancelAnimationFrame(frame); frame = 0; lastFrame = 0; target = window.scrollY;};
+  let frame = 0, target = window.scrollY, lastWritten = window.scrollY, lastFrame = 0, writing = false;
+  const cancel = () => {cancelAnimationFrame(frame); frame = 0; lastFrame = 0; target = lastWritten = window.scrollY;};
   const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
   function tick(time: number) {
     const elapsed = lastFrame ? Math.min(32, time-lastFrame) : 16.67;
@@ -11,11 +11,12 @@ export function installLandingWheel(root: HTMLElement) {
     const current = window.scrollY;
     target = Math.max(0, Math.min(maxScroll(), target));
     const remaining = target-current;
-    const eased = remaining*(1-Math.exp(-elapsed/100));
+    const eased = remaining*(1-Math.exp(-elapsed/75));
     // A burst can keep refreshing the destination. A per-event clamp alone therefore
     // cannot stop an accelerating wheel/trackpad from skipping the next section.
-    const step = Math.max(-.54*elapsed, Math.min(.54*elapsed, eased));
+    const step = Math.max(-1.35*elapsed, Math.min(1.35*elapsed, eased));
     const next = Math.abs(remaining) < .6 ? target : current+step;
+    lastWritten = next;
     writing = true; window.scrollTo({top: next, behavior: "instant"}); writing = false;
     if (next !== target) frame = requestAnimationFrame(tick);
     else {frame = 0; lastFrame = 0;}
@@ -31,13 +32,15 @@ export function installLandingWheel(root: HTMLElement) {
     event.preventDefault();
     const current=window.scrollY;
     const pixels=event.deltaY*(event.deltaMode===1 ? 18 : event.deltaMode===2 ? window.innerHeight : 1);
-    const delta=Math.max(-81, Math.min(81, pixels*.73));
+    const delta=Math.max(-180, Math.min(180, pixels*1.05));
     // Reversing the wheel discards the previous direction's remaining travel.
     if (!frame || Math.sign(delta)!==Math.sign(target-current)) target=current;
-    target=Math.max(0,Math.min(maxScroll(),current+112,Math.max(current-112,target+delta)));
+    target=Math.max(0,Math.min(maxScroll(),current+280,Math.max(current-280,target+delta)));
     if (!frame) frame=requestAnimationFrame(tick);
   }
-  const externalScroll = () => {if (!writing && frame && Math.abs(window.scrollY-target)>200) cancel();};
+  // Browser scroll events arrive after scrollTo returns. Compare against our
+  // last written position, not the destination still waiting to be reached.
+  const externalScroll = () => {if (!writing && frame && Math.abs(window.scrollY-lastWritten)>2) cancel();};
   window.addEventListener("wheel",wheel,{passive:false});
   window.addEventListener("pointerdown",cancel,{passive:true});
   window.addEventListener("keydown",cancel);
