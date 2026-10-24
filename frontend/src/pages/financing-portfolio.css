@@ -35,7 +35,7 @@
 .funding-filter button:hover { color:var(--foreground); background:var(--secondary); }
 .funding-filter button[aria-pressed=true] { color:var(--foreground); background:var(--surface-raised); border-color:var(--border); }
 .funding-filter button>span { display:grid; place-items:center; min-width:20px; height:20px; padding-inline:5px; border-radius:50%; background:var(--background); color:var(--muted-foreground); font-size:10px; }
-.funding-grid { display:grid; grid-template-columns:1fr; gap:18px; align-items:start; }
+.funding-grid { display:grid; grid-template-columns:1fr; gap:18px; align-items:stretch; }
 .funding-card { padding:26px; border:1px solid var(--border); border-radius:var(--radius-panel); background:var(--card); min-width:0; display:flex; flex-direction:column; }
 .funding-card-heading { display:flex; align-items:center; gap:11px; min-height:38px; }.funding-card-icon { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; border:1px solid var(--border); border-radius:11px; background:var(--surface-raised); color:var(--primary); }
 .funding-card-status { display:flex; align-items:center; gap:6px; color:var(--muted-foreground); font-size:10px; }.funding-card-status i { width:5px; height:5px; border-radius:50%; background:var(--growth); }.funding-card-number { margin-left:auto; color:var(--muted-foreground); font-family:var(--app-font-mono); font-size:9px; }
@@ -96,6 +96,8 @@
 /* Card count and the available cabinet width determine the row, not the product type. */
 .funding-card-summary{min-width:0}
 @container funding (min-width:820px){
+ /* Match the row's height while keeping the facts and actions on shared baselines. */
+ .funding-card-facts{margin-top:auto;padding-top:22px}
  .funding-card h3{min-height:2.6em;font-size:21px}
  .funding-card-balance strong{font-size:clamp(29px,2.8cqw,38px)}
  .funding-card-balance{gap:13px}
