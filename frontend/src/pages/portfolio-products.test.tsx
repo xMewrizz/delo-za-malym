@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import { describe, expect, it } from "vitest";
 import { renderToStaticMarkup } from "react-dom/server";
 import { MemoryRouter } from "react-router";
@@ -41,6 +42,10 @@ describe("portfolio product consistency", () => {
     expect(product.principalStartsOn).toBe("2027-01-14");
     expect(product.nextPayment).toMatchObject({date:"2026-11-14",amount:"6000.00"});
     const html=renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={product}/></MemoryRouter>);
+    const host=document.createElement("div");host.innerHTML=html;
+    expect(host.querySelector(".funding-card-details")?.hasAttribute("open")).toBe(false);
+    expect(host.querySelector(".funding-card-summary .funding-upcoming")).toBeNull();
+    expect(host.querySelector(".funding-card-facts")?.textContent).toContain("Ближайший платёж");
     expect(html).toContain("Сейчас — только проценты");
     expect(html).toContain("Ближайшие платежи");
     expect(html).not.toContain("Состав платежа");

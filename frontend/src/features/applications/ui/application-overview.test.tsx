@@ -13,6 +13,18 @@ async function setup(reviewing=false,view=source()){
  return {host,cleanup:async()=>{await act(async()=>root.unmount());host.remove();}};
 }
 describe("application identity and review context",()=>{
+ it("marks all review stages complete for a final approved offer, including checks from the saved trace",async()=>{
+  const view=source();view.state.status="offers_ready";
+  view.result!.assessment={assessment_id:"approved",stage:"final",outcome:"approved",offers:[{offer_id:"offer",product_id:"investment_loan",amount:"400000.00",term_months:24}]};
+  const trace=view.result!.decision_trace as {steps:{id:string;status?:string}[]};
+  trace.steps.filter(step=>["risk","capacity"].includes(step.id)).forEach(step=>step.status="calculated");
+  const t=await setup(false,view);try{
+   expect(t.host.querySelector(".application-review h3")?.textContent).toBe("Условия готовы");
+   expect(t.host.querySelectorAll('.application-review-stages [data-state="done"]')).toHaveLength(4);
+   expect(t.host.querySelectorAll('.application-review-stages strong svg')).toHaveLength(4);
+   expect(t.host.querySelectorAll('.application-review-stages [aria-current]')).toHaveLength(0);
+  }finally{await t.cleanup();}
+ });
  it("keeps the product, requested amount and term visible, and distinguishes received checks from uncalculated scoring",async()=>{
   const t=await setup();try{
    expect(t.host.querySelector("h2")?.textContent).toBe("Инвестиционный кредит");

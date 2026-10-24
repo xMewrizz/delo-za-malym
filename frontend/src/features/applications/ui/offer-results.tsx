@@ -12,6 +12,7 @@ import { completionLifecycle } from "../model/completion-lifecycle";
 import { InvestmentTerms } from "./investment-terms";
 import { RefinancingEffect } from "./refinancing-comparison";
 import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
+import "./offer-results.css";
 
 function OfferCard({
   offer,
@@ -29,16 +30,13 @@ function OfferCard({
   onSelect: () => void;
 }) {
   return (
-    <div className="rounded-[22px] border border-border bg-background p-5 sm:p-6">
-      {offer.product_id === "investment_loan" && <InvestmentTerms offer={offer} />}
-      {offer.product_id === "refinancing" && <RefinancingEffect offer={offer} />}
-      {offer.product_id === "revolving_credit_line" && <RevolvingTerms value={offer.revolving} />}
-      <div className="flex flex-wrap items-start justify-between gap-3">
+    <article className="application-offer-card" aria-label={productName(offer.product_id)}>
+      <div className="application-offer-heading">
         <div>
-          <p className="text-xs font-bold text-primary">
+          <p className="application-offer-product">
             {productName(offer.product_id)}
           </p>
-          <h4 className="mt-1 text-2xl font-extrabold tracking-tight">
+          <h4>
             {formatMoney(offer.amount)}
           </h4>
         </div>
@@ -46,7 +44,7 @@ function OfferCard({
           {selected ? "Выбрано" : final ? "Итоговое" : "Предварительное"}
         </span>
       </div>
-      <dl className="mt-5 grid gap-3 border-t border-border pt-5 text-sm sm:grid-cols-3">
+      <dl className="application-offer-figures">
         <div>
           <dt className="text-xs text-muted-foreground">Срок</dt>
           <dd className="mt-1 font-bold">
@@ -73,27 +71,21 @@ function OfferCard({
           </dd>
         </div>
       </dl>
-      <PenaltyTermsNote value={offer.penalty_terms} />
-      {offer.total_repayment && (
-        <p className="mt-4 text-xs text-muted-foreground">
-          Всего к возврату:{" "}
-          <strong className="text-foreground">
-            {formatMoney(offer.total_repayment)}
-          </strong>
-        </p>
-      )}
-      <p className="mt-3 text-xs text-muted-foreground">
-        Комиссии: {formatMoney(offer.fees_total || "0")}.{" "}
-        {offer.conditions?.length
-          ? "Требуется поручительство."
-          : "Без поручительства и залога."}
-      </p>
+      {offer.product_id === "investment_loan" && <InvestmentTerms offer={offer} />}
+      {offer.product_id === "refinancing" && <RefinancingEffect offer={offer} />}
+      {offer.product_id === "revolving_credit_line" && <RevolvingTerms value={offer.revolving} />}
+      <dl className="application-offer-costs">
+        {offer.total_repayment && <div><dt>Всего к возврату</dt><dd>{formatMoney(offer.total_repayment)}</dd></div>}
+        <div><dt>Комиссии</dt><dd>{formatMoney(offer.fees_total || "0")}</dd></div>
+      </dl>
+      <p className="application-offer-security">{offer.conditions?.length ? "Требуется поручительство" : "Без поручительства и залога"}</p>
+      <PenaltyTermsNote value={offer.penalty_terms} compact />
       {final && canSelect && !selected && (
-        <Button className="mt-5" disabled={busy} onClick={onSelect}>
-          Выбрать предложение
+        <Button className="application-offer-select" disabled={busy} onClick={onSelect}>
+          Выбрать предложение<ArrowRight size={16} aria-hidden="true"/>
         </Button>
       )}
-    </div>
+    </article>
   );
 }
 
@@ -155,21 +147,22 @@ export function OfferResults({
   if (view.state.status === "cancelled") return <Card><CardHeader><p className="section-kicker">ЗАЯВКА ЗАКРЫТА</p><h2 className="text-2xl font-semibold">Вы отменили заявку</h2><p className="text-sm text-muted-foreground">Её условия и история сохранены. Для новой задачи начните отдельный подбор.</p></CardHeader><CardContent>{onNewSelection ? <Button variant="outline" disabled={busy} onClick={onNewSelection}>Новый подбор<ArrowRight size={16}/></Button> : <Button asChild variant="outline"><Link to="/cabinet?mode=applications">Все заявки<ArrowRight size={16}/></Link></Button>}</CardContent></Card>;
 
   return (
-    <Card className="gap-0 border border-border bg-card/70">
-      <CardHeader className="pb-5">
+    <Card className="application-offer-results gap-0 border border-border bg-card/70">
+      <CardHeader className="application-result-header" data-tone={final && assessment?.outcome === "approved" ? "approved" : undefined}>
         <div className="flex items-center gap-3">
-          <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
-            <FileCheck2 className="size-5" />
+          <span className="application-result-icon">
+            {final && assessment?.outcome === "approved" ? <Check size={23} aria-hidden="true"/> : <FileCheck2 size={23} aria-hidden="true"/>}
           </span>
           <div>
-            <p className="text-xs font-bold uppercase tracking-widest text-primary">
-              Результат
+            <p className="application-result-kicker">
+              {assessment ? final ? "Решение банка" : "Предварительный расчёт" : "Результат"}
             </p>
-            <h3 className="text-xl font-semibold tracking-tight">
-              {["declined", "out_of_policy"].includes(view.state.status) ? "Решение по заявке" : "Предложения и оформление"}
+            <h3>
+              {assessment ? !final && assessment.offers.length ? "Подходящие условия" : outcomeName(assessment.outcome) : "Предложения и оформление"}
             </h3>
           </div>
         </div>
+        {assessment && assessment.offers.length > 0 && <p className="application-result-next">{final ? selected ? "Проверьте выбранные условия и завершите оформление." : "Выберите предложение, чтобы перейти к оформлению." : "Сравните условия перед отправкой заявки в банк."}</p>}
       </CardHeader>
       <CardContent className="space-y-5">
         {view.result && !assessment && (
@@ -203,18 +196,10 @@ export function OfferResults({
         )}
         {assessment && (
           <>
-            <div className="flex flex-wrap items-center gap-2 text-xs">
-              <span className="rounded-full bg-primary/10 px-3 py-1 font-bold text-primary">
-                {final ? "Итоговое рассмотрение" : "Предварительный расчёт"}
-              </span>
-              <span className="text-muted-foreground">
-                Результат: {outcomeName(assessment.outcome)}
-              </span>
-            </div>
             {(assessment.reasons || []).map((reason, index) => (
               <p
                 key={reason.code || index}
-                className="rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground"
+                className="application-result-reason"
               >
                 {reason.message}
               </p>

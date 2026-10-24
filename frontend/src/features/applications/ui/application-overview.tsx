@@ -61,7 +61,7 @@ export function ApplicationOverview({view, reviewing=false}:{view:ApplicationVie
     </div>
     <div className="application-review">
       <p className="application-review-label">Рассмотрение заявки</p><h3>{reviewTitle}</h3><p className="application-review-description">{reviewDescription}</p>
-      <ol className="application-review-stages" aria-label="Этапы банковского рассмотрения">{steps.map((step,index)=><li key={step.title} data-state={step.state} aria-current={step.state==="active"?"step":undefined}><span aria-hidden="true"/><strong>{["Заявка","Проверки","Скоринг","Решение"][index]}</strong><span className="sr-only">{step.title}. {step.text}</span></li>)}</ol>
+      <ol className="application-review-stages" aria-label="Этапы банковского рассмотрения">{steps.map((step,index)=><li key={step.title} data-state={step.state} aria-current={step.state==="active"?"step":undefined}><span aria-hidden="true"/><strong>{step.state==="done"&&<Check size={11} aria-hidden="true"/>}{["Заявка","Проверки","Скоринг","Решение"][index]}</strong><span className="sr-only">{step.title}. {step.text}</span></li>)}</ol>
       <Button variant="outline" size="sm" className="application-history-trigger" aria-expanded={historyOpen} aria-controls={historyId} onClick={()=>setHistoryOpen(open=>!open)}><History size={15}/><span>История и проверки</span><span className="application-history-count">{view.events.length}</span>{historyOpen?<Minus size={14}/>:<Plus size={14}/>}</Button>
     </div>
     <div id={historyId} hidden={!historyOpen} className="application-review-details">

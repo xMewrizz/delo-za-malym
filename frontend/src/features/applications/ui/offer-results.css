@@ -1,0 +1,45 @@
+.application-result-header{padding-bottom:20px;gap:12px}
+.application-result-header>div{align-items:center}
+.application-result-icon{display:grid;place-items:center;flex-shrink:0;width:44px;height:44px;border-radius:13px;background:var(--accent);color:var(--primary)}
+.application-result-header[data-tone=approved] .application-result-icon{background:var(--growth-surface);color:var(--growth)}
+.application-result-kicker{font-size:11px;line-height:1.6;color:var(--muted-foreground);margin-bottom:4px}
+.application-result-header h3{font-size:clamp(26px,2.6vw,34px);line-height:1.2;font-weight:550;letter-spacing:-.035em}
+.application-result-next,.application-result-reason{font-size:12px;line-height:1.8;color:var(--muted-foreground);max-width:70ch}
+.application-offer-card{padding:25px;border:1px solid var(--border);border-radius:20px;background:var(--background);min-width:0}
+.application-offer-heading{display:flex;align-items:start;justify-content:space-between;gap:16px}
+.application-offer-product{font-size:13px;line-height:1.6;color:var(--foreground)}
+.application-offer-heading h4{margin-top:9px;font-size:clamp(29px,3vw,40px);line-height:1.25;letter-spacing:-.045em;font-weight:550;font-variant-numeric:tabular-nums}
+.application-offer-heading>span{flex-shrink:0;font-weight:400;font-size:10px}
+.application-offer-figures{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:18px;margin:24px 0}
+.application-offer-figures dt{font-size:11px;line-height:1.6;color:var(--muted-foreground)}
+.application-offer-figures dd{margin-top:6px;font-size:17px;line-height:1.4;font-weight:550;font-variant-numeric:tabular-nums}
+.application-offer-costs{display:flex;flex-wrap:wrap;gap:18px 40px;margin-top:23px}
+.application-offer-costs>div{display:flex;align-items:baseline;gap:10px;font-size:12px;line-height:1.8}
+.application-offer-costs dt,.application-offer-security{color:var(--muted-foreground)}
+.application-offer-costs dd{font-weight:550;font-variant-numeric:tabular-nums}
+.application-offer-security{font-size:11px;line-height:1.7;margin-top:9px}
+.application-offer-select{margin-top:20px;gap:12px}
+.application-offer-card .penalty-terms-compact{display:block;width:fit-content;max-width:100%;margin-top:8px;border:0;border-radius:0;background:none}
+.application-offer-card .penalty-terms-compact>summary{min-height:36px;padding:5px 0;gap:9px}
+.application-offer-card .penalty-terms-compact>summary strong{font-size:11px;line-height:1.7;font-weight:400;color:var(--muted-foreground)}
+.application-offer-card .penalty-terms-compact .ui-disclosure-toggle{border:0;width:18px;height:18px}
+.application-offer-card .penalty-terms-compact .ui-disclosure-toggle::before,.application-offer-card .penalty-terms-compact .ui-disclosure-toggle::after{left:4px;top:9px;width:10px}
+.application-offer-card .penalty-terms-compact .ui-disclosure-content{max-width:65ch;padding:8px 0 12px}
+.application-offer-card .penalty-terms-compact .ui-disclosure-content p{font-size:11px;line-height:1.8}
+.application-offer-card .penalty-terms-compact .ui-disclosure-content p+p{margin-top:5px}
+.application-offer-card .investment-terms{padding:18px;margin:0;background:var(--card);border:1px solid var(--border);border-radius:14px;display:grid;gap:18px}
+.application-offer-card .investment-terms>dl{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:18px}
+.application-offer-card .investment-terms>dl dt{font-size:11px;line-height:1.6;color:var(--muted-foreground)}
+.application-offer-card .investment-terms>dl dd{margin-top:5px;font-size:16px;line-height:1.4;font-weight:550}
+.application-offer-card .investment-payment-phases{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.application-offer-card .investment-payment-phases>div{border-left:2px solid var(--primary);padding:0 12px;display:grid;gap:5px}
+.application-offer-card .investment-payment-phases span,.application-offer-card .investment-payment-phases small{font-size:11px;line-height:1.6;color:var(--muted-foreground)}
+.application-offer-card .investment-payment-phases strong{font-size:16px;line-height:1.4;font-weight:550}
+.application-offer-card .investment-grace-note{font-size:11px;line-height:1.7;color:var(--muted-foreground);max-width:70ch}
+.application-offer-card .investment-schedule{border:0;background:none;border-radius:0}
+.application-offer-card .investment-schedule>summary{min-height:40px;padding:4px 0;gap:12px;justify-content:flex-start}
+.application-offer-card .investment-schedule>summary strong{font-size:12px;font-weight:500}
+.application-offer-card .investment-schedule .ui-disclosure-toggle{width:20px;height:20px;border:0}
+.application-offer-card .investment-schedule .ui-disclosure-toggle::before,.application-offer-card .investment-schedule .ui-disclosure-toggle::after{left:5px;top:10px}
+.application-offer-card .investment-schedule .ui-disclosure-content{padding:8px 0 0}
+@media(max-width:600px){.application-offer-card{padding:18px}.application-offer-figures{gap:14px;margin-block:20px}.application-offer-figures dd{font-size:14px}.application-offer-figures dt{font-size:10px}.application-offer-card .investment-terms{padding:14px}.application-offer-card .investment-payment-phases{grid-template-columns:1fr;gap:16px}.application-offer-select{width:100%}.application-offer-costs{gap:10px 20px}}
