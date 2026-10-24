@@ -20,6 +20,7 @@ import { OfferResults } from "./offer-results";
 import { OverdraftPlanForm } from "./overdraft-plan-form";
 import { FinancialSupplement } from "./financial-supplement";
 import { BankDecisionTimeline } from "./bank-decision-timeline";
+import { ApplicationFollowup } from "./application-followup";
 
 export type ApplicationActions = {
   save: (changes: Record<string, unknown>, onSaved?: () => void) => void;
@@ -99,6 +100,16 @@ export function ApplicationWorkspace({
     need.preferred_product === "overdraft" ||
     need.financing_pattern === "cash_gap";
   const calculateAfterSave = useRef(false);
+  const submitAfterSave = useRef<{id: string; version: number} | null>(null);
+  useEffect(() => {
+    const pending = submitAfterSave.current;
+    if (!pending || busy) return;
+    if (pending.id !== id) { submitAfterSave.current = null; return; }
+    if (version > pending.version && status === "draft") {
+      submitAfterSave.current = null;
+      actions.version("submit");
+    }
+  }, [id, version, status, busy, actions]);
   const contentRef = useRef<HTMLDivElement>(null);
   const wasReviewing = useRef(reviewing);
   useEffect(() => {
@@ -123,6 +134,15 @@ export function ApplicationWorkspace({
   const saveNeed = (changes: Record<string, unknown>) =>
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
   if (reviewing) return <Card><CardContent><ElapsedStatus title="Демо-банк рассматривает заявку" description={`${productName(need.preferred_product)} · ${need.requested_amount ? formatMoney(need.requested_amount) : "По вашей задаче"}`} focus/><BankDecisionTimeline view={view} reviewing /></CardContent></Card>;
+  if (!selection && status === "waiting_for_data") return <div ref={contentRef} tabIndex={-1} className="space-y-6">
+    <ApplicationFollowup key={`${id}:${version}`} view={view} busy={busy} onSave={changes => actions.save(changes, () => { submitAfterSave.current = {id, version}; })}/>
+    <BankDecisionTimeline view={view}/>
+    <Disclosure title="Параметры заявки">
+      <dl className="grid gap-5 sm:grid-cols-3"><div><dt className="text-xs text-muted-foreground">Продукт</dt><dd className="mt-2 font-semibold">{productName(need.preferred_product)}</dd></div><div><dt className="text-xs text-muted-foreground">Сумма</dt><dd className="mt-2 font-semibold">{need.requested_amount ? formatMoney(need.requested_amount) : "Уточняется"}</dd></div><div><dt className="text-xs text-muted-foreground">Срок</dt><dd className="mt-2 font-semibold">{need.term_months ? `${need.term_months} мес.` : "По условиям продукта"}</dd></div></dl>
+      <div className="mt-6"><ConfirmAction label="Отменить заявку" title="Отменить заявку?" description="Заявка будет закрыта. Для новой потребности можно начать отдельный подбор." confirmLabel="Отменить заявку" variant="outline" disabled={busy} onConfirm={() => actions.version("cancel")}/></div>
+    </Disclosure>
+    <Disclosure title={`История заявки · ${view.events.length} событий`}><ol className="space-y-4">{view.events.toReversed().map(item => <li key={item.event_id} className="text-xs"><p className="font-semibold">{eventNames[item.type] || "Обновлён этап заявки"}</p><time className="text-muted-foreground">{new Date(item.created_at).toLocaleString("ru-RU")}</time></li>)}</ol></Disclosure>
+  </div>;
   return (
     <div ref={contentRef} tabIndex={-1} className={`space-y-6 ${selection ? "selection-workspace" : ""}`}>
       {selection ? (

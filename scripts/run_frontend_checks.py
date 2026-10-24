@@ -22,7 +22,7 @@ def main():
         raise SystemExit("Установите Node.js 24+ и npm.")
     # Contract scenarios issue loans. Never let them change the profile used by
     # the React journey running in another worker.
-    for suite in ("api.integration.test.ts", "cabinet.integration.test.tsx"):
+    for suite in ("api.integration.test.ts", "cabinet.integration.test.tsx", "followup.integration.test.tsx"):
         code = run_suite(root, npm, suite)
         if code:
             return code

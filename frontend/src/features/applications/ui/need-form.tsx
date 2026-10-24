@@ -31,12 +31,16 @@ export function NeedForm({
   onSave,
   continueToNextStep = false,
   expenseImport,
+  correction = false,
+  submitLabel,
 }: {
   view: ApplicationView;
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
   continueToNextStep?: boolean;
   expenseImport?: ReactNode;
+  correction?: boolean;
+  submitLabel?: string;
 }) {
   const base = useMemo(() => draftFromApplication(view), [view]),
     snapshotKey = `delo-need-source:${view.application.application_id}`;
@@ -157,7 +161,7 @@ export function NeedForm({
       {wizard && <><nav aria-label="Уточнение задачи"><ol className="need-progress">{labels.map((label,index) => <li key={label}><button type="button" disabled={busy || index > page} aria-current={page === index ? "step" : undefined} onClick={() => go(index)}><span aria-hidden="true">{index < page ? <Check size={12} /> : <i />}</span>{label}</button></li>)}</ol></nav><div className="need-step-heading"><p>Шаг {page + 1} из 3</p><h2 ref={heading} tabIndex={-1}>{titles[page]}</h2></div></>}
     <form id={formId} key={page} onSubmit={submit} className="need-step-content">
       <fieldset disabled={busy} className="need-step-fields disabled:opacity-70">
-        <fieldset id="need-purpose" tabIndex={-1} hidden={wizard && page !== 0} className="need-task-picker" aria-invalid={errorField === "purpose" || undefined} aria-describedby={errorField === "purpose" ? "need-purpose-error" : undefined}>
+        <fieldset id="need-purpose" tabIndex={-1} hidden={correction && Boolean(task) || wizard && page !== 0} className="need-task-picker" aria-invalid={errorField === "purpose" || undefined} aria-describedby={errorField === "purpose" ? "need-purpose-error" : undefined}>
           <legend className="sr-only">Выберите задачу или конкретный продукт</legend>
           <div className="need-task-choices">
             {needTasks.map(item => { const Icon = taskIcons[item.id]; return <Button key={item.id} type="button" variant="outline" size="sm" aria-pressed={task === item.id} onClick={() => selectTask(item.id)}><Icon size={19} aria-hidden="true" /><span>{item.label}</span>{task === item.id && <Check size={16} aria-hidden="true" />}</Button>; })}
@@ -240,9 +244,9 @@ export function NeedForm({
           {wizard && page > 0 && <Button type="button" variant="outline" disabled={busy} onClick={() => go(page - 1)}><ArrowLeft aria-hidden="true" />Назад</Button>}
           <Button type="submit" form={formId} disabled={busy}>
             {!continueToNextStep && <Save aria-hidden="true" />}
-            {wizard && page < 2 ? "Продолжить" : continueToNextStep
+            {submitLabel || (wizard && page < 2 ? "Продолжить" : continueToNextStep
               ? "Посмотреть подходящие предложения"
-              : "Сохранить черновик"}
+              : "Сохранить черновик")}
             <ArrowRight aria-hidden="true" />
           </Button>
         </div>

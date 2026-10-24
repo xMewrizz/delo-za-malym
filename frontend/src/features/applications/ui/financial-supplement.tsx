@@ -14,10 +14,12 @@ export function FinancialSupplement({
   view,
   busy,
   onSave,
+  submitLabel = "Сохранить дополнения",
 }: {
   view: ApplicationView;
   busy: boolean;
   onSave: (changes: Record<string, unknown>) => void;
+  submitLabel?: string;
 }) {
   const financials = view.application.financials;
   const missing = (financials.monthly || []).flatMap((row, index) =>
@@ -113,7 +115,7 @@ export function FinancialSupplement({
           </p>
         )}
         <Button disabled={busy} type="submit">
-          Сохранить дополнения
+          {submitLabel}
         </Button>
       </form>
     </section>
