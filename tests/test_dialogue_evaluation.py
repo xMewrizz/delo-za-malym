@@ -7,6 +7,16 @@ from scripts.run_dialogue_evaluation import check_case, evaluate, export_trial, 
 
 
 class DialogueEvaluationTests(unittest.TestCase):
+    def test_empty_bank_debt_schedule_does_not_require_user_confirmation(self):
+        before = {"financials": {"existing_loans": []}}
+        case = {"expect": {"debt_not_confirmed": True}}
+        view = {"record": {"application": before, "state": {"status": "draft"}}, "chat": {"messages": [{
+            "text": "Операции собраны.", "proposal": {"status":"pending", "changes": {
+                "product_details.overdraft": {"debt_payments_confirmed": True}}}}]}}
+        self.assertEqual(check_case(case, before, view), [])
+        before["financials"]["existing_loans"] = [{"outstanding_principal":"100000.00"}]
+        self.assertEqual(check_case(case, before, view), ["debt_confirmed_without_user_consent"])
+
     def test_explanation_requires_each_concept_without_enforcing_one_wording(self):
         before = {"need": {}}
         case = {"expect": {"required_any_phrases": [["отсроч", "льгот"], ["перв", "ближайш"], ["выраст", "выше"]]}}

@@ -1,0 +1,548 @@
+{
+  "model": "MiniMaxAI/MiniMax-M2.7",
+  "calculated_at": "2026-10-22T10:00:00+03:00",
+  "started_at": "2026-10-24T20:39:45.927393+00:00",
+  "configuration": {
+    "agent_sources_and_cases_sha256": "dc59e28348ffc1aa2fdacc4a68199814944a3ca3ab011fd443ca0885fbf9cd99",
+    "settings": {
+      "LLM_MODEL": "MiniMaxAI/MiniMax-M2.7",
+      "LLM_CONTEXT_SIZE": "16384",
+      "LLM_MAX_OUTPUT_TOKENS": "4096",
+      "AGENT_TOOLS_ENABLED": "true",
+      "LLM_RESPONSE_FORMAT": "json_object",
+      "HTTP_TIMEOUT_SECONDS": "120",
+      "LLM_TEMPERATURE": null,
+      "LLM_TOP_P": null,
+      "LLM_REASONING_EFFORT": null,
+      "AGENT_MAX_TOOL_CALLS": null
+    }
+  },
+  "case_ids": [
+    "relative_operation_dates",
+    "ambiguous_operation_date"
+  ],
+  "trials": 3,
+  "completed": 6,
+  "total": 6,
+  "results": [
+    {
+      "id": "ambiguous_operation_date",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "516975ef-8c04-49ee-90de-8a030cf5a3d8",
+        "application_id": "6ba7923e-c597-4c3e-a0c3-507b390fc920",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.purpose": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-22",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.purpose": "working_capital",
+          "need.financing_pattern": "cash_gap"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": [
+          {
+            "field": "product_details.overdraft.transactions[0].date",
+            "message": "Укажите дату."
+          },
+          {
+            "field": "product_details.overdraft.transactions",
+            "message": "Добавьте ожидаемое поступление для погашения."
+          }
+        ]
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 4.66,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 4.613
+            }
+          ]
+        },
+        {
+          "text": "Поняла, записала платёж поставщику на 450 000 ₽. Для какой задачи нужны деньги?",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "relative_operation_dates",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "018a134f-f38b-4be3-bdd5-2f9ad3417df9",
+        "application_id": "04f1bb97-0457-4ddb-9531-9a542a6ccfc8",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-29",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 41.66,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 41.631
+            }
+          ]
+        },
+        {
+          "text": "Принято: расход 450 тысяч завтра и поступление 500 тысяч через неделю. Кредит 150 тысяч без изменений.",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "relative_operation_dates",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "ea2d9ee1-0301-49ae-8f77-f2619357af80",
+        "application_id": "46563625-b2b0-4d09-acdb-fab2cd064fcd",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-29",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 0.29,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.25
+            }
+          ]
+        },
+        {
+          "text": "Принято: расход 450 тысяч завтра и поступление 500 тысяч через неделю. Кредит 150 тысяч без изменений.",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 2,
+      "critical": false
+    },
+    {
+      "id": "ambiguous_operation_date",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "7a79e216-8217-45ae-bffb-626d1a80f80a",
+        "application_id": "2ffdd1dd-b67a-493f-9dee-90b91a084256",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.purpose": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-22",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.purpose": "working_capital",
+          "need.financing_pattern": "cash_gap"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": [
+          {
+            "field": "product_details.overdraft.transactions[0].date",
+            "message": "Укажите дату."
+          },
+          {
+            "field": "product_details.overdraft.transactions",
+            "message": "Добавьте ожидаемое поступление для погашения."
+          }
+        ]
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 0.32,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.295
+            }
+          ]
+        },
+        {
+          "text": "Поняла, записала платёж поставщику на 450 000 ₽. Для какой задачи нужны деньги?",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 2,
+      "critical": false
+    },
+    {
+      "id": "relative_operation_dates",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "dcd91e98-76f9-49c6-b85e-9e66e8cf7a64",
+        "application_id": "59708a9a-8ee7-4ee7-8452-67192cc11d18",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-29",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 0.29,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.27
+            }
+          ]
+        },
+        {
+          "text": "Принято: расход 450 тысяч завтра и поступление 500 тысяч через неделю. Кредит 150 тысяч без изменений.",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "inflow-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 3,
+      "critical": false
+    },
+    {
+      "id": "ambiguous_operation_date",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "f896144b-a4be-4ce8-94da-575bc7f556cf",
+        "application_id": "53df37cc-8af2-4f3c-b30b-7425169be706",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.purpose": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-22",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.purpose": "working_capital",
+          "need.financing_pattern": "cash_gap"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": [
+          {
+            "field": "product_details.overdraft.transactions[0].date",
+            "message": "Укажите дату."
+          },
+          {
+            "field": "product_details.overdraft.transactions",
+            "message": "Добавьте ожидаемое поступление для погашения."
+          }
+        ]
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 0.37,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.323
+            }
+          ]
+        },
+        {
+          "text": "Поняла, записала платёж поставщику на 450 000 ₽. Для какой задачи нужны деньги?",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 3,
+      "critical": false
+    }
+  ]
+}

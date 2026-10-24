@@ -1,0 +1,910 @@
+{
+  "model": "MiniMaxAI/MiniMax-M2.7",
+  "calculated_at": "2026-10-22T10:00:00+03:00",
+  "started_at": "2026-10-24T20:17:14.511363+00:00",
+  "configuration": {
+    "agent_sources_and_cases_sha256": "3dad0349c186f1c9fe49b3011fafa5dbdd7a41611ccd656efc2690390c1e9ae1",
+    "settings": {
+      "LLM_MODEL": "MiniMaxAI/MiniMax-M2.7",
+      "LLM_CONTEXT_SIZE": "16384",
+      "LLM_MAX_OUTPUT_TOKENS": "4096",
+      "AGENT_TOOLS_ENABLED": "true",
+      "LLM_RESPONSE_FORMAT": "json_object",
+      "HTTP_TIMEOUT_SECONDS": "120",
+      "LLM_TEMPERATURE": null,
+      "LLM_TOP_P": null,
+      "LLM_REASONING_EFFORT": null,
+      "AGENT_MAX_TOOL_CALLS": null
+    }
+  },
+  "case_ids": [
+    "loan_request",
+    "spoken_amount_and_term",
+    "own_funds",
+    "change_amount_only",
+    "change_term_only",
+    "confirmed_minimum",
+    "no_assumed_minimum",
+    "collateral_question",
+    "bank_facts_are_known",
+    "payment_budget_comparison",
+    "relative_operation_dates",
+    "ambiguous_operation_date",
+    "catalog_limits_are_not_personal_approval",
+    "product_question_does_not_change_application"
+  ],
+  "trials": 1,
+  "completed": 14,
+  "total": 14,
+  "results": [
+    {
+      "id": "loan_request",
+      "issues": [],
+      "reply": "Поняла: 500 000 рублей на закупку товара на 12 месяцев, погашение постепенное из выручки.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "8d2b0f04-da01-4838-a3ae-32c73628c5d9",
+        "application_id": "9207deca-5252-4bea-8888-4bad4910ee43",
+        "base_application_version": 1,
+        "base_values": {
+          "need.purpose": null,
+          "need.requested_amount": null,
+          "need.term_months": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "need.purpose": "working_capital",
+          "need.requested_amount": "500000.00",
+          "need.term_months": 12,
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 2.5,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 2.473
+            }
+          ]
+        },
+        {
+          "text": "Поняла: 500 000 рублей на закупку товара на 12 месяцев, погашение постепенное из выручки.",
+          "changes": {
+            "need.purpose": "working_capital",
+            "need.requested_amount": "500000.00",
+            "need.term_months": 12,
+            "need.financing_pattern": "gradual_repayment"
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "spoken_amount_and_term",
+      "issues": [],
+      "reply": "Поняла: кредит 750 000 ₽ на закупку товара, срок 18 месяцев, ежемесячные платежи. Передаю данные дальше.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "45329a7e-f16c-4a75-869d-0f4b9b390a4d",
+        "application_id": "8fb5c607-7cdf-4640-8480-0ec2f0e8ed7e",
+        "base_application_version": 1,
+        "base_values": {
+          "need.purpose": null,
+          "need.requested_amount": null,
+          "need.term_months": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "need.purpose": "working_capital",
+          "need.requested_amount": "750000.00",
+          "need.term_months": 18,
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 9.17,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 9.121
+            }
+          ]
+        },
+        {
+          "text": "Поняла: кредит 750 000 ₽ на закупку товара, срок 18 месяцев, ежемесячные платежи. Передаю данные дальше.",
+          "changes": {
+            "need.purpose": "working_capital",
+            "need.requested_amount": "750000.00",
+            "need.term_months": 18,
+            "need.financing_pattern": "gradual_repayment"
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "change_amount_only",
+      "issues": [],
+      "reply": "Сумма кредита изменена на 700 000 ₽, срок остаётся 12 месяцев.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "b3252d43-c2e3-4147-ac6b-b21443ef9e2c",
+        "application_id": "9c23ab35-cdb3-450e-85b8-bc224d257f2f",
+        "base_application_version": 1,
+        "base_values": {
+          "need.requested_amount": "500000.00"
+        },
+        "review_fields": [],
+        "changes": {
+          "need.requested_amount": "700000.00"
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 6.35,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 6.319
+            }
+          ]
+        },
+        {
+          "text": "Сумма кредита изменена на 700 000 ₽, срок остаётся 12 месяцев.",
+          "changes": {
+            "need.requested_amount": "700000.00"
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "change_term_only",
+      "issues": [],
+      "reply": "Срок изменён на 18 месяцев, сумма остаётся 500 000 ₽.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "bff79f22-44a3-4808-a414-7303dcbd086e",
+        "application_id": "503fec03-ae63-4bef-90da-41346fa04600",
+        "base_application_version": 1,
+        "base_values": {
+          "need.term_months": 12
+        },
+        "review_fields": [],
+        "changes": {
+          "need.term_months": 18
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 1.99,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 1.956
+            }
+          ]
+        },
+        {
+          "text": "Срок изменён на 18 месяцев, сумма остаётся 500 000 ₽.",
+          "changes": {
+            "need.term_months": 18
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "confirmed_minimum",
+      "issues": [],
+      "reply": "Поняла, зафиксировала: если не одобрят 500 тысяч, 400 тысяч вам точно хватит на задачу. Учла это как минимальную достаточную сумму.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "7b22f517-114e-46b2-90f4-0158af746276",
+        "application_id": "71b98568-e794-47dc-8674-a1cb2f53d510",
+        "base_application_version": 1,
+        "base_values": {
+          "need.minimum_acceptable_amount": null
+        },
+        "review_fields": [],
+        "changes": {
+          "need.minimum_acceptable_amount": "400000.00"
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 0.31,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.273
+            }
+          ]
+        },
+        {
+          "text": "Поняла, зафиксировала: если не одобрят 500 тысяч, 400 тысяч вам точно хватит на задачу. Учла это как минимальную достаточную сумму.",
+          "changes": {
+            "need.minimum_acceptable_amount": "400000.00"
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "no_assumed_minimum",
+      "issues": [],
+      "reply": "Поняла, 500 тысяч на закупку — сумма и цель учтены. Возвращаюсь к вопросу о возврате: как планируете погашать кредит?",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": null,
+      "tools": [],
+      "passed": true,
+      "seconds": 3.59,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 3.553
+            }
+          ]
+        },
+        {
+          "text": "Поняла, 500 тысяч на закупку — сумма и цель учтены. Возвращаюсь к вопросу о возврате: как планируете погашать кредит?",
+          "changes": {},
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "own_funds",
+      "issues": [],
+      "reply": "Поняла: закупка на 800 тысяч, из них 600 тысяч кредит на 12 месяцев, 200 тысяч — ваши собственные средства.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "db93f136-4d48-4a10-9143-baf6951056ba",
+        "application_id": "b75dbf74-1242-4290-82d4-9287e54a3df9",
+        "base_application_version": 1,
+        "base_values": {
+          "need.purpose": null,
+          "need.requested_amount": null,
+          "need.term_months": null,
+          "need.own_funds": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "need.purpose": "working_capital",
+          "need.requested_amount": "600000.00",
+          "need.term_months": 12,
+          "need.own_funds": "200000.00",
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "conflicts": []
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 44.64,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 44.599
+            }
+          ]
+        },
+        {
+          "text": "Поняла: закупка на 800 тысяч, из них 600 тысяч кредит на 12 месяцев, 200 тысяч — ваши собственные средства.",
+          "changes": {
+            "need.purpose": "working_capital",
+            "need.requested_amount": "600000.00",
+            "need.term_months": 12,
+            "need.own_funds": "200000.00",
+            "need.financing_pattern": "gradual_repayment"
+          },
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "collateral_question",
+      "issues": [],
+      "reply": "Поручительство — это обязательство другого человека (или компании) отвечать по вашему кредиту, если вы не сможете платить. Поручитель берёт на себя тот же долг, что и заёмщик, перед банком. Его доход и кредитная история тоже проверяются.\n\nЗалог — это имущество или активы, которые передаются банку в обеспечение: если долг не погашен, банк может их реализовать. Это может быть недвижимость, оборудование, товары в обороте.\n\nВ каталоге указано, что при среднем классе риска по кредиту на оборотные цели или овердрафту может потребоваться поручительство. Залог в условиях демонстрационных продуктов не фигурирует, но при необходимости банк может запросить его дополнительно — это зависит от результатов оценки.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": null,
+      "tools": [],
+      "passed": true,
+      "seconds": 37.99,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 17.475
+            }
+          ]
+        },
+        {
+          "protocol": "not_json",
+          "finish_reason": "stop"
+        },
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 20.48
+            }
+          ]
+        },
+        {
+          "text": "Поручительство — это обязательство другого человека (или компании) отвечать по вашему кредиту, если вы не сможете платить. Поручитель берёт на себя тот же долг, что и заёмщик, перед банком. Его доход и кредитная история тоже проверяются.\n\nЗалог — это имущество или активы, которые передаются банку в обеспечение: если долг не погашен, банк может их реализовать. Это может быть недвижимость, оборудование, товары в обороте.\n\nВ каталоге указано, что при среднем классе риска по кредиту на оборотные цели или овердрафту может потребоваться поручительство. Залог в условиях демонстрационных продуктов не фигурирует, но при необходимости банк может запросить его дополнительно — это зависит от результатов оценки.",
+          "intent": "answer_question",
+          "changes": {},
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "payment_budget_comparison",
+      "issues": [],
+      "reply": "Нашёл три варианта кредита на оборотные цели на 500 000 рублей с платежом до 40 000 ₽ в месяц:\n\n18 месяцев — платёж 33 351 ₽, переплата 100 319 ₽, общая выплата 600 319 ₽. Минимальная переплата среди вариантов.\n\n24 месяца — платёж 26 436 ₽, переплата 134 453 ₽, общая выплата 634 453 ₽.\n\n36 месяцев — платёж 19 616 ₽, переплата 206 191 ₽, общая выплата 706 191 ₽. Минимальный платёж.\n\nВариант на 12 месяцев с платежом 47 280 ₽ не попал в подборку — превышает лимит 40 000 ₽. Ставка по всем вариантам 24% годовых. Заявка не изменена.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": null,
+      "tools": [
+        {
+          "name": "compare_options",
+          "ok": true,
+          "saved": false,
+          "application_version": 1,
+          "exploration_id": "a98dcbb1-1f56-4ef0-bbe4-ccc04977aa7e",
+          "result": {
+            "product_id": "working_capital_loan",
+            "status": "options_ready",
+            "options": [
+              {
+                "offer_id": "8a0d0faa-ded5-42f9-9678-ee19c721bf15-offer-1",
+                "application_id": "e4f900aa-d7c8-4670-ae5a-7970c7ac2b21",
+                "application_version": 1,
+                "product_id": "working_capital_loan",
+                "amount": "500000.00",
+                "term_months": 18,
+                "annual_rate_percent": "24.00",
+                "monthly_payment": "33351.05",
+                "fees_total": "0.00",
+                "total_repayment": "600318.91",
+                "conditions": [],
+                "valid_until": "2026-10-29T10:00:00+03:00",
+                "option_id": "a98dcbb1-1f56-4ef0-bbe4-ccc04977aa7e-3",
+                "total_interest": "100318.91",
+                "maximum_payment": "33351.06",
+                "available_monthly_payment": "104405.00",
+                "payment_headroom": "71053.94",
+                "labels": [
+                  "Минимальная переплата для этой суммы"
+                ],
+                "penalty_terms": {
+                  "terms_id": "demo-penalties-2026-10-v1:8a0d0faa-ded5-42f9-9678-ee19c721bf15-offer-1",
+                  "version": "simple-daily-v1",
+                  "daily_rate_percent": "0.05",
+                  "source": "demo_contract",
+                  "basis": "overdue_installment",
+                  "start_rule": "day_after_due",
+                  "day_count": "calendar",
+                  "capitalization": false
+                }
+              },
+              {
+                "offer_id": "ce3af465-4d06-45fb-bc83-be77422aee2b-offer-1",
+                "application_id": "e4f900aa-d7c8-4670-ae5a-7970c7ac2b21",
+                "application_version": 1,
+                "product_id": "working_capital_loan",
+                "amount": "500000.00",
+                "term_months": 24,
+                "annual_rate_percent": "24.00",
+                "monthly_payment": "26435.55",
+                "fees_total": "0.00",
+                "total_repayment": "634453.14",
+                "conditions": [],
+                "valid_until": "2026-10-29T10:00:00+03:00",
+                "option_id": "a98dcbb1-1f56-4ef0-bbe4-ccc04977aa7e-4",
+                "total_interest": "134453.14",
+                "maximum_payment": "26435.55",
+                "available_monthly_payment": "104405.00",
+                "payment_headroom": "77969.45",
+                "labels": [],
+                "penalty_terms": {
+                  "terms_id": "demo-penalties-2026-10-v1:ce3af465-4d06-45fb-bc83-be77422aee2b-offer-1",
+                  "version": "simple-daily-v1",
+                  "daily_rate_percent": "0.05",
+                  "source": "demo_contract",
+                  "basis": "overdue_installment",
+                  "start_rule": "day_after_due",
+                  "day_count": "calendar",
+                  "capitalization": false
+                }
+              },
+              {
+                "offer_id": "e8711abe-e9a2-4253-b7f4-1d087f40587c-offer-1",
+                "application_id": "e4f900aa-d7c8-4670-ae5a-7970c7ac2b21",
+                "application_version": 1,
+                "product_id": "working_capital_loan",
+                "amount": "500000.00",
+                "term_months": 36,
+                "annual_rate_percent": "24.00",
+                "monthly_payment": "19616.43",
+                "fees_total": "0.00",
+                "total_repayment": "706191.32",
+                "conditions": [],
+                "valid_until": "2026-10-29T10:00:00+03:00",
+                "option_id": "a98dcbb1-1f56-4ef0-bbe4-ccc04977aa7e-5",
+                "total_interest": "206191.32",
+                "maximum_payment": "19616.43",
+                "available_monthly_payment": "104405.00",
+                "payment_headroom": "84788.57",
+                "labels": [
+                  "Минимальный платёж для этой суммы"
+                ],
+                "penalty_terms": {
+                  "terms_id": "demo-penalties-2026-10-v1:e8711abe-e9a2-4253-b7f4-1d087f40587c-offer-1",
+                  "version": "simple-daily-v1",
+                  "daily_rate_percent": "0.05",
+                  "source": "demo_contract",
+                  "basis": "overdue_installment",
+                  "start_rule": "day_after_due",
+                  "day_count": "calendar",
+                  "capitalization": false
+                }
+              }
+            ],
+            "baseline": {
+              "amount": "500000.00",
+              "term_months": 12,
+              "annual_rate_percent": "24.00",
+              "monthly_payment": "47279.80",
+              "maximum_payment": "47279.80",
+              "total_interest": "67357.58",
+              "fees_total": "0.00",
+              "total_repayment": "567357.58"
+            },
+            "available_before_filters": 5,
+            "preferences": {
+              "requested_amount": "500000.00",
+              "maximum_monthly_payment": "40000.00",
+              "minimum_term": 6,
+              "maximum_term": 36,
+              "preserve_amount": true
+            },
+            "required_information": [],
+            "issues": [],
+            "reasons": []
+          }
+        }
+      ],
+      "passed": true,
+      "seconds": 34.06,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 19.441
+            }
+          ]
+        },
+        {
+          "tool_calls": [
+            {
+              "name": "compare_options",
+              "arguments": "{\"preferences\": {\"maximum_monthly_payment\": \"40000.00\", \"requested_amount\": \"500000.00\"}, \"product_id\": \"working_capital_loan\"}"
+            }
+          ]
+        },
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 14.584
+            }
+          ]
+        },
+        {
+          "text": "Нашёл три варианта кредита на оборотные цели на 500 000 рублей с платежом до 40 000 ₽ в месяц:\n\n18 месяцев — платёж 33 351 ₽, переплата 100 319 ₽, общая выплата 600 319 ₽. Минимальная переплата среди вариантов.\n\n24 месяца — платёж 26 436 ₽, переплата 134 453 ₽, общая выплата 634 453 ₽.\n\n36 месяцев — платёж 19 616 ₽, переплата 206 191 ₽, общая выплата 706 191 ₽. Минимальный платёж.\n\nВариант на 12 месяцев с платежом 47 280 ₽ не попал в подборку — превышает лимит 40 000 ₽. Ставка по всем вариантам 24% годовых. Заявка не изменена.",
+          "intent": "answer_question",
+          "changes": {},
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "relative_operation_dates",
+      "issues": [
+        "debt_confirmed_without_user_consent"
+      ],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "1f752659-f49b-4eea-8b4e-cd1cf2b50f56",
+        "application_id": "84ab806a-3bdc-43d4-a2cc-fdf52eec0e1f",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-29",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "income-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.financing_pattern": "gradual_repayment"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": []
+      },
+      "tools": [],
+      "passed": false,
+      "seconds": 0.3,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 0.266
+            }
+          ]
+        },
+        {
+          "text": "Поняла, зафиксировала две операции: завтра расход 450 тысяч поставщику, через неделю поступление 500 тысяч от покупателя. Сумма кредита остаётся без изменений.",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": "2026-10-23",
+                "amount": "450000.00"
+              },
+              {
+                "transaction_id": "income-1",
+                "direction": "inflow",
+                "date": "2026-10-29",
+                "amount": "500000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "ambiguous_operation_date",
+      "issues": [],
+      "reply": "Собрала будущие операции. Проверьте суммы и даты в карточке.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": {
+        "proposal_id": "9502d133-53b3-408c-a5a3-d5f325e10593",
+        "application_id": "64a7506b-8f48-4d7d-a68a-5ac1730db118",
+        "base_application_version": 1,
+        "base_values": {
+          "product_details.overdraft": null,
+          "need.purpose": null,
+          "need.financing_pattern": null
+        },
+        "review_fields": [],
+        "changes": {
+          "product_details.overdraft": {
+            "start_date": "2026-10-22",
+            "end_date": "2026-10-22",
+            "opening_cash_balance": "300000.00",
+            "cash_reserve": "0.00",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ],
+            "existing_debt_payments": [],
+            "debt_payments_confirmed": true
+          },
+          "need.purpose": "working_capital",
+          "need.financing_pattern": "cash_gap"
+        },
+        "status": "pending",
+        "dependencies": {
+          "financials.cash_balance": "300000.00",
+          "financials.existing_loans": []
+        },
+        "conflicts": [],
+        "plan_issues": [
+          {
+            "field": "product_details.overdraft.transactions[0].date",
+            "message": "Укажите дату."
+          },
+          {
+            "field": "product_details.overdraft.transactions",
+            "message": "Добавьте ожидаемое поступление для погашения."
+          }
+        ]
+      },
+      "tools": [],
+      "passed": true,
+      "seconds": 6.54,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 6.501
+            }
+          ]
+        },
+        {
+          "text": "Зафиксировала расход 450 000 ₽ 15-го числа. Месяц уточним позже.",
+          "changes": {},
+          "overdraft_plan": {
+            "mode": "replace",
+            "transactions": [
+              {
+                "transaction_id": "expense-1",
+                "direction": "outflow",
+                "date": null,
+                "amount": "450000.00"
+              }
+            ]
+          },
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "catalog_limits_are_not_personal_approval",
+      "issues": [],
+      "reply": "Рекомендации по продуктам и возможную сумму рассчитает приложение после того, как вы укажете сумму кредита.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": null,
+      "tools": [],
+      "passed": true,
+      "seconds": 60.97,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "error",
+              "reason": "timeout",
+              "upstream_status": null,
+              "seconds": 60.167
+            },
+            {
+              "attempt": 2,
+              "outcome": "success",
+              "seconds": 0.268
+            }
+          ]
+        },
+        {
+          "text": "Рекомендации по продуктам и возможную сумму рассчитает приложение после того, как вы укажете сумму кредита.",
+          "changes": {},
+          "overdraft_plan": null,
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "bank_facts_are_known",
+      "issues": [
+        "assistant_unavailable"
+      ],
+      "safe_rejection": false,
+      "application_preserved": true,
+      "draft_preserved": true,
+      "passed": false,
+      "seconds": 120.24,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "error",
+              "reason": "timeout",
+              "upstream_status": null,
+              "seconds": 60.199
+            },
+            {
+              "attempt": 2,
+              "outcome": "success",
+              "seconds": 5.368
+            }
+          ]
+        },
+        {
+          "protocol": "not_json",
+          "finish_reason": "stop"
+        },
+        {
+          "error_type": "LLMTransientError",
+          "upstream_status": null,
+          "timeout": true
+        },
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "error",
+              "reason": "timeout",
+              "upstream_status": null,
+              "seconds": 27.348
+            },
+            {
+              "attempt": 2,
+              "outcome": "error",
+              "reason": "timeout",
+              "upstream_status": null,
+              "seconds": 26.295
+            }
+          ]
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    },
+    {
+      "id": "product_question_does_not_change_application",
+      "issues": [],
+      "reply": "Кредит на оборотные цели — это разовая сумма, которую вы получаете сразу целиком и возвращаете по установленному графику равными платежами. Проценты начисляются на всю сумму с первого дня, даже если часть денег ещё не потрачена.\n\nВозобновляемая кредитная линия — это открытый лимит, которым вы пользуетесь по мере необходимости. Взяли 200 тысяч — платите проценты только с этих 200. Вернули 100 — снова можете взять до лимита. Проценты начисляются только на фактический долг, а не на весь лимит. Удобно при неравномерных или регулярных потребностях в оборотных средствах.\n\nЕсли коротко: разовый кредит — деньги все сразу и сразу в работе, кредитная линия — берёте сколько нужно, когда нужно, и платите только за то, что взяли.",
+      "application_preserved": true,
+      "draft_preserved": true,
+      "proposal": null,
+      "tools": [],
+      "passed": true,
+      "seconds": 86.12,
+      "model_outputs": [
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "error",
+              "reason": "timeout",
+              "upstream_status": null,
+              "seconds": 60.162
+            },
+            {
+              "attempt": 2,
+              "outcome": "success",
+              "seconds": 11.169
+            }
+          ]
+        },
+        {
+          "protocol": "not_json",
+          "finish_reason": "stop"
+        },
+        {
+          "llm_attempts": [
+            {
+              "attempt": 1,
+              "outcome": "success",
+              "seconds": 14.253
+            }
+          ]
+        },
+        {
+          "text": "Кредит на оборотные цели — это разовая сумма, которую вы получаете сразу целиком и возвращаете по установленному графику равными платежами. Проценты начисляются на всю сумму с первого дня, даже если часть денег ещё не потрачена.\n\nВозобновляемая кредитная линия — это открытый лимит, которым вы пользуетесь по мере необходимости. Взяли 200 тысяч — платите проценты только с этих 200. Вернули 100 — снова можете взять до лимита. Проценты начисляются только на фактический долг, а не на весь лимит. Удобно при неравномерных или регулярных потребностях в оборотных средствах.\n\nЕсли коротко: разовый кредит — деньги все сразу и сразу в работе, кредитная линия — берёте сколько нужно, когда нужно, и платите только за то, что взяли.",
+          "intent": "answer_question",
+          "changes": {},
+          "question": null
+        }
+      ],
+      "trial": 1,
+      "critical": false
+    }
+  ]
+}

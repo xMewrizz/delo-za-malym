@@ -85,10 +85,10 @@ describe("portfolio product consistency", () => {
     expect(product.nextPayment).toMatchObject({ amount: "47279.80", principal: "37279.80", interest: "10000.00" });
     const html = renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={product} /></MemoryRouter>);
     expect(html).toContain("24% годовых");
-    expect(html).toContain("— основной долг");
+    expect(html).not.toContain("Состав платежа");
     expect(html).toContain("Проценты на сегодня");
     expect(html.replaceAll(/\s/g, "")).toContain("328,77");
-    expect(html.replaceAll(/\s/g, "")).toContain("10000,00");
+
     expect(portfolioProducts(financials, calendar).find(item => item.id === "loan:bank")?.annualRate).toBeUndefined();
   });
 

@@ -92,7 +92,6 @@
 .funding-card-order { align-self:flex-start; margin-top:15px; padding:9px 12px; border-radius:9px; background:var(--accent); color:var(--accent-foreground); font-size:10px; line-height:1.7; }
 @media(max-width:520px) { .funding-loan-overview { grid-template-columns:1fr; }.funding-operation-choices { grid-template-columns:1fr; }.funding-operation-choices>label { display:grid; grid-template-columns:auto 1fr; gap:5px 10px; padding:13px; }.funding-operation-choices input { grid-row:1/3; margin-top:3px; }.funding-operation-choices small { grid-column:2; }.funding-strategy { grid-template-columns:1fr; }.funding-payment-preview dl dd { flex-shrink:1; }.funding-mandatory-result { padding:17px; } }
 
-.funding-payment-split { display: block; margin-top: 6px; color: var(--muted-foreground); font-size: 10px; line-height: 1.7; font-weight: 400; }
 
 /* Card count and the available cabinet width determine the row, not the product type. */
 .funding-card-summary{min-width:0}

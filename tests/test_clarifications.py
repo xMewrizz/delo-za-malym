@@ -264,6 +264,7 @@ class ClarificationTests(unittest.TestCase):
         self.assertEqual(view["record"]["application"], original)
         request = model.client.chat.call_args.args[0]
         focused = json.loads(request[1]["content"].split("\n", 1)[1])
+        self.assertEqual(focused["input_kind"], "operations")
         self.assertIsInstance(focused["active_prompt"], str)
         self.assertEqual(focused["answer_target"]["transaction_id"], target)
         self.assertNotIn("question_id", json.dumps(focused))

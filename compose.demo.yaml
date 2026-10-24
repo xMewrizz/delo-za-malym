@@ -4,6 +4,7 @@ services:
     command: ["python", "-m", "scripts.demo_bootstrap"]
     environment:
       DATABASE_PATH: /app/data/cabinet.sqlite3
+      DEMO_BUSINESS_SCALE: ${DEMO_BUSINESS_SCALE:-6}
       DEMO_MANIFEST_PATH: /app/data/demo-showcase.json
       DEMO_DATE: ${DEMO_DATE:-2026-10-24}
       CHAT_MODE: demo
@@ -23,6 +24,7 @@ services:
       DATABASE_PATH: /app/data/cabinet.sqlite3
       DEMO_MANIFEST_PATH: /app/data/demo-showcase.json
       CHAT_MODE: ${DEMO_CHAT_MODE:-demo}
+      DEMO_BUSINESS_SCALE: ${DEMO_BUSINESS_SCALE:-6}
       LLM_API_BASE_URL: http://ollama:11434/v1
       LLM_MODEL: qwen3:4b-instruct-2507-q4_K_M
       LLM_API_KEY: ""

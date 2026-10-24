@@ -327,6 +327,21 @@ class CabinetToolsTests(unittest.TestCase):
         self.assertNotIn("web_search", names)
         self.assertIn("assess_credit", names)
 
+    def test_product_questions_do_not_get_routed_to_amount_collection(self):
+        record = deepcopy(self.record)
+        record["application"]["need"].update(requested_amount=None, financing_pattern="gradual_repayment")
+        with patch.dict(os.environ, {"LLM_MODEL":"test", "AGENT_TOOLS_ENABLED":"true"}):
+            model = ModelAssistant()
+        model.client = Mock()
+        model.client.chat.return_value = Reply('{"text":"Сумму определит расчёт. Какой вариант вам ближе?","intent":"ask_clarification","question":"Какой вариант вам ближе?","changes":{}}', "stop")
+        model.extract_facts = Mock(side_effect=AssertionError("Вопрос о продуктах не является ответом с суммой"))
+        for text in ("Какие продукты подходят для закупки? Сколько мне банк даст, если сумму я пока не назвал?", "Сколько можно взять на закупку?", "Какую сумму банк может предложить?"):
+            with self.subTest(text=text):
+                messages = build_messages({"chat_id":"question", "chat_version":1, "messages":[]}, record, text, [], now=self.now)
+                turn = model.reply_with_tools(messages, process=self.process, record=record, now=self.now)
+                self.assertEqual(turn.reply.intent, "ask_clarification")
+        model.extract_facts.assert_not_called()
+
     def test_invented_search_domains_are_not_shown_as_verified_links(self):
         events = [{"name": "web_search", "ok": True, "sources": [{
             "title": "Корпорация МСП", "url": "https://corpmsp.ru", "content": "Официальная информация",

@@ -159,15 +159,6 @@ export function CollectedData({
               originFor(view.field_sources, "need.requested_amount")
             }
           />
-          {proposal && need.preferred_product !== "refinancing" && need.preferred_product !== "investment_loan" && (
-            <Correction
-              key={need.requested_amount}
-              label="Сумма"
-              initial={need.requested_amount || ""}
-              disabled={busy}
-              onSave={(value) => onEdit({ "need.requested_amount": value })}
-            />
-          )}
         </div>
         {need.preferred_product === "investment_loan" && <>
           <div className="collected-fact"><dt>Стоимость проекта</dt><dd>{need.project_cost ? formatMoney(need.project_cost) : "Уточняем"}</dd><FieldOrigin source={originFor(proposal?.field_sources, "need.project_cost") || originFor(view.field_sources, "need.project_cost")} />{proposal && <Correction label="Стоимость проекта" initial={need.project_cost || ""} disabled={busy} onSave={value => onEdit({"need.project_cost": value})} />}</div>

@@ -6,6 +6,7 @@ import { ScrollTrigger } from "gsap/ScrollTrigger";
 import { BrandLogo } from "@/shared/ui/brand-logo";
 import { LumaAvatar } from "@/shared/ui/luma-mark";
 import "./home-cabinet-preview.css";
+import {overviewChapterAt} from "./home-cabinet-chapters";
 
 gsap.registerPlugin(ScrollTrigger);
 
@@ -28,30 +29,30 @@ export function HomeCabinetShowcase() {
   const [active,setActive]=useState(0);
   const host=useRef<HTMLElement>(null);
   useLayoutEffect(()=>{
+    const media=gsap.matchMedia();
     const context=gsap.context(()=>{
-      gsap.from(".ep-overview-copy",{y:28,opacity:0,duration:1,ease:"power2.out",clearProps:"all",scrollTrigger:{trigger:host.current,start:"top 70%",once:true}});
-      const trigger=ScrollTrigger.create({trigger:host.current,start:"top 78%",end:"center 48%",onUpdate:self=>setActive(Math.min(2,Math.floor(self.progress*3)))});
-      return()=>trigger.kill();
+      gsap.from(".ep-overview-copy",{y:16,opacity:0,duration:.55,ease:"power2.out",clearProps:"all",scrollTrigger:{trigger:host.current,start:"top 75%",once:true}});
+      media.add("(min-width:1101px) and (min-height:760px)",()=>{
+        const trigger=ScrollTrigger.create({trigger:host.current,start:"top 112px",end:()=>`+=${Math.round(window.innerHeight*.95)}`,invalidateOnRefresh:true,onUpdate:self=>setActive(current=>overviewChapterAt(self.progress,current))});
+        return()=>{trigger.kill();setActive(0);};
+      });
     },host);
-    return()=>context.revert();
+    return()=>{media.revert();context.revert();};
   },[]);
-  const chapter=overviewChapters[active];
-  return <section className="ep-overview-showcase" ref={host} data-focus={active} aria-labelledby="overview-demo-title">
-    <div className="ep-overview-copy" data-depth="4"><p className="ep-eyebrow">КАБИНЕТ ПРЕДПРИНИМАТЕЛЯ</p><ol className="ep-overview-tabs" aria-label="Этапы показа кабинета">{overviewChapters.map((item,index)=><li key={item.name} aria-current={active===index ? "step" : undefined}>{item.name}</li>)}</ol><div className="ep-overview-chapter" key={active}><h2 id="overview-demo-title">{chapter.title}<br/><em>{chapter.accent}</em></h2><p>{chapter.text}</p><div className="ep-overview-fact"><strong>{chapter.value}</strong><span>{chapter.label}</span></div></div><Link className="ep-overview-open" to="/cabinet?mode=overview">Посмотреть кабинет<ArrowUpRight size={16}/></Link></div>
+  return <section className="ep-overview-showcase" ref={host} data-focus={active} aria-labelledby="overview-demo-title"><div className="ep-overview-stage">
+    <div className="ep-overview-copy" data-depth="4"><p className="ep-eyebrow">КАБИНЕТ ПРЕДПРИНИМАТЕЛЯ</p><ol className="ep-overview-tabs" aria-label="Этапы показа кабинета">{overviewChapters.map((item,index)=><li key={item.name} aria-current={active===index ? "step" : undefined}>{item.name}</li>)}</ol><div className="ep-overview-chapters">{overviewChapters.map((chapter,index)=><div className="ep-overview-chapter" key={chapter.name} data-active={active===index} aria-hidden={active!==index}><h2 id={active===index?"overview-demo-title":undefined}>{chapter.title}<br/><em>{chapter.accent}</em></h2><p>{chapter.text}</p><div className="ep-overview-fact"><strong>{chapter.value}</strong><span>{chapter.label}</span></div></div>)}</div><Link className="ep-overview-open" to="/cabinet?mode=overview">Посмотреть кабинет<ArrowUpRight size={16}/></Link></div>
     <div className="ep-overview-window" data-depth="3"><div className="ep-overview-window-caption"><span><i/>Обзор бизнеса</span><span>Демо · ООО «Север»</span></div><HomeCabinetPreview/></div>
-  </section>;
+  </div></section>;
 }
 
 /** Demo values, with the same navigation, metric grid and panels as CabinetOverview. */
 export function HomeCabinetPreview() {
   const host = useRef<HTMLDivElement>(null);
   useLayoutEffect(() => {
-    if (!window.matchMedia?.("(min-width:900px) and (pointer:fine)").matches) return;
     const context = gsap.context(() => {
-      const story = gsap.timeline({scrollTrigger: {trigger: host.current, start: "top 85%", end: "bottom 55%", scrub: .8}});
-      story.from(".ep-cabinet-metric", {y: 18, opacity: .3, stagger: .12, duration: .8, ease: "power2.out"}, 0);
-      story.from(".ep-cabinet-bars i", {scaleY: .05, transformOrigin: "center bottom", stagger: .1, duration: 1.1, ease: "power2.out"}, .2);
-      story.from(".ep-cabinet-lower>*", {y: 16, opacity: .3, stagger: .2, duration: .8, ease: "power2.out"}, .6);
+      const story = gsap.timeline({scrollTrigger: {trigger: host.current, start: "top 72%", once:true}});
+      story.from(".ep-cabinet-metric", {y:12,opacity:.65,stagger:.06,duration:.45,ease:"power2.out",clearProps:"transform,opacity"},0);
+      story.from(".ep-cabinet-bars i", {scaleY:.15,transformOrigin:"center bottom",stagger:.05,duration:.65,ease:"power2.out",clearProps:"transform"},.1);
     }, host);
     return () => context.revert();
   }, []);

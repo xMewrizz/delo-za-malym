@@ -2,6 +2,8 @@
 
 from copy import deepcopy
 from datetime import date, datetime, timedelta
+from decimal import Decimal
+import os
 
 from scripts.run_credit_scenarios import load_scenarios
 
@@ -58,6 +60,16 @@ def profile(now: datetime, *, include_sample_loan=False):
     )
     for row, (inflow, outflow, taxes) in zip(application["financials"]["monthly"], history):
         row.update(operating_inflow=inflow, operating_outflow=outflow, taxes=taxes)
+    # The populated exhibition has several live products already. A larger demo
+    # business provides room to try additional products under the SAME policies.
+    scale = int(os.getenv("DEMO_BUSINESS_SCALE", "1"))
+    if not 1 <= scale <= 10:
+        raise ValueError("DEMO_BUSINESS_SCALE must be an integer from 1 to 10")
+    if scale != 1:
+        for row in application["financials"]["monthly"]:
+            for field in ("operating_inflow", "operating_outflow", "taxes"):
+                row[field] = f"{Decimal(row[field]) * scale:.2f}"
+    simulator["demo_business_scale"] = scale
     # Общий кабинет содержит только оформленные клиентом продукты.
     # Старый долг остаётся доступен только как явная тестовая фикстура.
     if not include_sample_loan:

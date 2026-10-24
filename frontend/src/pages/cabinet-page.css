@@ -226,7 +226,7 @@
   flex: 1;
   min-height: 8rem;
   overflow-y: auto;
-  overscroll-behavior: contain;
+  overscroll-behavior: auto;
   padding: 0.25rem;
 }
 .assistant-message {

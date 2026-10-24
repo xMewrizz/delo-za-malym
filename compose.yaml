@@ -11,6 +11,7 @@ services:
       DATABASE_PATH: /app/data/cabinet.sqlite3
       CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:5173,http://localhost:3000}
       CHAT_MODE: ${CHAT_MODE:-demo}
+      DEMO_BUSINESS_SCALE: ${DEMO_BUSINESS_SCALE:-6}
       LLM_API_BASE_URL: ${LLM_DOCKER_API_BASE_URL:-${LLM_API_BASE_URL:-http://host.docker.internal:11434/v1}}
       LLM_MODEL: ${LLM_MODEL:-}
       LLM_API_KEY: ${LLM_API_KEY:-}

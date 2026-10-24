@@ -40,12 +40,12 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
         if (nextFilled !== lastFilled) { lastFilled = nextFilled; setFilled(nextFilled); }
       } });
       timeline.current = tl;
-      gsap.set(select(".ep-story-message"), { autoAlpha: 0, y: 18 });
+      gsap.set(select(".ep-story-message"), { autoAlpha: 0, y: 0 });
       gsap.set(select(".ep-story-message:first-child"), { autoAlpha: 1, y: 0 });
-      gsap.set(select(".ep-demo-user,.ep-demo-reply"), { autoAlpha: 0, y: 12 });
+      gsap.set(select(".ep-demo-user,.ep-demo-reply"), { autoAlpha: 0, y: 6 });
       gsap.set(select('[data-story-message="0"] .ep-demo-user'), { autoAlpha: 1, y: 0 });
       gsap.set(select(".ep-story-field-value"), { opacity: 0, y: 6 });
-      gsap.set(select(".ep-story-offers,.ep-story-selected"), { autoAlpha: 0, y: 16 });
+      gsap.set(select(".ep-story-offers,.ep-story-selected"), { autoAlpha: 0, y: 6 });
       gsap.set(select(".ep-story-field-glow"), { opacity: 0 });
       gsap.set(select(".ep-story-sync"), { opacity: .3, scale: .85 });
       tl.fromTo(select(".ep-story-progress>i"), { scaleX: 0 }, { scaleX: 1, duration: 20, ease: "none" }, 0);
@@ -53,11 +53,11 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
         const start = index * 4;
         tl.addLabel(chapters[index].short, start + 3);
         if (index) {
-          tl.to(select(`[data-story-message="${index - 1}"]`), { autoAlpha: 0, y: -8, duration: .6 }, start);
-          tl.to(select(`[data-story-message="${index}"]`), { autoAlpha: 1, y: 0, duration: .8 }, start + .35);
-          tl.to(select(`[data-story-message="${index}"] .ep-demo-user`), { autoAlpha: 1, y: 0, duration: .85 }, start + .45);
+          tl.to(select(`[data-story-message="${index - 1}"]`), { autoAlpha: 0, y: 0, duration: .5 }, start);
+          tl.to(select(`[data-story-message="${index}"]`), { autoAlpha: 1, y: 0, duration: .7, ease:"sine.inOut" }, start + .45);
+          tl.to(select(`[data-story-message="${index}"] .ep-demo-user`), { autoAlpha: 1, y: 0, duration: 1.6, ease:"sine.inOut" }, start + .45);
         }
-        tl.to(select(`[data-story-message="${index}"] .ep-demo-reply`), { autoAlpha: 1, y: 0, duration: .9 }, start + .95);
+        tl.to(select(`[data-story-message="${index}"] .ep-demo-reply`), { autoAlpha: 1, y: 0, duration: 1.65, ease:"sine.inOut" }, start + .95);
         if (index < 3) {
           const at = start + 1.4;
           tl.to(select(`[data-story-field="${index}"] .ep-story-field-value`), { opacity: 1, y: 0, duration: 1.05, ease: "power2.out" }, at);
@@ -66,12 +66,12 @@ export function LumaScrollStory({ motion }: { motion: boolean }) {
           tl.to(select(".ep-story-sync"), { opacity: 1, scale: 1, duration: .65 }, at - .2).to(select(".ep-story-sync"), { opacity: .3, scale: .9, duration: 1 }, at + .6);
         }
       }
-      tl.to(select(".ep-story-request"), { autoAlpha: 0, y: -10, duration: .8 }, 12.25);
-      tl.to(select(".ep-story-offers"), { autoAlpha: 1, y: 0, duration: 1.15 }, 12.8);
-      tl.fromTo(select(".ep-story-offer"), { y: 10, opacity: 0 }, { y: 0, opacity: 1, duration: .95, stagger: .2 }, 12.9);
-      tl.to(select(".ep-story-offers"), { autoAlpha: 0, y: -10, duration: .8 }, 16.25);
-      tl.to(select(".ep-story-selected"), { autoAlpha: 1, y: 0, duration: 1.15 }, 16.8);
-      tl.fromTo(select(".ep-story-selected-check"), { scale: .85, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.1, ease: "power2.out" }, 17.1);
+      tl.to(select(".ep-story-request"), { autoAlpha: 0, y: -4, duration: .65 }, 12.25);
+      tl.to(select(".ep-story-offers"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 12.8);
+      tl.fromTo(select(".ep-story-offer"), { y: 4, opacity: 0 }, { y: 0, opacity: 1, duration: 1.4, stagger: .18, ease:"sine.inOut" }, 12.9);
+      tl.to(select(".ep-story-offers"), { autoAlpha: 0, y: -4, duration: .65 }, 16.25);
+      tl.to(select(".ep-story-selected"), { autoAlpha: 1, y: 0, duration: 1.5, ease:"sine.inOut" }, 16.8);
+      tl.fromTo(select(".ep-story-selected-check"), { scale: .96, opacity: 0 }, { scale: 1, opacity: 1, duration: 1.4, ease: "sine.inOut" }, 17.1);
       return () => { timeline.current = null; };
     }, host);
     return () => { media.revert(); timeline.current = null; };

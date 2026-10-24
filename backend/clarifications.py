@@ -1,4 +1,4 @@
-"""Следующий вопрос по недостающим данным, а не по формулировке модели."""
+"""Карточки уточнения по данным заявки и текущему вопросу диалога."""
 
 from copy import deepcopy
 from datetime import date, timedelta
@@ -30,6 +30,12 @@ def next_clarification(chat, record, now):
     today = local_now(now).date()
 
     def card(field, title, choices=(), *, input_type=None, transaction_id=None, direction=None, description=None, input_label=None):
+        # A conversational question may temporarily leave fact collection. Do not
+        # keep an unrelated numeric/date editor underneath that new question.
+        latest = next((message for message in reversed(chat["messages"]) if message["role"] == "assistant"), {})
+        question = latest.get("question")
+        if latest.get("intent") == "ask_clarification" and question and question.strip().casefold() != title.strip().casefold():
+            return None
         content = {"field": field, "title": title, "input_type": input_type, "transaction_id": transaction_id,
                    "direction": direction, "choices": list(choices)}
         if description:

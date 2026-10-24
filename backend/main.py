@@ -206,7 +206,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         from credit_engine.revolving import POLICY as revolving
         from credit_engine.investment import POLICY as investment, GRACE_MONTHS
         return [
-            {"product_id": "working_capital_loan", "name": "Разовый кредит на оборотные цели", "policy_version": loan.version,
+            {"product_id": "working_capital_loan", "name": "Кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
              "annual_rate_percent": loan.annual_rate_percent, "terms": list(loan.terms),
              "minimum_business_months": loan.minimum_business_months, "history_months": 6,

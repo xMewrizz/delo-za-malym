@@ -1,0 +1,226 @@
+{
+  "calculated_at": "2026-10-22T10:00:00+03:00",
+  "cases": [
+    {
+      "id": "loan_request",
+      "text": "Нужно 500 000 рублей на закупку товара на 12 месяцев. Возвращать буду постепенно из выручки.",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "500000.00",
+          "need.term_months": 12,
+          "need.purpose": "working_capital"
+        }
+      }
+    },
+    {
+      "id": "spoken_amount_and_term",
+      "text": "Хочу кредит на закупку товара: 750 тысяч рублей на полтора года, с ежемесячными платежами.",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "750000.00",
+          "need.term_months": 18
+        }
+      }
+    },
+    {
+      "id": "own_funds",
+      "text": "Для закупки нужен кредит 600 тысяч на год. Ещё 200 тысяч собственных денег готов вложить в эту закупку.",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "600000.00",
+          "need.own_funds": "200000.00",
+          "need.term_months": 12
+        }
+      }
+    },
+    {
+      "id": "change_amount_only",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "working_capital_loan",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Измени сумму кредита на 700 тысяч. Срок оставь прежним.",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "700000.00"
+        },
+        "not_changed": [
+          "need.term_months"
+        ]
+      }
+    },
+    {
+      "id": "change_term_only",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "working_capital_loan",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Давай срок 18 месяцев. Сумму кредита не меняй.",
+      "expect": {
+        "changes": {
+          "need.term_months": 18
+        },
+        "not_changed": [
+          "need.requested_amount"
+        ]
+      }
+    },
+    {
+      "id": "confirmed_minimum",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Запрос оставляем 500 тысяч, но если всю сумму не дадут, 400 тысяч мне точно хватит на задачу.",
+      "expect": {
+        "changes": {
+          "need.minimum_acceptable_amount": "400000.00"
+        },
+        "not_changed": [
+          "need.requested_amount"
+        ]
+      }
+    },
+    {
+      "id": "no_assumed_minimum",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Мне нужны именно 500 тысяч на закупку. Меньше не хватит.",
+      "expect": {
+        "not_changed": [
+          "need.minimum_acceptable_amount"
+        ]
+      }
+    },
+    {
+      "id": "collateral_question",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Что такое поручительство и чем оно отличается от залога? Параметры заявки не меняй.",
+      "expect": {
+        "no_changes": true
+      }
+    },
+    {
+      "id": "bank_facts_are_known",
+      "text": "Вы же видите остаток на моём счёте и действующие кредиты? Расскажи, откуда у вас эти данные.",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "загрузите csv",
+          "заполните кредитную историю"
+        ]
+      }
+    },
+    {
+      "id": "payment_budget_comparison",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "working_capital_loan",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Покажи несколько вариантов кредита с платежом не больше 40 тысяч рублей в месяц. Саму заявку не меняй.",
+      "expect": {
+        "comparison": true,
+        "maximum_monthly_payment": "40000.00",
+        "no_changes": true
+      }
+    },
+    {
+      "id": "relative_operation_dates",
+      "need": {
+        "purpose": "working_capital",
+        "preferred_product": "working_capital_loan",
+        "requested_amount": "150000.00",
+        "term_months": 12
+      },
+      "text": "Завтра нужно заплатить поставщику 450 тысяч. Через неделю покупатель перечислит 500 тысяч. Сумму кредита 150 тысяч не меняй.",
+      "expect": {
+        "not_changed": [
+          "need.requested_amount"
+        ],
+        "operations": [
+          {
+            "direction": "outflow",
+            "amount": "450000.00",
+            "date": "2026-10-23"
+          },
+          {
+            "direction": "inflow",
+            "amount": "500000.00",
+            "date": "2026-10-29"
+          }
+        ],
+        "debt_not_confirmed": true
+      }
+    },
+    {
+      "id": "ambiguous_operation_date",
+      "text": "Поставщику нужно заплатить 450 тысяч 15-го числа. Месяц пока не определён.",
+      "expect": {
+        "operations": [
+          {
+            "direction": "outflow",
+            "amount": "450000.00",
+            "date": null
+          }
+        ],
+        "question": true
+      }
+    },
+    {
+      "id": "catalog_limits_are_not_personal_approval",
+      "need": {
+        "purpose": "working_capital",
+        "financing_pattern": "gradual_repayment"
+      },
+      "text": "Какие продукты подходят для закупки? Сколько мне банк даст, если сумму я пока не назвал?",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "по вашему профилю банк может предложить",
+          "вам одобрено",
+          "разовай",
+          "**"
+        ],
+        "required_any_phrases": [
+          [
+            "расчет",
+            "рассчит",
+            "уточн",
+            "подбор",
+            "зависит"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "product_question_does_not_change_application",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Объясни простыми словами, чем кредит на оборотные цели отличается от кредитной линии. Мою заявку пока не меняй.",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "разовай",
+          "**"
+        ]
+      }
+    }
+  ]
+}

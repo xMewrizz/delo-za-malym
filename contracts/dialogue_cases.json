@@ -100,6 +100,48 @@
     {"id": "investment_project_request", "text": "Хочу инвестиционный кредит на покупку станка. Полная стоимость проекта 1 миллион, своих внесу 200 тысяч. Срок 36 месяцев, отсрочка основного долга 3 месяца.", "expect": {"changes": {"need.purpose": "investment", "need.preferred_product": "investment_loan", "need.project_cost": "1000000.00", "need.own_funds": "200000.00", "need.term_months": 36, "need.principal_grace_months": 3}, "not_changed": ["need.requested_amount"]}},
     {"id": "investment_grace_explanation", "need": {"purpose": "investment", "preferred_product": "investment_loan", "project_cost": "1000000.00", "own_funds": "200000.00", "requested_amount": "800000.00", "term_months": 36, "principal_grace_months": 3}, "text": "При отсрочке я совсем ничего не плачу? Объясни, что плачу в первые три месяца и после них. Ничего в заявке не меняй.", "expect": {"no_changes": true}},
     {"id": "refinancing_grace_explanation", "need": {"purpose": "refinancing", "preferred_product": "refinancing"}, "text": "Объясни без расчёта: если у моего старого кредита сейчас отсрочка основного долга, а рефинансирование снижает максимальный платёж, значит ли это, что уже в первом месяце я заплачу меньше? Это только вопрос, заявку не меняй.", "expect": {"no_changes": true, "required_any_phrases": [["отсроч", "льгот"], ["перв", "ближайш", "начал"], ["выраст", "выше", "увелич"]]}},
-    {"id": "refinancing_term_cost_explanation", "need": {"purpose": "refinancing", "preferred_product": "refinancing"}, "text": "Объясни без расчётов: если при рефинансировании увеличить срок, чтобы снизить ежемесячный платёж, это обязательно даст экономию? Как правильно сравнить расходы? Ничего в заявке не меняй.", "expect": {"no_changes": true, "required_any_phrases": [["переплат", "стоим", "оставш"], ["срок", "дольше"]]}}
+    {"id": "refinancing_term_cost_explanation", "need": {"purpose": "refinancing", "preferred_product": "refinancing"}, "text": "Объясни без расчётов: если при рефинансировании увеличить срок, чтобы снизить ежемесячный платёж, это обязательно даст экономию? Как правильно сравнить расходы? Ничего в заявке не меняй.", "expect": {"no_changes": true, "required_any_phrases": [["переплат", "стоим", "оставш"], ["срок", "дольше"]]}},
+    {
+      "id": "catalog_limits_are_not_personal_approval",
+      "need": {
+        "purpose": "working_capital",
+        "financing_pattern": "gradual_repayment"
+      },
+      "text": "Какие продукты подходят для закупки? Сколько мне банк даст, если сумму я пока не назвал?",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "по вашему профилю банк может предложить",
+          "вам одобрено",
+          "разовай",
+          "**"
+        ],
+        "required_any_phrases": [
+          [
+            "расчет",
+            "рассчит",
+            "уточн",
+            "подбор",
+            "зависит"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "product_question_does_not_change_application",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "500000.00",
+        "term_months": 12
+      },
+      "text": "Объясни простыми словами, чем кредит на оборотные цели отличается от кредитной линии. Мою заявку пока не меняй.",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "разовай",
+          "**"
+        ]
+      }
+    }
   ]
 }

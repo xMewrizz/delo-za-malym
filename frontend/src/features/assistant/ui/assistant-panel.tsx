@@ -32,6 +32,7 @@ import { useConversationScroll } from "../model/use-conversation-scroll";
 import { useLumaMotion } from "../model/use-luma-motion";
 import { ClarificationCard } from "./clarification-card";
 import { CollectedData } from "./collected-data";
+import { LumaMessageText } from "./luma-message-text";
 import { AssistantWorkspace, type WorkspaceSection } from "./assistant-workspace";
 
 export function AssistantPanel({
@@ -417,7 +418,7 @@ export function AssistantPanel({
                     <p className="luma-clarification-answer">{clarification.answer}</p>
                   </>
                 ) : (
-                  <p className="whitespace-pre-wrap">{item.text}</p>
+                  item.role === "user" ? <p className="whitespace-pre-wrap">{item.text}</p> : <LumaMessageText text={item.text}/>
                 )}
               </div>
             ))}

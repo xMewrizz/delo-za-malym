@@ -124,7 +124,11 @@ def check_case(case, before, view):
             issues.append(f"missing_operation:{operation}")
     if "operation_count" in expected and len(operations) != expected["operation_count"]:
         issues.append("duplicate_or_missing_operations")
-    if expected.get("debt_not_confirmed") and plan.get("debt_payments_confirmed"):
+    # With no active loans, the bank itself marks the empty debt schedule as
+    # complete. That is not a user confirmation fabricated by the model.
+    active_debt = any(float(loan.get("outstanding_principal") or 0) > 0
+                      for loan in before.get("financials", {}).get("existing_loans") or [])
+    if expected.get("debt_not_confirmed") and active_debt and plan.get("debt_payments_confirmed"):
         issues.append("debt_confirmed_without_user_consent")
     if expected.get("question") and not (view.get("clarification") or view["chat"]["messages"][-1].get("question")):
         issues.append("missing_clarification")
