@@ -66,6 +66,11 @@ describe("portfolio product consistency", () => {
     expect(unknown).toContain("Уточняется");
     expect(unknown).not.toContain('role="meter"');
     expect(renderToStaticMarkup(<LimitUtilization product={{ ...line, status: "closed" }} />)).toBe("");
+    const host=document.createElement("div");
+    host.innerHTML=renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={line}/></MemoryRouter>);
+    expect(host.querySelector('[role="meter"]')?.closest("details")).toBeNull();
+    expect(host.querySelector('.funding-card-balance [role="meter"]')).not.toBeNull();
+    expect(host.querySelector('.funding-card-amount small')?.textContent?.replace(/\s/g," ")).toBe('/ 500 000 ₽');
   });
 
   it("explains issued refinancing without suggesting that the money was credited to the account", () => {
