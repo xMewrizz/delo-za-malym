@@ -161,6 +161,17 @@ class CreditProcess:
                  "ready_for_application": record["state"]["status"] != "draft" or any(
                      item["type"] == "explored_option_applied" for item in record["events"])} for record in self.store.list()]
 
+    def delete_draft(self, application_id, version):
+        with self.store.connect(write=True) as connection:
+            record = self.store.get(connection, application_id)
+            if record is None:
+                raise ProcessError("application_not_found", "Черновик уже удалён или не найден.", 404)
+            self._version(record, version)
+            if record["state"]["status"] != "draft" or record.get("signature") or record.get("completion"):
+                raise ProcessError("draft_deletion_not_allowed", "Удалить можно только черновик. Заявка уже перешла на другой этап.")
+            self.store.delete_draft(connection, application_id)
+        return {"application_id": application_id, "deleted": True}
+
     def create(self, *, need=None, financials=None, product_details=None, scenario=None):
         now = self.clock()
         if scenario:

@@ -16,6 +16,7 @@ import {
   completeCondition,
   createApplication,
   repeatApplication,
+  deleteDraftApplication,
   exploreApplication,
   patchApplication,
   selectOffer,
@@ -23,6 +24,7 @@ import {
   versionAction,
   type ApplicationActions,
   type ApplicationView,
+  type ApplicationSummary,
 } from "@/features/applications";
 import { ApiError, getErrorMessage } from "@/shared/api/client";
 import { readSaved } from "@/shared/lib/saved-draft";
@@ -31,7 +33,8 @@ import { Card, CardContent } from "@/shared/ui/card";
 import { Skeleton } from "@/shared/ui/skeleton";
 import { LumaMark } from "@/shared/ui/luma-mark";
 import { ThemeToggle } from "@/shared/ui/theme-toggle";
-import { ApplicationsHub, ApplicationBack, ApplicationMoreActions } from "@/features/applications/ui/applications-hub";
+import { ApplicationsHub, ApplicationBack, ApplicationMoreActions, DeleteDraftAction } from "@/features/applications/ui/applications-hub";
+import {forgetDraftStorage} from "@/features/applications/model/deleted-draft";
 import "./cabinet-page.css";
 import "./cabinet-workspace.css";
 import { CabinetNavigation, type CabinetMode } from "./cabinet-navigation";
@@ -255,6 +258,33 @@ export function CabinetPage() {
       }
     },
   });
+  const deletion=useMutation({
+    mutationFn:(item:Pick<ApplicationSummary,"application_id"|"state">)=>deleteDraftApplication(item.application_id,item.state.application_version),
+    onSuccess:async({application_id:id})=>{
+      await Promise.all([queryClient.cancelQueries({queryKey:applicationKeys.detail(id)}),queryClient.cancelQueries({queryKey:applicationKeys.list}),queryClient.cancelQueries({queryKey:["legacy-workspaces"]})]);
+      forgetDraftStorage(id);
+      setContexts(current=>({manual:current.manual===id?null:current.manual,assistant:current.assistant===id?null:current.assistant}));
+      setCreatedInSession(current=>new Set([...current].filter(value=>value!==id)));
+      queryClient.setQueryData(applicationKeys.list,(current:ApplicationSummary[]|undefined)=>current?.filter(item=>item.application_id!==id));
+      queryClient.setQueryData(["legacy-workspaces"],(current:typeof legacy.data)=>current?.filter(item=>item.view.record.application.application_id!==id)||[]);
+      queryClient.removeQueries({queryKey:applicationKeys.detail(id)});
+      queryClient.removeQueries({queryKey:chatKeys.list(id)});
+      queryClient.removeQueries({predicate:query=>{
+        if(query.queryKey[0]!=="chats")return false;
+        const data=query.state.data as {record?:{application?:{application_id?:string}}}|undefined;
+        return data?.record?.application?.application_id===id;
+      }});
+      if(selectedId===id)navigate("applications");
+      void queryClient.invalidateQueries({queryKey:applicationKeys.list});
+      void queryClient.invalidateQueries({queryKey:calendarKey});
+    },
+    onError:(error,item)=>{
+      if(error instanceof ApiError && [404,409].includes(error.status)){
+        void queryClient.invalidateQueries({queryKey:applicationKeys.list});
+        void queryClient.invalidateQueries({queryKey:applicationKeys.detail(item.application_id)});
+      }
+    },
+  });
   function actionsFor(view: ApplicationView, source: WorkspaceSource): ApplicationActions {
     const id = view.application.application_id,
       version = view.application.application_version;
@@ -277,7 +307,7 @@ export function CabinetPage() {
       sign: (offerId) => run(() => signOffer(id, version, offerId)),
     };
   }
-  const error = action.error || create.error;
+  const error = action.error || create.error || deletion.error;
   const activeDetail =
     mode === "manual" ? manual : mode === "assistant" ? assistant : detail;
   const savedEntry = (view: ApplicationView) => <SavedSelectionEntry view={view} busy={create.isPending || action.isPending}
@@ -366,9 +396,10 @@ export function CabinetPage() {
             variant="ghost"
             size="sm"
             onClick={() => {
-              void activeDetail.refetch();
+              if(mode==="applications"&&!selectedId) void list.refetch(); else void activeDetail.refetch();
               action.reset();
               create.reset();
+              deletion.reset();
             }}
           >
             <RefreshCw />
@@ -452,8 +483,9 @@ export function CabinetPage() {
           )
         )}
       </div>
-      {mode === "applications" && (!selectedId ? <ApplicationsHub applications={applications} loading={list.isPending} error={list.error} refresh={() => void list.refetch()} open={openApplication} creating={create.isPending} create={() => create.mutate({ source: "manual" })} /> : <div className="application-detail-page">
-        <ApplicationBack back={() => navigate("applications")} actions={detail.data ? <ApplicationMoreActions busy={create.isPending || action.isPending} onRepeat={() => { if (detail.data) create.mutate({ source: "manual", repeatId: detail.data.application.application_id }); }} /> : undefined}/>
+      {mode==="applications" && deletion.isSuccess && <p role="status" className="mb-5 text-sm text-muted-foreground">Черновик удалён</p>}
+      {mode === "applications" && (!selectedId ? <ApplicationsHub applications={applications} loading={list.isPending} error={list.error} refresh={() => void list.refetch()} open={openApplication} creating={create.isPending} create={() => create.mutate({ source: "manual" })} onDelete={item=>deletion.mutate(item)} deleting={deletion.isPending} /> : <div className="application-detail-page">
+        <ApplicationBack back={() => navigate("applications")} actions={detail.data ? <><DeleteDraftAction application={{...detail.data.application,state:detail.data.state}} busy={create.isPending||action.isPending||deletion.isPending} onDelete={()=>{if(detail.data)deletion.mutate({application_id:detail.data.application.application_id,state:detail.data.state});}}/><ApplicationMoreActions busy={create.isPending || action.isPending || deletion.isPending} onRepeat={() => { if (detail.data) create.mutate({ source: "manual", repeatId: detail.data.application.application_id }); }} /></> : undefined}/>
         {detail.data && <ApplicationWorkspace onNewSelection={() => create.mutate({ source: "manual" })} key={detail.data.application.application_id} view={detail.data} profile={profile.data} reviewing={action.isPending && Boolean(action.variables?.review) && action.variables?.id === detail.data.application.application_id} busy={action.isPending || create.isPending} actions={actionsFor(detail.data, "applications")} renderDocuments={() => Array.isArray(detail.data?.documents) && detail.data.documents.length > 0 ? <InvoicePanel readOnly view={detail.data!} onUpdated={update} /> : null} />}
       </div>)}
       {profile.error && (

@@ -89,3 +89,10 @@ class Store:
             "INSERT INTO chats(chat_id, payload) VALUES (?, ?) ON CONFLICT(chat_id) DO UPDATE SET payload=excluded.payload",
             (chat["chat_id"], json.dumps(chat, ensure_ascii=False, allow_nan=False)),
         )
+
+    @staticmethod
+    def delete_draft(connection, application_id):
+        # Called only after the process validates the current version and draft status.
+        connection.execute("DELETE FROM documents WHERE application_id = ?", (application_id,))
+        connection.execute("DELETE FROM chats WHERE json_extract(payload, '$.application_id') = ?", (application_id,))
+        connection.execute("DELETE FROM applications WHERE application_id = ?", (application_id,))

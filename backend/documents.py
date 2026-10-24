@@ -20,6 +20,8 @@ class InvoiceDocuments:
         self.parsers = BoundedSemaphore(2)
 
     def editable(self, record, version):
+        if record is None:
+            raise ProcessError("application_not_found", "Черновик удалён или не найден.", 404)
         self.process._version(record, version)
         if record["state"]["status"] not in EDITABLE_STATES:
             raise ProcessError("document_not_editable", "Оформление завершено. Для новой потребности начните отдельный подбор.")

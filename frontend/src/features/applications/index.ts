@@ -4,6 +4,7 @@ export {
   flowDaysSchema,
   createApplication,
   repeatApplication,
+  deleteDraftApplication,
   createScenario,
   getApplication,
   listApplications,

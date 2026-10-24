@@ -7,6 +7,7 @@ import { LumaScrollStory, ProductScrollShowcase } from "./home-scroll-stories";
 import { HomeCalendarPreview } from "./home-calendar-preview";
 import { HomeCabinetShowcase } from "./home-cabinet-preview";
 import { useLandingWheel } from "./use-landing-wheel";
+import {FinalBrandSculpture} from "./home-final-sculpture";
 import { Button } from "@/shared/ui/button";
 import { LumaMark } from "@/shared/ui/luma-mark";
 import "./home-epic.css";
@@ -30,6 +31,7 @@ function useLandingMotion(root: RefObject<HTMLDivElement | null>, motion: boolea
     const media = gsap.matchMedia();
     const context = gsap.context(() => {
       media.add("all", () => {
+        gsap.fromTo(".ep-final-emblem-entry",{y:30,opacity:0,rotateY:14},{y:0,opacity:1,rotateY:0,duration:1.15,ease:"power3.out",clearProps:"transform,opacity",scrollTrigger:{trigger:".ep-final-emblem",start:"top 85%",once:true}});
         gsap.from(".ep-title-word", { yPercent: 115, rotate: 4, duration: 1.05, stagger: .1, ease: "power4.out", clearProps: "transform" });
         gsap.from(".ep-hero-intro", { y: 24, opacity: 0, duration: .8, delay: .3, clearProps: "all" });
         gsap.from(".ep-sculpture-arrive", { y: 28, rotate: -4, opacity: 0, duration: 1.6, delay: .15, ease: "power3.out", clearProps: "all" });
@@ -65,11 +67,14 @@ export function HomePage() {
   useEffect(() => {
     const element = root.current, hero = element?.querySelector('.ep-hero');
     if (!element || !hero) return;
-    let intersecting = false;
-    const update = () => { element.dataset.heroActive = String(intersecting && !document.hidden); };
+    let intersecting = false, finalIntersecting=false;
+    const update = () => { element.dataset.heroActive = String(intersecting && !document.hidden);element.dataset.finalActive=String(finalIntersecting&&!document.hidden); };
     const observer = new IntersectionObserver(([entry]) => { intersecting = entry.isIntersecting; update(); });
     observer.observe(hero); document.addEventListener('visibilitychange', update);
-    return () => { observer.disconnect(); document.removeEventListener('visibilitychange', update); };
+    const final=element.querySelector('.ep-final');
+    const finalObserver=new IntersectionObserver(([entry])=>{finalIntersecting=entry.isIntersecting;update();});
+    if(final) finalObserver.observe(final);
+    return () => { observer.disconnect(); finalObserver.disconnect(); document.removeEventListener('visibilitychange', update); };
   }, []);
   return <div className="ep-home" ref={root} data-motion={motion ? "on" : "off"} data-motion-engine="gsap">
     <section className="scene ep-hero" aria-labelledby="hero-title" data-scene="hero">
@@ -92,6 +97,6 @@ export function HomePage() {
 
     <section className="scene ep-faq" id="questions" aria-labelledby="questions-title" data-scene="questions"><SceneLayers /><div className="ep-section-heading depth-4" data-depth="4" data-ep-reveal><h2 id="questions-title">Разберёмся<br /> <em>по делу.</em></h2></div><div className="ep-faq-list depth-3" data-depth="3" data-ep-reveal>{questions.map(question => <details key={question.title}><summary>{question.title}<ChevronDown size={19} aria-hidden="true" /></summary><p>{question.text}</p></details>)}</div></section>
 
-    <section className="scene ep-final" aria-labelledby="final-title" data-scene="next-step"><SceneLayers /><div className="depth-4 ep-final-copy" data-depth="4"><p className="ep-eyebrow">СЛЕДУЮЩИЙ ШАГ — ВАШ</p><h2 id="final-title">Планы есть.<br /><em>Дело за малым.</em></h2><div><Button asChild size="lg"><Link to="/cabinet?mode=manual">Подобрать финансирование<ArrowUpRight /></Link></Button><Link className="ep-final-manual" to="/cabinet?mode=assistant">Обсудить с Лумой<ArrowRight size={16} /></Link></div></div></section>
+    <section className="scene ep-final" aria-labelledby="final-title" data-scene="next-step"><SceneLayers /><div className="depth-4 ep-final-copy" data-depth="4"><p className="ep-eyebrow">СЛЕДУЮЩИЙ ШАГ — ВАШ</p><h2 id="final-title">Планы есть.<br /><em>Дело за малым.</em></h2><div><Button asChild size="lg"><Link to="/cabinet?mode=manual">Подобрать финансирование<ArrowUpRight /></Link></Button><Link className="ep-final-manual" to="/cabinet?mode=assistant">Обсудить с Лумой<ArrowRight size={16} /></Link></div></div><FinalBrandSculpture/></section>
   </div>;
 }

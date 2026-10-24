@@ -295,6 +295,10 @@ export const listScenarios = (signal?: AbortSignal) =>
   apiRequest("/demo/scenarios", scenariosSchema, { signal });
 export const createApplication = () => post("/applications", {});
 export const repeatApplication = (id: string) => post(path(id, "/repeat"), {});
+export const deleteDraftApplication = (id: string, version: number) =>
+  apiRequest(path(id), z.object({application_id:z.string(),deleted:z.literal(true)}), {
+    method:"DELETE",body:JSON.stringify({base_application_version:version,confirmed:true}),
+  });
 export const createScenario = (productId: string, scenarioId: string) =>
   post(
     `/demo/scenarios/${encodeURIComponent(productId)}/${encodeURIComponent(scenarioId)}`,

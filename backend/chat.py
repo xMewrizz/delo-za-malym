@@ -36,6 +36,12 @@ class ChatService:
             raise ProcessError("chat_not_found", "Диалог не найден.", 404)
         return chat
 
+    def _record(self, connection, application_id):
+        record = self.store.get(connection, application_id)
+        if record is None:
+            raise ProcessError("application_not_found", "Черновик удалён или не найден.", 404)
+        return record
+
     @staticmethod
     def _version(chat, version):
         if chat["chat_version"] != version:
@@ -91,7 +97,7 @@ class ChatService:
         request_id = str(body.request_id)
         with self.store.connect(write=True) as connection:
             chat = self._load(connection, chat_id)
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
             previous = next((message for message in chat["messages"] if message.get("request_id") == request_id), None)
             if previous:
                 if previous.get("clarification_answer") != identity:
@@ -136,13 +142,14 @@ class ChatService:
         chat = {"chat_id": str(uuid4()), "application_id": record["application"]["application_id"],
                 "chat_version": 1, "created_at": self.clock().isoformat(), "messages": []}
         with self.store.connect(write=True) as connection:
+            self._record(connection, chat["application_id"])
             self.store.save_chat(connection, chat)
         return self._public(chat, record)
 
     def get(self, chat_id):
         with self.store.connect() as connection:
             chat = self._load(connection, chat_id)
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
         return self._public(chat, record)
 
     def preview(self, chat_id, proposal_id, version):
@@ -150,7 +157,7 @@ class ChatService:
         with self.store.connect() as connection:
             chat = self._load(connection, chat_id)
             self._version(chat, version)
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
         proposal = next((message["proposal"] for message in chat["messages"]
                          if (message.get("proposal") or {}).get("proposal_id") == proposal_id), None)
         if not proposal or proposal["status"] != "pending":
@@ -181,7 +188,7 @@ class ChatService:
         request_id = str(request_id)
         with self.store.connect() as connection:
             chat = self._load(connection, chat_id)
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
         previous = next((message for message in chat["messages"] if message.get("request_id") == request_id), None)
         if previous:
             if previous["text"] != text:
@@ -264,7 +271,7 @@ class ChatService:
                 self._version(current, version)
                 comparison_attempted = any(tool.get("name") == "compare_options" for tool in tools)
                 if explorations or (reply.intent == "compare_options" and not comparison_attempted):
-                    record = self.store.get(connection, current["application_id"])
+                    record = self._record(connection, current["application_id"])
                     self.process._version(record, application_version)
                     if explorations:
                         for exploration in explorations:
@@ -286,7 +293,7 @@ class ChatService:
                 current["messages"].extend([user, answer])
                 current["chat_version"] += 1
                 self.store.save_chat(connection, current)
-            record = self.store.get(connection, current["application_id"])
+            record = self._record(connection, current["application_id"])
         return self._public(current, record)
 
     def resolve(self, chat_id, proposal_id, version, *, apply):
@@ -297,7 +304,7 @@ class ChatService:
                              if (message.get("proposal") or {}).get("proposal_id") == proposal_id), None)
             if not proposal or proposal["status"] != "pending":
                 raise ProcessError("proposal_not_pending", "Предложение уже обработано или заменено новым.")
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
             if apply:
                 if self.conflicts(proposal, record):
                     raise ProcessError("version_conflict", "Некоторые предложенные поля уже изменены в форме. Проверьте и сохраните исправленный черновик.")
@@ -352,7 +359,7 @@ class ChatService:
         with self.store.connect(write=True) as connection:
             chat = self._load(connection, chat_id)
             self._version(chat, version)
-            record = self.store.get(connection, chat["application_id"])
+            record = self._record(connection, chat["application_id"])
             self.process._version(record, application_version)
             proposal = next((message["proposal"] for message in chat["messages"]
                 if (message.get("proposal") or {}).get("proposal_id") == proposal_id), None)

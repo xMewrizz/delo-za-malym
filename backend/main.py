@@ -105,7 +105,7 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
             raise ProcessError("page_not_found", "Страница не найдена.", 404)
         return FileResponse(frontend_index, headers={"Cache-Control": "no-store"})
     origins = [origin.strip() for origin in os.getenv("CORS_ORIGINS", "http://localhost:5173,http://localhost:3000").split(",") if origin.strip()]
-    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PATCH"], allow_headers=["Content-Type"])
+    app.add_middleware(CORSMiddleware, allow_origins=origins, allow_methods=["GET", "POST", "PATCH", "DELETE"], allow_headers=["Content-Type"])
 
     @app.exception_handler(ProcessError)
     async def process_error(request, exc):
@@ -398,6 +398,11 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @app.get("/api/applications/{application_id}", response_model=ApplicationView, tags=["Заявки"])
     def get_application(application_id: str):
         return process.get(application_id)
+
+    @app.delete("/api/applications/{application_id}", tags=["Заявки"])
+    def delete_draft(application_id: str, body: ConfirmedAction):
+        """Удаляет только черновик актуальной версии вместе с его диалогами и документами."""
+        return process.delete_draft(application_id, body.base_application_version)
 
     @app.patch("/api/applications/{application_id}", response_model=ApplicationView, tags=["Заявки"])
     def update_application(application_id: str, body: UpdateApplication):

@@ -1,7 +1,7 @@
 import { needsApplicationAction } from "../model/application-status";
 import { useEffect, type ReactNode } from "react";
-import { ArrowLeft, ArrowRight, CopyPlus, FileText, MoreHorizontal, Plus, Search } from "lucide-react";
-import { DropdownMenu } from "radix-ui";
+import { ArrowLeft, ArrowRight, CopyPlus, FileText, MoreHorizontal, Plus, Search, Trash2 } from "lucide-react";
+import { AlertDialog, DropdownMenu } from "radix-ui";
 import { Link, useSearchParams } from "react-router";
 import { Button } from "@/shared/ui/button";
 import { Input } from "@/shared/ui/input";
@@ -17,9 +17,10 @@ const finishedApplications = new Set(["declined", "out_of_policy", "cancelled", 
 function applicationPrimaryAction(status: string) {
   return ({ draft: "Проверить и отправить", offers_ready: "Выбрать предложение", ready_to_sign: "Перейти к подписанию", conditions_pending: "Выполнить условия", waiting_for_data: "Дополнить сведения", offer_expired: "Обновить предложения", check_retry_pending: "Повторить проверку" } as Record<string, string>)[status] || (finishedApplications.has(status) ? "Посмотреть результат" : "Открыть заявку");
 }
-export function ApplicationsHub({ applications, loading, error, refresh, open, create, creating = false }: {
+export function ApplicationsHub({ applications, loading, error, refresh, open, create, creating = false, onDelete, deleting = false }: {
   applications: ApplicationSummary[]; loading: boolean; error?: unknown; refresh: () => void;
   open: (id: string) => void; create: () => void; creating?: boolean;
+  onDelete?: (item: ApplicationSummary) => void; deleting?: boolean;
 }) {
   const [params, setParams] = useSearchParams();
   const filter = ["action", "review", "done"].includes(params.get("status") || "") ? params.get("status")! : "all";
@@ -55,7 +56,7 @@ export function ApplicationsHub({ applications, loading, error, refresh, open, c
       const { replacementId, closed } = completionLifecycle(item.completion);
       const updated = typeof item.state.updated_at === "string" ? new Date(item.state.updated_at).toLocaleDateString("ru-RU") : null;
       return <article className="application-record" key={item.application_id} aria-labelledby={`application-${item.application_id}`}>
-        <header><span className={`application-record-status ${needsApplicationAction.has(status) ? "application-status-action" : done ? "application-status-done" : ""}`}><i />{replacementId ? "Погашен рефинансированием" : closed ? "Погашен" : stateName(status)}</span><small>№ {item.application_id.slice(0, 6)}</small></header>
+        <header><span className={`application-record-status ${needsApplicationAction.has(status) ? "application-status-action" : done ? "application-status-done" : ""}`}><i />{replacementId ? "Погашен рефинансированием" : closed ? "Погашен" : stateName(status)}</span><div className="application-record-meta"><small>№ {item.application_id.slice(0, 6)}</small>{onDelete && status === "draft" && !issued && <DeleteDraftAction application={item} busy={deleting} onDelete={()=>onDelete(item)}/>}</div></header>
         <h3 id={`application-${item.application_id}`}>{productName(item.need.preferred_product)}</h3>
         <p className="application-record-amount">{item.need.requested_amount ? formatMoney(item.need.requested_amount) : "По вашей задаче"}<span>{item.need.term_months ? `на ${item.need.term_months} мес.` : "Срок по условиям продукта"}</span></p>
         <p className="application-record-next">{replacementId ? "Этот кредит погашен. Дальнейшие платежи — по новому договору рефинансирования." : closed ? "Долг погашен полностью. Условия и история заявки сохранены." : done ? status === "declined" ? "Решение принято. Причины доступны в результате." : status === "cancelled" ? "Заявка закрыта по вашему запросу." : issued ? "Оформление завершено. Управляйте продуктом в разделе финансирования." : "Рассмотрение завершено. Условия доступны для просмотра." : item.state.next_action.label}</p>
@@ -68,6 +69,22 @@ export function ApplicationsHub({ applications, loading, error, refresh, open, c
 
 export function ApplicationBack({ back, actions }: { back: () => void; actions?: ReactNode }) {
   return <div className="application-back"><Button variant="ghost" onClick={back}><ArrowLeft size={16} />Все заявки</Button><span>Условия и решение по выбранной заявке</span>{actions && <div className="application-back-actions">{actions}</div>}</div>;
+}
+
+export function DeleteDraftAction({application,busy,onDelete}: {
+  application: Pick<ApplicationSummary,"application_id"|"need"|"state">;
+  busy:boolean; onDelete:()=>void;
+}) {
+  if(application.state.status!=="draft") return null;
+  return <AlertDialog.Root><AlertDialog.Trigger asChild><Button type="button" variant="ghost" size="icon" className="application-delete-trigger" disabled={busy} aria-label={`Удалить черновик № ${application.application_id.slice(0,6)}`} title="Удалить черновик"><Trash2 size={16}/></Button></AlertDialog.Trigger>
+    <AlertDialog.Portal container={typeof document==="undefined"?undefined:document.querySelector<HTMLElement>(".cabinet-shell")}><AlertDialog.Overlay className="application-delete-overlay"/><AlertDialog.Content className="application-delete-dialog">
+      <span className="application-delete-icon" aria-hidden="true"><Trash2 size={23}/></span>
+      <AlertDialog.Title>Удалить черновик?</AlertDialog.Title>
+      <AlertDialog.Description>Сохранённые параметры, документы и диалог с Лумой по этой заявке будут удалены. Отменить это действие нельзя.</AlertDialog.Description>
+      <div className="application-delete-summary"><strong>{productName(application.need.preferred_product)}</strong><span>{application.need.requested_amount?formatMoney(application.need.requested_amount):"Сумма ещё не указана"} · № {application.application_id.slice(0,6)}</span></div>
+      <div className="application-delete-buttons"><AlertDialog.Cancel asChild><Button variant="outline">Оставить черновик</Button></AlertDialog.Cancel><AlertDialog.Action asChild><Button variant="destructive" disabled={busy} onClick={onDelete}>Удалить черновик</Button></AlertDialog.Action></div>
+    </AlertDialog.Content></AlertDialog.Portal>
+  </AlertDialog.Root>;
 }
 
 export function ApplicationMoreActions({ onRepeat, busy }: { onRepeat: () => void; busy: boolean }) {
