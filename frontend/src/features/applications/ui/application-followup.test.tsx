@@ -23,7 +23,8 @@ async function setup() {
 describe("resume an application that needs information",()=>{
   it("puts a specific next action before reference information, then shows only project and contribution fields",async()=>{
     const t=await setup();try{
-      expect(t.host.querySelector("h2")?.textContent).toBe("Дополните заявку, чтобы продолжить");
+      expect(t.host.querySelector("h2")?.textContent).toBe("Инвестиционный кредит");
+      expect(t.host.querySelector(".application-overview")?.nextElementSibling?.querySelector("h2")?.textContent).toBe("Дополните заявку, чтобы продолжить");
       expect(t.host.textContent).toContain("100 000 ₽");
       expect(t.host.textContent).not.toContain("Предложений пока нет");
       expect(t.host.querySelectorAll("input")).toHaveLength(0);

@@ -1,4 +1,4 @@
-import { useRef, useState, type CSSProperties } from "react";
+import { useRef, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { ArrowDownLeft, ArrowRight, ArrowUpRight, CalendarDays, Check, CreditCard, Landmark, Plus, Repeat2, Wallet, X } from "lucide-react";
 import { Dialog } from "radix-ui";
@@ -21,20 +21,14 @@ const closedProduct = (product: PortfolioProduct) => ["closed", "refinanced"].in
 const statuses: Record<string, string> = { closed: "Погашен", refinanced: "Рефинансирован", expired: "Срок лимита истёк", overdue: "Просрочка" };
 type ManageAction = "draw" | "repay";
 
-export function FundingLiquid({ product }: { product: PortfolioProduct }) {
-  const limit = product.kind === "limit";
-  const total = Number(limit ? product.limit : product.originalPrincipal);
-  const value = limit ? Number(product.available) : total - Number(product.principal);
-  const known = Number.isFinite(total) && total > 0 && product.principal != null && (!limit || product.available != null);
-  const percent = known ? Math.max(0, Math.min(100, value / total * 100)) : null;
-  const label = limit ? "Лимит свободен" : "Погашено основного долга";
-  return <div className={`funding-liquid ${limit ? "funding-liquid-limit" : ""} ${percent === 100 ? "funding-liquid-full" : ""}`}>
-    <div className="funding-liquid-vessel" role={percent == null ? "img" : "meter"} aria-label={percent == null ? "Доля погашения неизвестна: нет первоначальной суммы кредита" : label} aria-valuemin={percent == null ? undefined : 0} aria-valuemax={percent == null ? undefined : 100} aria-valuenow={percent == null ? undefined : Math.floor(percent)} aria-valuetext={percent == null ? undefined : `${Math.floor(percent)}%`}>
-      <div className="funding-liquid-marks" aria-hidden="true"><i /><i /><i /></div>
-      {percent != null && percent > 0 && <div className="funding-liquid-fill" style={{ "--liquid-level": `${percent}%` } as CSSProperties} aria-hidden="true"><svg viewBox="0 0 200 20" preserveAspectRatio="none"><path d="M0 10Q25 0 50 10T100 10T150 10T200 10V20H0Z" /></svg></div>}
-      <span aria-hidden="true"><b>{percent == null ? "—" : `${Math.floor(percent)}%`}</b></span>
-    </div>
-    <span className="funding-liquid-caption">{percent == null ? "Нет исходной суммы" : limit ? "свободно" : "погашено"}</span>
+export function LimitUtilization({ product }: { product: PortfolioProduct }) {
+  if (product.kind !== "limit" || closedProduct(product)) return null;
+  const total = Number(product.limit);
+  const used = product.principal == null ? null : Number(product.principal);
+  const known = Number.isFinite(total) && total > 0 && used != null && Number.isFinite(used) && used >= 0;
+  return <div className="funding-utilization">
+    <div className="funding-utilization-label"><span>Использовано</span><strong>{known ? formatMoneyPrecise(String(used)) : "Уточняется"}</strong></div>
+    {known && <div className="funding-utilization-track" role="meter" aria-label="Использовано из лимита" aria-valuemin={0} aria-valuemax={total} aria-valuenow={used!} aria-valuetext={`${formatMoneyPrecise(String(used))} из ${formatMoneyPrecise(String(total))}`}><span style={{width: `${Math.min(100, used! / total * 100)}%`}}/></div>}
   </div>;
 }
 
@@ -42,16 +36,19 @@ export function PortfolioProductCard({ product, onManage }: { product: Portfolio
   const closed = closedProduct(product);
   const line = product.productId === "revolving_credit_line";
   const overdraft = product.productId === "overdraft";
+  const refinancing = product.productId === "refinancing";
   const manageable = Boolean(product.applicationId && product.status !== "refinanced" && (overdraft || line || product.kind === "loan"));
   const Icon = line ? Repeat2 : product.kind === "limit" ? Wallet : CreditCard;
   return <article className={`funding-card ${product.kind === "limit" ? "funding-card-limit" : ""} ${closed ? "funding-card-closed" : ""}`} aria-labelledby={`funding-${product.id}`}>
     <div className="funding-card-heading"><span className="funding-card-icon"><Icon size={19} /></span><span className="funding-card-status">{closed ? <Check size={13} /> : <i />}{statuses[product.status] || (product.kind === "limit" ? "Лимит открыт" : "Действует")}</span><span className="funding-card-number">{product.applicationId ? `№ ${product.applicationId.slice(0, 6)}` : "Данные банка"}</span></div>
     <div className="funding-card-summary"><h3 id={`funding-${product.id}`}>{product.title}</h3>
     {product.pendingPayment && <p className="funding-card-order">Запланирован платёж на {dateLabel(product.pendingPayment.date)} · {formatMoneyPrecise(product.pendingPayment.amount)}</p>}
-    <div className="funding-card-balance"><div><p>{product.kind === "limit" ? "Можно использовать" : "Остаток основного долга"}</p><strong>{product.kind === "limit" ? product.available == null ? "Уточняется" : formatMoney(product.available) : product.principal == null ? "Уточняется" : formatMoney(product.principal)}</strong><small>{product.kind === "limit" ? `из ${formatMoney(product.limit || "0")} открытого лимита` : product.originalPrincipal ? `из ${formatMoney(product.originalPrincipal)} полученных` : "Первоначальная сумма не передана банком"}</small></div><FundingLiquid product={product} /></div>
-    {product.kind === "limit" && <p className="funding-limit-explainer">Использовано {formatMoney(product.principal || "0")}. {line ? "Погашайте основной долг — и берите деньги снова без новой заявки." : "Овердрафт покрывает нехватку денег на счёте; поступления уменьшают долг."}</p>}
+    <div className="funding-card-balance"><div><p>{product.kind === "limit" ? "Можно использовать" : "Остаток основного долга"}</p><strong>{product.kind === "limit" ? product.available == null ? "Уточняется" : formatMoney(product.available) : product.principal == null ? "Уточняется" : formatMoney(product.principal)}</strong><small>{product.kind === "limit" ? `из ${formatMoney(product.limit || "0")} открытого лимита` : product.originalPrincipal ? refinancing ? `из ${formatMoney(product.originalPrincipal)} на рефинансирование` : `из ${formatMoney(product.originalPrincipal)} полученных` : "Первоначальная сумма не передана банком"}</small></div></div>
+    <LimitUtilization product={product}/>
+    {refinancing && product.applicationId && <p className="funding-refinancing-note"><Repeat2 size={16} aria-hidden="true"/><span>Сумма направлена на погашение прежних кредитов. На расчётный счёт зачислено 0 ₽.</span></p>}
+    {product.kind === "limit" && <p className="funding-limit-explainer">{line ? "Погашайте основной долг — и берите деньги снова без новой заявки." : "Овердрафт покрывает нехватку денег на счёте; поступления уменьшают долг."}</p>}
     </div>
-    <dl className="funding-card-facts"><div><dt>Ставка</dt><dd>{product.annualRate == null ? "Не передана" : `${Number(product.annualRate).toLocaleString("ru-RU")}% годовых`}</dd></div><div><dt>Начислено процентов</dt><dd>{product.accruedInterest == null ? "Нет данных" : formatMoneyPrecise(product.accruedInterest)}</dd></div><div><dt>Ближайший платёж</dt><dd><span className="funding-payment-amount">{product.nextPayment ? formatMoneyPrecise(product.nextPayment.amount) : closed ? "Будущих платежей нет" : product.kind === "limit" ? "После использования" : "Нет данных о графике"}</span>{product.nextPayment?.principal !== undefined && product.nextPayment?.interest !== undefined && <small className="funding-payment-split">{formatMoneyPrecise(product.nextPayment.principal)} — долг<br />{formatMoneyPrecise(product.nextPayment.interest)} — проценты</small>}</dd></div><div><dt>Дата платежа</dt><dd>{product.nextPayment ? dateLabel(product.nextPayment.date) : "—"}</dd></div><div><dt>Окончание договора</dt><dd>{product.maturity ? dateLabel(product.maturity) : "Нет данных"}</dd></div></dl>
+    <dl className="funding-card-facts"><div><dt>Ставка</dt><dd>{product.annualRate == null ? "Не передана" : `${Number(product.annualRate).toLocaleString("ru-RU")}% годовых`}</dd></div><div><dt>Проценты на сегодня</dt><dd>{product.accruedInterest == null ? "Нет данных" : formatMoneyPrecise(product.accruedInterest)}</dd></div><div><dt>Ближайший платёж</dt><dd><span className="funding-payment-amount">{product.nextPayment ? formatMoneyPrecise(product.nextPayment.amount) : closed ? "Будущих платежей нет" : product.kind === "limit" ? "После использования" : "Нет данных о графике"}</span>{product.nextPayment?.principal !== undefined && product.nextPayment?.interest !== undefined && <small className="funding-payment-split">{formatMoneyPrecise(product.nextPayment.principal)} — основной долг<br />{formatMoneyPrecise(product.nextPayment.interest)} — проценты</small>}</dd></div><div><dt>Дата платежа</dt><dd>{product.nextPayment ? dateLabel(product.nextPayment.date) : "—"}</dd></div><div><dt>Окончание договора</dt><dd>{product.maturity ? dateLabel(product.maturity) : "Нет данных"}</dd></div></dl>
     <div className="funding-card-actions">{manageable && onManage && <Button variant={line || overdraft ? "default" : "outline"} onClick={event => onManage(product, line || overdraft ? "draw" : "repay", event.currentTarget)}>{line ? <Plus size={16} /> : <ArrowDownLeft size={16} />}{closed ? "История операций" : overdraft ? "Оплатить со счёта" : line ? "Получить деньги" : "Внести платёж"}</Button>}{(line || overdraft) && !closed && onManage && <Button variant="outline" onClick={event => onManage(product, "repay", event.currentTarget)}>{overdraft ? "Зачислить поступление" : "Внести платёж"}</Button>}{closed ? product.applicationId && <Link to={`/cabinet?mode=applications&application=${encodeURIComponent(product.applicationId)}`}>Условия и история<ArrowRight size={15}/></Link> : <Link to={`/cabinet?mode=calendar&product=${encodeURIComponent(product.id)}${product.nextPayment ? `&date=${product.nextPayment.date}` : ""}`}>График<CalendarDays size={15}/></Link>}</div>
   </article>;
 }

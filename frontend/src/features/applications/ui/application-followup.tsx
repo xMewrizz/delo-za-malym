@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowLeft, ArrowRight, FilePenLine } from "lucide-react";
 import type { ApplicationView } from "../api/applications";
-import { describeIssue, productName } from "../model/presentation";
+import { describeIssue } from "../model/presentation";
 import { normalizeMoneyInput } from "../model/need";
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
@@ -57,7 +57,6 @@ export function ApplicationFollowup({ view, busy, onSave }: {
   return <Card className="application-followup">
     <CardHeader>
       <div className="followup-heading"><span aria-hidden="true"><FilePenLine size={22}/></span><div><p>НУЖНО ВАШЕ УТОЧНЕНИЕ</p><h2>Дополните заявку, чтобы продолжить</h2></div></div>
-      <p className="followup-context">{productName(need.preferred_product)}{need.requested_amount && <> · {formatMoney(need.requested_amount)}</>}{need.term_months && <> · {need.term_months} мес.</>}</p>
     </CardHeader>
     <CardContent>
       <ul className="followup-requests">{unique.length ? unique.map((issue, index) => <li key={index}><strong>{issueLabels[issueField(issue)] || (issueField(issue).startsWith("financials.") ? "Данные бизнеса" : "Что нужно уточнить")}</strong><p>{readableIssue(issue)}</p></li>) : <li><strong>Проверьте сведения</strong><p>{view.result?.assessment?.reasons?.[0]?.message || "Дополните параметры заявки и отправьте их на повторную проверку."}</p></li>}</ul>

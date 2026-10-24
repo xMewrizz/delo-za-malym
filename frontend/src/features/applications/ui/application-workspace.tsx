@@ -14,13 +14,13 @@ import {
   describeIssue,
   outcomeName,
   productName,
-  stateName,
 } from "../model/presentation";
 import { OfferResults } from "./offer-results";
 import { OverdraftPlanForm } from "./overdraft-plan-form";
 import { FinancialSupplement } from "./financial-supplement";
 import { BankDecisionTimeline } from "./bank-decision-timeline";
 import { ApplicationFollowup } from "./application-followup";
+import { ApplicationOverview } from "./application-overview";
 
 export type ApplicationActions = {
   save: (changes: Record<string, unknown>, onSaved?: () => void) => void;
@@ -47,26 +47,6 @@ const editableStates = new Set([
   "ready_to_sign",
   "offer_expired",
 ]);
-const eventNames: Record<string, string> = {
-  application_created: "Создан черновик",
-  application_repeated: "Создана новая заявка по прежним параметрам",
-  application_updated: "Обновлены сведения",
-  application_submitted: "Заявка отправлена",
-  review_started: "Начаты банковские проверки",
-  assessment_completed: "Рассмотрение завершено",
-  options_explored: "Рассчитаны варианты",
-  explored_option_applied: "Выбраны условия",
-  offer_selected: "Выбрано предложение банка",
-  condition_completed: "Подтверждено условие",
-  offer_signed: "Подписан договор",
-  application_cancelled: "Заявка отменена",
-  recommendations_calculated: "Подобран продукт",
-  loans_refinanced: "Выбранные обязательства погашены",
-  credit_refinanced: "Кредит погашен рефинансированием",
-  bank_obligations_updated: "Учтён новый кредит: требуется пересчёт предложений",
-  invoice_uploaded: "Загружен счёт поставщика",
-  invoice_reviewed: "Проверены данные счёта",
-};
 
 export function ApplicationWorkspace({
   view,
@@ -133,15 +113,14 @@ export function ApplicationWorkspace({
   }, [step, busy, actions, wantsPlan, need.preferred_product, need.minimum_acceptable_amount, need.requested_amount]);
   const saveNeed = (changes: Record<string, unknown>) =>
     actions.save(changes, () => { calculateAfterSave.current = true; setStep("options"); });
-  if (reviewing) return <Card><CardContent><ElapsedStatus title="Демо-банк рассматривает заявку" description={`${productName(need.preferred_product)} · ${need.requested_amount ? formatMoney(need.requested_amount) : "По вашей задаче"}`} focus/><BankDecisionTimeline view={view} reviewing /></CardContent></Card>;
+  if (reviewing) return <div className="space-y-6"><ApplicationOverview view={view} reviewing/><Card><CardContent><ElapsedStatus title="Демо-банк рассматривает заявку" description="Проверяем сведения и рассчитываем доступные условия." focus/></CardContent></Card></div>;
   if (!selection && status === "waiting_for_data") return <div ref={contentRef} tabIndex={-1} className="space-y-6">
+    <ApplicationOverview view={view}/>
     <ApplicationFollowup key={`${id}:${version}`} view={view} busy={busy} onSave={changes => actions.save(changes, () => { submitAfterSave.current = {id, version}; })}/>
     <BankDecisionTimeline view={view}/>
-    <Disclosure title="Параметры заявки">
-      <dl className="grid gap-5 sm:grid-cols-3"><div><dt className="text-xs text-muted-foreground">Продукт</dt><dd className="mt-2 font-semibold">{productName(need.preferred_product)}</dd></div><div><dt className="text-xs text-muted-foreground">Сумма</dt><dd className="mt-2 font-semibold">{need.requested_amount ? formatMoney(need.requested_amount) : "Уточняется"}</dd></div><div><dt className="text-xs text-muted-foreground">Срок</dt><dd className="mt-2 font-semibold">{need.term_months ? `${need.term_months} мес.` : "По условиям продукта"}</dd></div></dl>
+    <Disclosure title="Другие действия">
       <div className="mt-6"><ConfirmAction label="Отменить заявку" title="Отменить заявку?" description="Заявка будет закрыта. Для новой потребности можно начать отдельный подбор." confirmLabel="Отменить заявку" variant="outline" disabled={busy} onConfirm={() => actions.version("cancel")}/></div>
     </Disclosure>
-    <Disclosure title={`История заявки · ${view.events.length} событий`}><ol className="space-y-4">{view.events.toReversed().map(item => <li key={item.event_id} className="text-xs"><p className="font-semibold">{eventNames[item.type] || "Обновлён этап заявки"}</p><time className="text-muted-foreground">{new Date(item.created_at).toLocaleString("ru-RU")}</time></li>)}</ol></Disclosure>
   </div>;
   return (
     <div ref={contentRef} tabIndex={-1} className={`space-y-6 ${selection ? "selection-workspace" : ""}`}>
@@ -315,49 +294,13 @@ export function ApplicationWorkspace({
         </>
       ) : (
         <>
+          <ApplicationOverview view={view}/>
           {status === "draft" && <SelectionSteps current="review" busy={busy} />}
           {status !== "draft" && <OfferResults onNewSelection={onNewSelection} view={view} busy={busy} onSelect={actions.select} onSign={actions.sign} onComplete={actions.complete} />}
           {status !== "draft" && <BankDecisionTimeline view={view} />}
           {renderDocuments?.(() => undefined)}
-          <Card>
-            <CardHeader>
-              <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-semibold">{status === "draft" ? "Проверьте заявку" : "Параметры заявки"}</h2>
-                <span className="rounded-full bg-primary/10 px-3 py-1 text-xs font-bold text-primary">
-                  {stateName(status)}
-                </span>
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {view.state.next_action.label}
-              </p>
-            </CardHeader>
-            <CardContent>
-              <dl className="grid gap-4 sm:grid-cols-3">
-                <div>
-                  <dt className="text-xs text-muted-foreground">Продукт</dt>
-                  <dd className="mt-1 font-bold">
-                    {need.preferred_product
-                      ? productName(need.preferred_product)
-                      : "Не выбран"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Сумма</dt>
-                  <dd className="mt-1 text-xl font-extrabold">
-                    {need.requested_amount
-                      ? formatMoney(need.requested_amount)
-                      : "Нужно уточнить"}
-                  </dd>
-                </div>
-                <div>
-                  <dt className="text-xs text-muted-foreground">Срок</dt>
-                  <dd className="mt-1 font-bold">
-                    {need.term_months
-                      ? `${need.term_months} мес.`
-                      : "По условиям продукта"}
-                  </dd>
-                </div>
-              </dl>
+          {editable && <Disclosure title={status === "draft" ? "Проверка и отправка" : ["check_retry_pending", "offer_expired"].includes(status) ? "Повторная проверка" : "Другие действия"} open={["draft", "check_retry_pending", "offer_expired"].includes(status)}>
+              <p className="text-sm text-muted-foreground">{view.state.next_action.label}</p>
               <div className="mt-5 flex flex-wrap gap-3">
                 {status === "draft" && (
                   <ConfirmAction
@@ -390,8 +333,7 @@ export function ApplicationWorkspace({
                   />
                 )}
               </div>
-            </CardContent>
-          </Card>
+          </Disclosure>}
           {editable && (
             <details
               className="rounded-2xl border border-border p-5"
@@ -427,26 +369,6 @@ export function ApplicationWorkspace({
             />
           )}
           {status === "draft" && <OfferResults onNewSelection={onNewSelection} view={view} busy={busy} onSelect={actions.select} onSign={actions.sign} onComplete={actions.complete} />}
-          <details className="rounded-2xl border border-border p-5">
-            <summary className="cursor-pointer text-sm font-bold">
-              История заявки · {view.events.length} событий
-            </summary>
-            <ol className="mt-4 space-y-3">
-              {view.events.toReversed().map((item) => (
-                <li
-                  key={item.event_id}
-                  className="border-l-2 border-primary/30 pl-4 text-xs"
-                >
-                  <p className="font-semibold">
-                    {eventNames[item.type] || "Обновлён этап заявки"}
-                  </p>
-                  <time className="text-muted-foreground">
-                    {new Date(item.created_at).toLocaleString("ru-RU")}
-                  </time>
-                </li>
-              ))}
-            </ol>
-          </details>
         </>
       )}
     </div>

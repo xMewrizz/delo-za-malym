@@ -269,7 +269,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Моё финансирование");
     await until(() => document.querySelectorAll(".funding-card").length === 1, "only the newly issued product");
     const loanFields = [...document.querySelectorAll(".funding-card")].map(card => [...card.querySelectorAll("dt")].map(field => field.textContent));
-    expect(loanFields[0]).toEqual(["Ставка", "Начислено процентов", "Ближайший платёж", "Дата платежа", "Окончание договора"]);
+    expect(loanFields[0]).toEqual(["Ставка", "Проценты на сегодня", "Ближайший платёж", "Дата платежа", "Окончание договора"]);
     expect(document.querySelector(".cash-balance-total dd")?.textContent?.replace(/\s/g, " ")).toBe("800 000,00 ₽");
     const productCalendar = [...document.querySelectorAll<HTMLAnchorElement>(".funding-card a")].find(link => new URL(link.getAttribute("href")!, "http://test").searchParams.get("product") === `app:${manualId}`)!;
     expect(productCalendar).toBeTruthy();

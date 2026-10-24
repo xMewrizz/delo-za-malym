@@ -4,7 +4,7 @@ import { MemoryRouter } from "react-router";
 import type { Profile } from "@/features/applications";
 import type { CalendarData, CalendarEvent } from "@/features/calendar/api";
 import { portfolioProducts, sumDisplayAmounts } from "./portfolio-products";
-import { FundingLiquid, PortfolioProductCard } from "./financing-portfolio";
+import { LimitUtilization, PortfolioProductCard } from "./financing-portfolio";
 
 const financials: Profile["financials"] = {
   cash_balance: "1200000.00", portfolio_cash_total: "900000.00",
@@ -28,20 +28,31 @@ const calendar: CalendarData = {
 };
 
 describe("portfolio product consistency", () => {
-  it("distinguishes repaid principal from available revolving capacity", () => {
+  it("shows utilization in rubles only for limits, without opposite percentage meanings", () => {
     const loan = { id: "app:loan", title: "Кредит", kind: "loan" as const, status: "active", source: "Кабинет", originalPrincipal: "500000.00", principal: "400000.00" };
-    const loanHtml = renderToStaticMarkup(<FundingLiquid product={loan} />);
-    expect(loanHtml).toContain('aria-valuenow="20"');
-    expect(loanHtml).toContain('aria-label="Погашено основного долга"');
-    const lineHtml = renderToStaticMarkup(<FundingLiquid product={{ ...loan, kind: "limit", limit: "500000.00", principal: "100000.00", available: "400000.00" }} />);
-    expect(lineHtml).toContain('aria-valuenow="80"');
-    expect(lineHtml).toContain('aria-label="Лимит свободен"');
+    expect(renderToStaticMarkup(<LimitUtilization product={loan} />)).toBe("");
+    const line = { ...loan, kind: "limit" as const, limit: "500000.00", principal: "100000.00", available: "400000.00" };
+    const lineHtml = renderToStaticMarkup(<LimitUtilization product={line} />);
+    expect(lineHtml).toContain('aria-valuenow="100000"');
+    expect(lineHtml).toContain('aria-valuemax="500000"');
+    expect(lineHtml).toContain('aria-label="Использовано из лимита"');
+    expect(lineHtml).not.toContain("<svg");
+    expect(renderToStaticMarkup(<LimitUtilization product={{ ...line, principal: "0.00" }} />)).toContain('style="width:0%"');
+    expect(renderToStaticMarkup(<LimitUtilization product={{ ...line, principal: "500000.00" }} />)).toContain('style="width:100%"');
+    const unknown = renderToStaticMarkup(<LimitUtilization product={{ ...line, principal: null }} />);
+    expect(unknown).toContain("Уточняется");
+    expect(unknown).not.toContain('role="meter"');
+    expect(renderToStaticMarkup(<LimitUtilization product={{ ...line, status: "closed" }} />)).toBe("");
   });
 
-  it("does not invent progress without the original amount or show liquid at zero", () => {
-    const product = { id: "loan:bank", title: "Кредит", kind: "loan" as const, status: "active", source: "Банк", principal: "700000.00" };
-    expect(renderToStaticMarkup(<FundingLiquid product={product} />)).not.toContain('role="meter"');
-    expect(renderToStaticMarkup(<FundingLiquid product={{ ...product, originalPrincipal: "700000.00" }} />)).not.toContain('class="funding-liquid-fill"');
+  it("explains issued refinancing without suggesting that the money was credited to the account", () => {
+    const product = { id: "app:refi", applicationId: "refi", title: "Рефинансирование", productId: "refinancing", kind: "loan" as const, status: "active", source: "Кабинет", originalPrincipal: "152890.13", principal: "152890.13" };
+    const html = renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={product} /></MemoryRouter>);
+    expect(html).toContain("на рефинансирование");
+    expect(html).toContain("Сумма направлена на погашение прежних кредитов");
+    expect(html).toContain("На расчётный счёт зачислено 0 ₽");
+    expect(html).not.toContain("полученных");
+    expect(html).not.toContain('role="meter"');
   });
   it("shows each debt once and gives imported and cabinet loans the same fields", () => {
     const products = portfolioProducts(financials, calendar);
@@ -55,7 +66,7 @@ describe("portfolio product consistency", () => {
     });
     expect(labels[0]).toEqual(labels[1]);
     expect(labels[1]).toEqual(labels[2]);
-    expect(labels[0]).toEqual(["Ставка", "Начислено процентов", "Ближайший платёж", "Дата платежа", "Окончание договора"]);
+    expect(labels[0]).toEqual(["Ставка", "Проценты на сегодня", "Ближайший платёж", "Дата платежа", "Окончание договора"]);
     expect(products.find(product => product.id === "app:overdraft")).toMatchObject({ limit: "190000.00", principal: "0.00", available: "190000.00", nextPayment: undefined });
   });
 
@@ -74,7 +85,8 @@ describe("portfolio product consistency", () => {
     expect(product.nextPayment).toMatchObject({ amount: "47279.80", principal: "37279.80", interest: "10000.00" });
     const html = renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={product} /></MemoryRouter>);
     expect(html).toContain("24% годовых");
-    expect(html).toContain("Начислено процентов");
+    expect(html).toContain("— основной долг");
+    expect(html).toContain("Проценты на сегодня");
     expect(html.replaceAll(/\s/g, "")).toContain("328,77");
     expect(html.replaceAll(/\s/g, "")).toContain("10000,00");
     expect(portfolioProducts(financials, calendar).find(item => item.id === "loan:bank")?.annualRate).toBeUndefined();
