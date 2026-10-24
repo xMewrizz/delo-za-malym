@@ -19,14 +19,20 @@ export type PortfolioProduct = {
   accruedInterest?: string;
   nextPayment?: { date: string; amount: string; principal?: string; interest?: string };
   pendingPayment?: { date: string; amount: string };
+  upcomingPayments?: {date:string;amount:string}[];
+  principalStartsOn?:string;
 };
 
 // Display calculations only; financial decisions remain on the server.
 export const sumDisplayAmounts = (rows: { amount: string }[]) =>
   (rows.reduce((sum, row) => sum + Math.round(Number(row.amount) * 100), 0) / 100).toFixed(2);
 
+function futurePayments(events:CalendarEvent[],today:string) {
+  return [...new Map(events.filter(event=>event.forecast&&event.direction==="outflow"&&event.date>=today&&event.kind!=="loan_payment_order").map(event=>[event.event_id,event])).values()].sort((a,b)=>a.date.localeCompare(b.date));
+}
+
 function nextPayment(events: CalendarEvent[], today: string) {
-  const future = events.filter(event => event.forecast && event.direction === "outflow" && event.date >= today).sort((a, b) => a.date.localeCompare(b.date));
+  const future = futurePayments(events,today);
   const date = future[0]?.date;
   const rows = future.filter(event => event.date === date);
   return date ? { date, amount: sumDisplayAmounts(rows),
@@ -34,6 +40,13 @@ function nextPayment(events: CalendarEvent[], today: string) {
       principal: sumDisplayAmounts(rows.map(event => ({ amount: event.principal_amount! }))),
       interest: sumDisplayAmounts(rows.map(event => ({ amount: event.interest_amount! }))),
     } : {}) } : undefined;
+}
+
+function schedulePreview(events:CalendarEvent[],today:string) {
+  const future=futurePayments(events,today);
+  const dates=[...new Set(future.map(event=>event.date))].slice(0,3);
+  return {upcomingPayments:dates.map(date=>({date,amount:sumDisplayAmounts(future.filter(event=>event.date===date))})),
+    principalStartsOn:future[0]?.principal_amount==="0.00" ? future.find(event=>Number(event.principal_amount)>0)?.date : undefined};
 }
 
 export function portfolioProducts(financials: Profile["financials"], calendar: CalendarData): PortfolioProduct[] {
@@ -48,6 +61,9 @@ export function portfolioProducts(financials: Profile["financials"], calendar: C
     annualRate: typeof loan.annual_rate_percent === "string" ? loan.annual_rate_percent : undefined,
     accruedInterest: typeof loan.accrued_interest === "string" ? loan.accrued_interest : undefined,
     principal: loan.outstanding_principal ?? null, maturity: loan.maturity_date,
+    ...schedulePreview(calendar.events.some(event=>event.loan_id===loan.loan_id)
+      ? calendar.events.filter(event=>event.loan_id===loan.loan_id)
+      : (loan.schedule||[]).map((row,index)=>({event_id:`${loan.loan_id}:${index}`,application_id:"",date:row.date,amount:row.total_payment,direction:"outflow",forecast:true,kind:"existing_loan_payment",title:"Платёж"})),calendar.today),
     nextPayment: nextPayment(calendar.events.filter(event => event.loan_id === loan.loan_id), calendar.today)
       || nextPayment((loan.schedule || []).map((row, index) => ({
         event_id: `${loan.loan_id}:${index}`, application_id: "", date: row.date, amount: row.total_payment,
@@ -68,6 +84,8 @@ export function portfolioProducts(financials: Profile["financials"], calendar: C
       limit: limit ? account.amount : undefined,
       available: limit ? closed ? "0.00" : account.available_limit || (Number(account.amount) - Number(account.outstanding_principal)).toFixed(2) : undefined,
       pendingPayment: calendar.events.find(event => event.application_id === account.application_id && event.kind === "loan_payment_order" && event.forecast),
+      ...(!closed && !(account.product_id==="overdraft"&&Number(account.outstanding_principal)===0)
+        ? schedulePreview(calendar.events.filter(event=>event.application_id===account.application_id),calendar.today) : {}),
       nextPayment: closed || (account.product_id === "overdraft" && Number(account.outstanding_principal) === 0)
         ? undefined : nextPayment(calendar.events.filter(event => event.application_id === account.application_id), account.product_id === "overdraft" ? "0000-01-01" : calendar.today),
     };

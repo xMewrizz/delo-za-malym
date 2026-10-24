@@ -25,6 +25,28 @@ async function renderTimeline(url: string, calendarData: CalendarData = data) {
   return { host, dispose: async () => { await act(async () => root.unmount()); client.clear(); host.remove(); } };
 }
 describe("timeline interactions", () => {
+  it("opens account-day details from both markers and the keyboard-operated balance chart",async()=>{
+    const calendarData:CalendarData={...data,settlement_account:{balance:"1000.00",as_of:data.today,events:[{...data.events[0],event_id:"receipt",date:"2026-11-15",direction:"inflow",forecast:false,kind:"account_movement",title:"Поступление от клиента",amount:"1500.00"}]}};
+    const {host,dispose}=await renderTimeline("/cabinet?mode=calendar&view=timeline&date=2026-11-15",calendarData);
+    try {
+      const row=host.querySelector('[data-settlement="true"]')!;
+      expect(row.textContent).toContain("Расчётный счёт");
+      expect(row.querySelector('.payment-timeline-contract')).toBeNull();
+      await act(async()=>row.querySelector<HTMLButtonElement>('.payment-timeline-milestone[data-direction="inflow"]')!.click());
+      expect(document.querySelector('.timeline-inspector')?.textContent).toContain("Поступление от клиента");
+      expect(document.querySelector('.timeline-inspector')?.textContent).not.toContain("Основной долг");
+      expect(document.querySelector('.timeline-inspector')?.textContent).not.toContain("Рассчитать пени");
+      const chart=host.querySelector<HTMLElement>('[role="slider"]')!;
+      await act(async()=>chart.dispatchEvent(new KeyboardEvent('keydown',{key:'End',bubbles:true})));
+      await act(async()=>chart.dispatchEvent(new KeyboardEvent('keydown',{key:'Enter',bubbles:true})));
+      expect(document.querySelector('.timeline-inspector h2')?.textContent).toContain("30 ноября");
+      expect(document.querySelector('.timeline-inspector')?.textContent).toContain("Не хватает на платежи");
+      expect(document.querySelector('.timeline-inspector')?.textContent).toContain("а не долг по счёту");
+      expect(host.querySelector('.settlement-balance h3')?.textContent).toBe("Не хватает на платежи");
+      expect(host.querySelector('.settlement-balance header strong')?.textContent).not.toContain("−");
+      expect(chart.getAttribute('aria-valuenow')).toBe('29');
+    }finally{await dispose();}
+  });
   it("opens contract details and calculates penalties from an empty selected day, preserving the date across views", async () => {
     const mock = vi.mocked(previewPenalty); mock.mockClear(); mock.mockResolvedValue({ from_date: "2026-10-23", target_date: "2026-11-20", missed_payments: "40000.00", total_penalty: "400.00", total_with_penalty: "40400.00", mode: "scenario", basis: "contract_simple_daily_rate", products: [] });
     const { host, dispose } = await renderTimeline("/cabinet?mode=calendar&view=timeline&date=2026-11-20");

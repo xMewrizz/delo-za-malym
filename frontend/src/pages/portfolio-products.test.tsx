@@ -28,6 +28,24 @@ const calendar: CalendarData = {
 };
 
 describe("portfolio product consistency", () => {
+  it("previews three real payment dates and derives the end of principal grace from the schedule",()=>{
+    const events=[
+      event("first","6000.00",{event_id:"nov",date:"2026-11-14",principal_amount:"0.00",interest_amount:"6000.00"}),
+      event("first","6000.00",{event_id:"dec",date:"2026-12-14",principal_amount:"0.00",interest_amount:"6000.00"}),
+      event("first","18000.00",{event_id:"jan",date:"2027-01-14",principal_amount:"12000.00",interest_amount:"6000.00"}),
+      event("first","18000.00",{event_id:"feb",date:"2027-02-14"}),
+      event("first","999.00",{event_id:"order",date:"2026-11-01",kind:"loan_payment_order"}),
+    ];
+    const product=portfolioProducts(financials,{...calendar,events:[...events,events[0]]}).find(item=>item.applicationId==="first")!;
+    expect(product.upcomingPayments).toEqual([{date:"2026-11-14",amount:"6000.00"},{date:"2026-12-14",amount:"6000.00"},{date:"2027-01-14",amount:"18000.00"}]);
+    expect(product.principalStartsOn).toBe("2027-01-14");
+    expect(product.nextPayment).toMatchObject({date:"2026-11-14",amount:"6000.00"});
+    const html=renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={product}/></MemoryRouter>);
+    expect(html).toContain("Сейчас — только проценты");
+    expect(html).toContain("Ближайшие платежи");
+    expect(html).not.toContain("Состав платежа");
+    expect(renderToStaticMarkup(<MemoryRouter><PortfolioProductCard product={{...product,status:"closed"}}/></MemoryRouter>)).not.toContain("Ближайшие платежи");
+  });
   it("shows utilization in rubles only for limits, without opposite percentage meanings", () => {
     const loan = { id: "app:loan", title: "Кредит", kind: "loan" as const, status: "active", source: "Кабинет", originalPrincipal: "500000.00", principal: "400000.00" };
     expect(renderToStaticMarkup(<LimitUtilization product={loan} />)).toBe("");
@@ -72,9 +90,9 @@ describe("portfolio product consistency", () => {
 
   it("combines payments due on the same date and excludes historical payments", () => {
     const combined = portfolioProducts(financials, { ...calendar, events: [
-      event("first", "500.00", { date: "2026-09-15" }),
-      event("first", "47279.80"), event("first", "0.35", { kind: "interest" }),
-      event("first", "1000.00", { date: "2026-12-15" }),
+      event("first", "500.00", { event_id:"past",date: "2026-09-15" }),
+      event("first", "47279.80"), event("first", "0.35", { event_id:"interest",kind: "interest" }),
+      event("first", "1000.00", { event_id:"december",date: "2026-12-15" }),
     ] });
     expect(combined.find(product => product.id === "app:first")?.nextPayment).toEqual({ date: "2026-11-15", amount: "47280.15" });
     expect(sumDisplayAmounts([{ amount: "0.10" }, { amount: "0.20" }])).toBe("0.30");

@@ -1,6 +1,7 @@
 import type { Profile } from "@/features/applications";
 import { financingName } from "@/shared/lib/product-directions";
 import { eventProductKey, isDebtObligation, type CalendarData, type CalendarEvent } from "./api";
+import {settlementEvents} from "./settlement-balance";
 
 const DAY = 86400000;
 const stamp = (value: string) => Date.parse(value + "T12:00:00Z");
@@ -19,7 +20,7 @@ export const sumTimelineAmounts = (events: CalendarEvent[]) => (events.reduce((s
 
 export type TimelineProduct = {
   id: string; title: string; reference: string; opened?: string; maturity?: string; status: string;
-  principal: string | null; limit?: string; available?: string; applicationId?: string; productId?: string; planned?: boolean; events: CalendarEvent[];
+  principal: string | null; limit?: string; available?: string; applicationId?: string; productId?: string; planned?: boolean; settlement?:boolean; events: CalendarEvent[];
 };
 export function timelineProducts(calendar: CalendarData, profile: Profile | undefined, events: CalendarEvent[], scope: string): TimelineProduct[] {
   const rows: TimelineProduct[] = [
@@ -45,20 +46,24 @@ export function timelineProducts(calendar: CalendarData, profile: Profile | unde
     const row = event.kind.startsWith("planned_") || (event.forecast && event.kind.startsWith("overdraft_") && event.kind !== "overdraft_payment_due") ? undefined : byId.get(eventProductKey(event));
     (row || plan).events.push(event);
   }
-  return [...rows.filter(row => scope === "all" || row.id === scope).sort((a, b) => (a.opened || "").localeCompare(b.opened || "") || a.id.localeCompare(b.id)), ...(scope === "all" && plan.events.length ? [plan] : [])];
+  const account:TimelineProduct[] = calendar.settlement_account && scope==="all" ? [{id:"account:settlement",title:"Расчётный счёт",reference:"Поступления и списания",status:"account",principal:null,settlement:true,events:settlementEvents(calendar)}] : [];
+  return [...account,...rows.filter(row => scope === "all" || row.id === scope).sort((a, b) => (a.opened || "").localeCompare(b.opened || "") || a.id.localeCompare(b.id)), ...(scope === "all" && plan.events.length ? [plan] : [])];
 }
 
 export function contractSegment(row: TimelineProduct, days: string[]) {
-  if (!days.length || (row.opened && row.opened > days.at(-1)!) || (row.maturity && row.maturity < days[0]) || row.planned || (["closed", "refinanced"].includes(row.status) && !row.maturity)) return null;
+  if (!days.length || row.settlement || (row.opened && row.opened > days.at(-1)!) || (row.maturity && row.maturity < days[0]) || row.planned || (["closed", "refinanced"].includes(row.status) && !row.maturity)) return null;
   const from = row.opened ? Math.max(0, Math.round((stamp(row.opened) - stamp(days[0])) / DAY)) : 0;
   const to = row.maturity ? Math.min(days.length - 1, Math.round((stamp(row.maturity) - stamp(days[0])) / DAY)) : days.length - 1;
   return { left: from / days.length * 100, width: (to - from + 1) / days.length * 100, continuesBefore: !row.opened || row.opened < days[0], continuesAfter: !row.maturity || row.maturity > days.at(-1)! };
 }
-export function productDays(row: TimelineProduct, days: string[]) {
+export function productDays(row: TimelineProduct, days: string[], groupAccountWeeks=false) {
   const visible = new Set(days);
   const grouped = new Map<string, CalendarEvent[]>();
-  for (const event of row.events) if (visible.has(event.date)) grouped.set(event.date, [...(grouped.get(event.date) || []), event]);
-  return [...grouped].sort(([a], [b]) => a.localeCompare(b)).map(([date, events]) => ({ date, events, payment: sumTimelineAmounts(events.filter(isDebtObligation)) }));
+  for (const event of row.events) if (visible.has(event.date)) {
+    const date=row.settlement&&groupAccountWeeks?shiftDay(event.date,-((new Date(stamp(event.date)).getUTCDay()+6)%7)):event.date;
+    const key=row.settlement?date+":"+event.direction:date;grouped.set(key, [...(grouped.get(key) || []), event]);
+  }
+  return [...grouped].sort(([a], [b]) => a.localeCompare(b)).map(([key, events]) => ({ date:key.slice(0,10),endDate:row.settlement&&groupAccountWeeks?shiftDay(key.slice(0,10),6):undefined,direction:row.settlement?events[0].direction:undefined, events, payment: sumTimelineAmounts(events.filter(isDebtObligation)) }));
 }
 
 export function timelineMarkerLanes(dates: string[], minimumGap: number) {

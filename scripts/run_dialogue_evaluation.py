@@ -154,6 +154,19 @@ def evaluate(service, case):
     token = TRACES.set(traces)
     record = service.process.create(need=case.get("need"))
     view = service.create(record["application"]["application_id"])
+    if case.get("history"):
+        with service.store.connect(write=True) as connection:
+            chat = service._load(connection, view["chat"]["chat_id"])
+            for item in case["history"]:
+                message = {"message_id":str(uuid4()), "role":item["role"], "text":item["text"],
+                           "created_at":service.clock().isoformat()}
+                if item["role"] == "assistant":
+                    message.update(intent=item.get("intent", "answer_question"), question=item.get("question"),
+                                   proposal=service._new_proposal(record, item["changes"], None) if item.get("changes") else None)
+                chat["messages"].append(message)
+            chat["chat_version"] += len(case["history"])
+            service.store.save_chat(connection, chat)
+        view = service.get(view["chat"]["chat_id"])
     before = deepcopy(view["record"]["application"])
     result = {"id": case["id"]}
     try:

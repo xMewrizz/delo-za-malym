@@ -5,7 +5,9 @@ from types import SimpleNamespace
 from uuid import uuid4
 import unittest
 
-from backend.assistant import AssistantReply
+from backend.assistant import AssistantReply, build_messages
+from backend.assistant_guidance import workflow_help
+import json
 from backend.chat import ChatService
 from backend.service import CreditProcess
 from backend.store import Store
@@ -27,6 +29,15 @@ class ClarificationContextTests(unittest.TestCase):
             view = service.send(chat["chat"]["chat_id"], chat["chat"]["chat_version"], "Какие продукты есть?", str(uuid4()))
             self.assertIsNone(view["clarification"])
             self.assertEqual(view["record"]["application"], application["application"])
+            messages = build_messages(view["chat"], view["record"], "а что можно уточнить?", [], now=process.clock())
+            context = json.loads(messages[1]["content"].split("\n", 1)[1])
+            self.assertEqual(context["clarification"]["field"], "need.requested_amount")
+            guidance = workflow_help("а что можно уточнить?", context)
+            self.assertIn(context["clarification"]["title"], guidance)
+            self.assertNotIn("Подтвердить данные", guidance)
+            assistant.reply = lambda messages: AssistantReply(text="Какой вариант вам ближе?",intent="ask_clarification")
+            view = service.send(chat["chat"]["chat_id"],view["chat"]["chat_version"],"Объясните варианты",str(uuid4()))
+            self.assertIsNone(view["clarification"])
             assistant.reply = lambda messages: AssistantReply(text="Учла регулярные закупки.", intent="propose_changes", changes={"need.preferred_product":"revolving_credit_line"})
             view = service.send(chat["chat"]["chat_id"], view["chat"]["chat_version"], "Регулярные закупки", str(uuid4()))
             self.assertEqual(view["clarification"]["field"], "need.requested_amount")

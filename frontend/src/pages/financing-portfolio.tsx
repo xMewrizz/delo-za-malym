@@ -21,6 +21,16 @@ const closedProduct = (product: PortfolioProduct) => ["closed", "refinanced"].in
 const statuses: Record<string, string> = { closed: "Погашен", refinanced: "Рефинансирован", expired: "Срок лимита истёк", overdue: "Просрочка" };
 type ManageAction = "draw" | "repay";
 
+function UpcomingPayments({product}:{product:PortfolioProduct}) {
+  if(closedProduct(product)||!product.upcomingPayments?.length) return null;
+  const shortDate=(date:string)=>new Date(date+"T12:00:00Z").toLocaleDateString("ru-RU",{day:"numeric",month:"short",timeZone:"UTC"});
+  return <section className="funding-upcoming" aria-label="Ближайшие платежи по продукту">
+    <p>Ближайшие платежи</p>
+    <ol>{product.upcomingPayments.map((payment,index)=><li key={payment.date} data-next={index===0}><span>{shortDate(payment.date)}</span><strong>{formatMoneyPrecise(payment.amount)}</strong></li>)}</ol>
+    {product.kind==="loan"&&product.principalStartsOn && <div className="funding-grace-note"><CalendarDays size={15} aria-hidden="true"/><span>Сейчас — только проценты. Возврат основного долга — с {shortDate(product.principalStartsOn).replace(/\.$/,"")}.</span></div>}
+  </section>;
+}
+
 export function LimitUtilization({ product }: { product: PortfolioProduct }) {
   if (product.kind !== "limit" || closedProduct(product)) return null;
   const total = Number(product.limit);
@@ -47,6 +57,7 @@ export function PortfolioProductCard({ product, onManage }: { product: Portfolio
     <LimitUtilization product={product}/>
     {refinancing && product.applicationId && <p className="funding-refinancing-note"><Repeat2 size={16} aria-hidden="true"/><span>Сумма направлена на погашение прежних кредитов. На расчётный счёт зачислено 0 ₽.</span></p>}
     {product.kind === "limit" && <p className="funding-limit-explainer">{line ? "Погашайте основной долг — и берите деньги снова без новой заявки." : "Овердрафт покрывает нехватку денег на счёте; поступления уменьшают долг."}</p>}
+    <UpcomingPayments product={product}/>
     </div>
     <dl className="funding-card-facts"><div><dt>Ставка</dt><dd>{product.annualRate == null ? "Не передана" : `${Number(product.annualRate).toLocaleString("ru-RU")}% годовых`}</dd></div><div><dt>Проценты на сегодня</dt><dd>{product.accruedInterest == null ? "Нет данных" : formatMoneyPrecise(product.accruedInterest)}</dd></div><div><dt>Ближайший платёж</dt><dd><span className="funding-payment-amount">{product.nextPayment ? formatMoneyPrecise(product.nextPayment.amount) : closed ? "Будущих платежей нет" : product.kind === "limit" ? "После использования" : "Нет данных о графике"}</span></dd></div><div><dt>Дата платежа</dt><dd>{product.nextPayment ? dateLabel(product.nextPayment.date) : "—"}</dd></div><div><dt>Окончание договора</dt><dd>{product.maturity ? dateLabel(product.maturity) : "Нет данных"}</dd></div></dl>
     <div className="funding-card-actions">{manageable && onManage && <Button variant={line || overdraft ? "default" : "outline"} onClick={event => onManage(product, line || overdraft ? "draw" : "repay", event.currentTarget)}>{line ? <Plus size={16} /> : <ArrowDownLeft size={16} />}{closed ? "История операций" : overdraft ? "Оплатить со счёта" : line ? "Получить деньги" : "Внести платёж"}</Button>}{(line || overdraft) && !closed && onManage && <Button variant="outline" onClick={event => onManage(product, "repay", event.currentTarget)}>{overdraft ? "Зачислить поступление" : "Внести платёж"}</Button>}{closed ? product.applicationId && <Link to={`/cabinet?mode=applications&application=${encodeURIComponent(product.applicationId)}`}>Условия и история<ArrowRight size={15}/></Link> : <Link to={`/cabinet?mode=calendar&product=${encodeURIComponent(product.id)}${product.nextPayment ? `&date=${product.nextPayment.date}` : ""}`}>График<CalendarDays size={15}/></Link>}</div>

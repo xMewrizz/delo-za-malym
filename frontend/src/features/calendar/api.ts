@@ -7,11 +7,12 @@ import { calendarKey } from "./keys";
 
 export const eventSchema = z.object({
   supplier_payment: supplierReceiptSchema.optional(),
-  event_id: z.string(), application_id: z.string(), loan_id: z.string().optional(), date: z.string(), amount: z.string(),
+  event_id: z.string(), application_id: z.string(), loan_id: z.string().optional(), date: z.string(), amount: z.string().regex(/^\d+(?:\.\d{1,2})?$/),
   principal_amount: z.string().optional(), interest_amount: z.string().optional(),
   direction: z.enum(["inflow", "outflow", "none"]), kind: z.string(), title: z.string(), forecast: z.boolean(),
 });
 export const calendarSchema = z.object({
+  settlement_account: z.object({balance:z.string().regex(/^-?\d+(?:\.\d{1,2})?$/),as_of:z.string(),events:z.array(eventSchema)}).optional(),
   penalty_terms: z.array(z.unknown()).transform(items => items.flatMap(item => { const parsed = calendarPenaltyTermsSchema.safeParse(item); return parsed.success ? [parsed.data] : []; })).default([]),
   payment_orders: z.array(z.object({ order_id: z.string(), application_id: z.string(), product_id: z.string(), amount: z.string(), execution_date: z.string(), status: z.enum(["pending", "executed", "failed", "cancelled"]), error: z.string().optional() })).default([]),
   today: z.string(), events: z.array(eventSchema),

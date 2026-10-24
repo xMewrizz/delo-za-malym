@@ -65,13 +65,21 @@ class CreditProcess:
         return profile
 
     def calendar(self):
-        result = calendar_data(self.store.list(), self.clock())
-        for payment in self.store.payments():
+        with self.store.connect() as connection:
+            connection.execute("BEGIN")
+            records, payments = self.store.records(connection), self.store.account_payments(connection)
+        result = calendar_data(records, self.clock())
+        for payment in payments:
             result["events"].append({"event_id": payment["payment_id"], "application_id": "", "date": payment["date"],
                 "amount": payment["request"]["amount"], "direction": "outflow", "kind": "supplier_payment",
                 "title": "Оплата · " + payment["request"]["recipient_name"], "forecast": False,
                 "supplier_payment": payment})
         profile = self.profile()
+        from .settlement_history import settlement_history
+        base_profile, _ = demo.profile(self.clock())
+        balance = Decimal(base_profile["financials"]["cash_balance"]) + cash_disbursed(records, payments)
+        result["settlement_account"] = {"balance": f"{balance:.2f}",
+            "as_of": result["today"], "events": settlement_history(records, payments)}
         for loan in profile["financials"].get("existing_loans", []):
             if loan.get("application_id"):
                 continue

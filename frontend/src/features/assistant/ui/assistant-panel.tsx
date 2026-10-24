@@ -331,7 +331,7 @@ export function AssistantPanel({
               className="rounded-xl bg-destructive/10 p-3 text-sm text-destructive"
             >
               {getErrorMessage(error)}
-              <Button
+              {(!sendError || (sendError instanceof ApiError && sendError.status === 409)) && <Button
                 size="sm"
                 variant="ghost"
                 disabled={busy || list.isFetching || chat.isFetching}
@@ -355,7 +355,7 @@ export function AssistantPanel({
               >
                 <RefreshCw />
                 Обновить
-              </Button>
+              </Button>}
             </div>
           )}
           {chat.data?.assistant.mode === "demo" && (
@@ -451,7 +451,7 @@ export function AssistantPanel({
               <ArrowDown /> К новым сообщениям
             </Button>
           )}
-          {sendError && send.variables && (
+          {sendError && send.variables && !(sendError instanceof ApiError && sendError.status === 409) && (
             <Button
               variant="outline"
               disabled={

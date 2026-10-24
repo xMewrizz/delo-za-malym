@@ -1,0 +1,4 @@
+Regression gate: PASS
+  gated cases 20, quarantined 0
+  mean per-case delta +0.033, 95% CI [-0.015, +0.081]
+  McNemar: 0 pass->fail, 0 fail->pass, one-sided p=1.0

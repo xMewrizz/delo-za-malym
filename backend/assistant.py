@@ -21,6 +21,7 @@ from .client_data import client_data
 from .overdraft_chat import PLAN_PATH, local_now, plan_issues
 from .service import NEED_FIELDS
 from .clarifications import next_clarification, public_clarification
+from .assistant_guidance import effective_need, is_workflow_question, workflow_help
 
 logger = logging.getLogger(__name__)
 
@@ -252,7 +253,7 @@ def build_messages(chat, record, text, catalog, *, now=None):
                "result": {key: result.get(key) for key in ("status", "assessment", "issues", "financial_metrics", "scoring")},
                "recommendation": recommendation, "catalog": catalog,
                "previous_proposals": proposals,
-               "clarification": public_clarification(next_clarification(chat, record, now or datetime.now(timezone.utc)))
+               "clarification": public_clarification(next_clarification(chat, record, now or datetime.now(timezone.utc), respect_conversation=not is_workflow_question(text)))
                if chat.get("chat_id") and chat.get("chat_version") else None}
     context["reviewed_invoices"] = [{"document_id": item["document_id"], "values": item["values"], "last_use": item.get("last_use")}
                                     for item in record.get("documents", []) if item["status"] == "reviewed"]
@@ -423,8 +424,25 @@ class ModelAssistant:
         return raw
 
     @staticmethod
-    def parse_reply(reply, *, log_errors=True):
+    def parse_reply(reply, *, log_errors=True, known_need=None):
         raw = ModelAssistant.json_text(reply)
+        if known_need is not None:
+            try:
+                payload = json.loads(raw)
+                changes = payload.get("changes") if isinstance(payload, dict) else None
+                if isinstance(payload, dict) and changes is None and payload.get("overdraft_plan") is None:
+                    changes = payload["changes"] = {}
+                if isinstance(changes, dict):
+                    validate_changes(changes)
+                    remaining = {key:value for key,value in changes.items() if key[5:] not in known_need or known_need[key[5:]] != value}
+                    payload["changes"] = remaining
+                    if not remaining and payload.get("overdraft_plan") is None and payload.get("intent") in (None, "propose_changes"):
+                        payload["intent"] = "ask_clarification" if payload.get("question") else "answer_question"
+                    raw = json.dumps(payload, ensure_ascii=False)
+            except (ValueError, TypeError):
+                # Invalid/privileged fields are still rejected by the complete
+                # schema. Only exact repeats of trusted known values are removed.
+                pass
         try:
             return AssistantReply.model_validate_json(raw)
         except ValidationError as exc:
@@ -440,8 +458,8 @@ class ModelAssistant:
                     logger.warning("Assistant contract rules rejected: rules=%s", matched)
             raise AssistantResponseError("Модель вернула ответ вне формата диалога.") from None
 
-    def reply(self, messages):
-        return self.parse_reply(self.client.chat(messages, response_format=self.response_format()))
+    def reply(self, messages, *, known_need=None):
+        return self.parse_reply(self.client.chat(messages, response_format=self.response_format()), known_need=known_need)
 
     def extract_facts(self, messages, context):
         instruction = """Ты Лума. В text говори о себе в женском роде: «поняла», «учла», «собрала».
@@ -564,11 +582,14 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
         # Collection produces a reviewable draft. Calculation tools can only
         # see the saved plan, so keep them out of this step.
         pending_plan = False
-        context = {"application": record["application"], "current_datetime": local_now(now).isoformat()}
+        context = {"application": record["application"], "state":record.get("state", {"status":"draft"}), "current_datetime": local_now(now).isoformat()}
         if len(messages) > 1 and messages[1].get("content", "").startswith("Контекст кабинета (данные):\n"):
             context = json.loads(messages[1]["content"].split("\n", 1)[1])
             pending_plan = any(item["status"] == "pending" and PLAN_PATH in item["changes"]
                                for item in context.get("previous_proposals", []))
+        known_need = effective_need(context)
+        if guidance := workflow_help(text, context):
+            return AssistantTurn(AssistantReply(text=guidance, intent="answer_question"), ())
         hypothetical = re.search(r"\bа если\b|что если|что будет|сравни", text)
         explanation_request = re.match(
             r"^(?:а\s+)?(?:почему|откуда|объясни|что значит|что такое|чем отлич|"
@@ -585,7 +606,7 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
             context["input_kind"] = "operations" if pending_plan or new_operations else "need"
             return AssistantTurn(self.extract_facts(messages, context), ())
         if not self.tools_enabled:
-            return AssistantTurn(self.reply(messages), ())
+            return AssistantTurn(self.reply(messages, known_need=known_need), ())
         from scr.delo_za_malyn.Models.Agent.tavily import TavilyClient
         from .chat_tools import CabinetTools
 
@@ -614,9 +635,9 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
             else:
                 messages.append({"role": "user", "content": content})
             final = self.client.chat(messages, response_format=self.response_format())
-            return AssistantTurn(self.parse_reply(final), tuple(events), tuple(registry.explorations))
+            return AssistantTurn(self.parse_reply(final, known_need=known_need), tuple(events), tuple(registry.explorations))
         if re.fullmatch(r"(?:привет|здравствуйте|здравствуй|добрый день|доброе утро|добрый вечер)[.! ]*", text):
-            return AssistantTurn(self.reply(messages), ())
+            return AssistantTurn(self.reply(messages, known_need=known_need), ())
         # Native tool calls and structured final JSON use separate requests.
         # Combining tools + response_format can make this GGUF skip function calls.
         plan = self.client.chat(messages, tools=registry.definitions)
@@ -636,7 +657,7 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
             try:
                 # A valid ordinary reply already satisfies the UI contract.
                 # No tool result is fabricated and no second generation is needed.
-                return AssistantTurn(self.parse_reply(plan, log_errors=False), ())
+                return AssistantTurn(self.parse_reply(plan, log_errors=False, known_need=known_need), ())
             except AssistantResponseError:
                 pass
             # An unstructured planning reply is not shown as a computed result.
@@ -656,7 +677,7 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
         )
         try:
             final = self.client.chat(messages, response_format=self.response_format())
-            reply = checked_search_reply(self.parse_reply(final), events)
+            reply = checked_search_reply(self.parse_reply(final, known_need=known_need), events)
         except (AssistantResponseError, LLMProtocolError, LLMOutputLimit) as exc:
             if not any(event.get("ok") and event["name"] == "calculate_loan" for event in events):
                 raise

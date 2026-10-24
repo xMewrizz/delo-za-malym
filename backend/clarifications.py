@@ -16,7 +16,7 @@ def pending_proposal(chat):
                  if (message.get("proposal") or {}).get("status") == "pending"), None)
 
 
-def next_clarification(chat, record, now):
+def next_clarification(chat, record, now, *, respect_conversation=True):
     if record["state"]["status"] not in EDITABLE_STATES:
         return None
     pending = pending_proposal(chat)
@@ -34,7 +34,7 @@ def next_clarification(chat, record, now):
         # keep an unrelated numeric/date editor underneath that new question.
         latest = next((message for message in reversed(chat["messages"]) if message["role"] == "assistant"), {})
         question = latest.get("question")
-        if latest.get("intent") == "ask_clarification" and question and question.strip().casefold() != title.strip().casefold():
+        if respect_conversation and latest.get("intent") == "ask_clarification" and (not question or question.strip().casefold() != title.strip().casefold()):
             return None
         content = {"field": field, "title": title, "input_type": input_type, "transaction_id": transaction_id,
                    "direction": direction, "choices": list(choices)}

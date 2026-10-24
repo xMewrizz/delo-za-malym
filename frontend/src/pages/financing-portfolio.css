@@ -35,7 +35,7 @@
 .funding-filter button:hover { color:var(--foreground); background:var(--secondary); }
 .funding-filter button[aria-pressed=true] { color:var(--foreground); background:var(--surface-raised); border-color:var(--border); }
 .funding-filter button>span { display:grid; place-items:center; min-width:20px; height:20px; padding-inline:5px; border-radius:50%; background:var(--background); color:var(--muted-foreground); font-size:10px; }
-.funding-grid { display:grid; grid-template-columns:1fr; gap:18px; align-items:stretch; }
+.funding-grid { display:grid; grid-template-columns:1fr; gap:18px; align-items:start; }
 .funding-card { padding:26px; border:1px solid var(--border); border-radius:var(--radius-panel); background:var(--card); min-width:0; display:flex; flex-direction:column; }
 .funding-card-heading { display:flex; align-items:center; gap:11px; min-height:38px; }.funding-card-icon { display:grid; place-items:center; flex-shrink:0; width:36px; height:36px; border:1px solid var(--border); border-radius:11px; background:var(--surface-raised); color:var(--primary); }
 .funding-card-status { display:flex; align-items:center; gap:6px; color:var(--muted-foreground); font-size:10px; }.funding-card-status i { width:5px; height:5px; border-radius:50%; background:var(--growth); }.funding-card-number { margin-left:auto; color:var(--muted-foreground); font-family:var(--app-font-mono); font-size:9px; }
@@ -43,7 +43,7 @@
 .funding-card-balance { display:flex; align-items:center; justify-content:space-between; gap:15px; margin-block:22px; }.funding-card-balance>div:first-child { min-width:0; }.funding-card-balance p { font-size:11px; color:var(--muted-foreground); line-height:1.6; }
 .funding-card-balance strong { display:block; font-size:clamp(26px,3vw,41px); letter-spacing:-.05em; line-height:1.3; font-weight:550; margin-block:6px; font-variant-numeric:tabular-nums; overflow-wrap:anywhere; }.funding-card-balance small { display:block; color:var(--muted-foreground); font-size:11px; line-height:1.6; }
 .funding-limit-explainer { padding:13px 15px; margin:0 0 18px; background:var(--growth-surface); border-radius:10px; font-size:11px; line-height:1.8; color:var(--foreground); }
-.funding-card-facts { margin-top:auto; display:grid; gap:12px; }.funding-card-facts>div { display:flex; justify-content:space-between; align-items:baseline; gap:16px; font-size:12px; line-height:1.7; }.funding-card-facts dt { color:var(--muted-foreground); }.funding-card-facts dd { text-align:right; font-variant-numeric:tabular-nums; }
+.funding-card-facts { margin-top:22px; display:grid; gap:12px; }.funding-card-facts>div { display:flex; justify-content:space-between; align-items:baseline; gap:16px; font-size:12px; line-height:1.7; }.funding-card-facts dt { color:var(--muted-foreground); }.funding-card-facts dd { text-align:right; font-variant-numeric:tabular-nums; }
 .funding-card-actions { display:flex; align-items:center; flex-wrap:wrap; gap:10px; padding-top:20px; margin-top:22px; border-top:1px solid var(--border); }.funding-card-actions [data-slot=button] { min-height:40px; height:auto; padding:9px 13px; font-size:11px; border-radius:10px; }.funding-card-actions>a { display:flex; align-items:center; gap:7px; min-height:40px; margin-left:auto; color:var(--primary); font-size:11px; text-decoration:none; }.funding-card-closed .funding-card-icon { color:var(--muted-foreground); }
 .funding-empty { display:grid; justify-items:start; gap:18px; padding:36px; border:1px dashed var(--border); border-radius:var(--radius-panel); }.funding-empty>svg { color:var(--primary); }.funding-empty h2 { font-size:22px; font-weight:550; }.funding-empty p { font-size:13px; color:var(--muted-foreground); line-height:1.8; }
 .funding-dialog-overlay { position:fixed; inset:0; z-index:60; background:#0009; backdrop-filter:blur(6px); }
@@ -135,3 +135,15 @@
 .funding-utilization-track>span { display:block; height:100%; border-radius:inherit; background:var(--primary); transition:width 350ms ease-out; }
 .funding-refinancing-note { display:flex; align-items:flex-start; gap:10px; padding:13px 0 18px; color:var(--muted-foreground); font-size:11px; line-height:1.8; max-width:54ch; }
 .funding-refinancing-note>svg { flex-shrink:0; margin-top:2px; color:var(--primary); }
+.funding-upcoming{margin-top:22px;padding:16px 0 4px;border-top:1px solid var(--border)}
+.funding-upcoming>p{font-size:11px;line-height:1.5;color:var(--muted-foreground);margin-bottom:13px}
+.funding-upcoming ol{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;list-style:none;padding:0}
+.funding-upcoming ol:has(li:only-child){grid-template-columns:1fr}
+.funding-upcoming ol:has(li:nth-child(2):last-child){grid-template-columns:repeat(2,minmax(0,1fr))}
+.funding-upcoming li{min-width:0;display:flex;flex-direction:column;gap:7px;padding:12px 9px;border-radius:10px;background:var(--background);border:1px solid var(--border)}
+.funding-upcoming li[data-next=true]{background:var(--accent);border-color:var(--luma-border)}
+.funding-upcoming li>span{font-size:11px;line-height:1.5;color:var(--muted-foreground)}
+.funding-upcoming li>strong{font-size:13px;line-height:1.5;font-weight:550;font-variant-numeric:tabular-nums;overflow-wrap:anywhere}
+.funding-grace-note{display:flex;align-items:start;gap:8px;font-size:11px;line-height:1.7;color:var(--muted-foreground);margin-top:13px}
+.funding-grace-note>svg{flex-shrink:0;margin-top:2px;color:var(--primary)}
+@container funding (max-width:420px){.funding-upcoming ol,.funding-upcoming ol:has(li:nth-child(2):last-child){grid-template-columns:1fr}.funding-upcoming li{flex-direction:row;justify-content:space-between;align-items:baseline;gap:12px;padding:10px 12px}}
