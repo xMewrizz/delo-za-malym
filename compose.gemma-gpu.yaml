@@ -1,0 +1,4 @@
+# Optional NVIDIA acceleration on the teammate's machine; no GPU requirement for CPU mode.
+services:
+  gemma:
+    gpus: all

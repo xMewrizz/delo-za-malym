@@ -5,6 +5,7 @@ __pycache__/
 .env
 .idea/
 *.gguf
+*.gguf.part
 *.log
 data/
 node_modules/

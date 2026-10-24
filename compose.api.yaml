@@ -1,0 +1,13 @@
+# API mode: no local model service, image or weights are required.
+services:
+  api:
+    environment:
+      CHAT_MODE: model
+      LLM_API_BASE_URL: ${LLM_DOCKER_API_BASE_URL:-${LLM_API_BASE_URL:?Set the provider API URL}}
+      LLM_MODEL: ${LLM_MODEL:?Set the provider model ID}
+      LLM_API_KEY: ${LLM_API_KEY:?Set the provider API key on the server}
+      LLM_RESPONSE_FORMAT: ${LLM_RESPONSE_FORMAT:-json_object}
+      LLM_REASONING_EFFORT: ${LLM_REASONING_EFFORT:-}
+      LLM_CONTEXT_SIZE: ${LLM_CONTEXT_SIZE:-16384}
+      LLM_MAX_OUTPUT_TOKENS: ${LLM_MAX_OUTPUT_TOKENS:-4096}
+      HTTP_TIMEOUT_SECONDS: ${HTTP_TIMEOUT_SECONDS:-180}

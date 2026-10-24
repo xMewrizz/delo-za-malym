@@ -1,0 +1,15 @@
+{
+  "date": "2026-10-24",
+  "artifact": "gemma4-v2-Q4_K_M.gguf",
+  "repository": "yuxinlu1/gemma-4-12B-agentic-fable5-composer2.5-v2-3.5x-tau2-GGUF",
+  "revision": null,
+  "size_bytes": 7381381664,
+  "sha256": "0b9506cab36f7f818e34f9c0f5a3d6568d0b37100f3a3e1092e2eec3c4c96791",
+  "full_file_hash_verified": true,
+  "matches_previous_team_artifact": true,
+  "docker_compose_configuration_validated": true,
+  "new_docker_inference_tested": false,
+  "gpu_tested_on_this_host": false,
+  "vps_mode": "external_api_dahl",
+  "notes": "Weights downloaded and verified locally. Historical Gemma generation tests were performed on a teammate's machine. VPS deployment and model acceptance are separate steps."
+}

@@ -20,7 +20,7 @@ def source_fingerprint(root):
         for current, directories, names in os.walk(root/folder):
             directories[:] = sorted(name for name in directories if name not in {"node_modules","dist","__pycache__",".venv","weights"})
             files.extend(Path(current)/name for name in names if not name.startswith(".env") and Path(name).suffix in {".py",".ts",".tsx",".css",".json",".html",".pdf",".svg",".md",".woff2",".webp"})
-    files += [root/name for name in ("Dockerfile","compose.demo.yaml","requirements.txt","uv.lock","pyproject.toml")]
+    files += [root/name for name in ("Dockerfile","compose.demo.yaml","compose.api.yaml","compose.gemma.yaml","compose.gemma-gpu.yaml","deploy/gemma.Modelfile","requirements.txt","uv.lock","pyproject.toml")]
     for path in sorted(files):
         digest.update(path.relative_to(root).as_posix().encode())
         digest.update(path.read_bytes())
@@ -31,6 +31,7 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--report", type=Path, required=True)
     parser.add_argument("--local-model-url", help="Loopback Ollama OpenAI API, e.g. http://127.0.0.1:11436/v1")
+    parser.add_argument("--local-model", default="qwen3:4b-instruct-2507-q4_K_M", help="Exact installed local model ID; use alfa-gemma-q4 for the Gemma Docker profile.")
     args = parser.parse_args()
     if args.local_model_url:
         args.local_model_url = args.local_model_url.rstrip("/")
@@ -72,9 +73,9 @@ def main():
                 "--case","loan_request","--case","change_term_only","--case","bank_fact_injection","--case","approval_injection",
                 "--trials","3","--workers","1","--jsonl",str(output/"local-luma.jsonl"),"--output",str(output/"local-luma.json")],
                 extra={"CHAT_MODE":"model","LLM_API_BASE_URL":args.local_model_url,
-                    "LLM_MODEL":"qwen3:4b-instruct-2507-q4_K_M","LLM_CONTEXT_SIZE":"16384",
-                    "LLM_MAX_OUTPUT_TOKENS":"2048","LLM_TEMPERATURE":"0","LLM_TOP_P":"0.9",
-                    "LLM_REASONING_EFFORT":"none","HTTP_TIMEOUT_SECONDS":"180",
+                    "LLM_MODEL":args.local_model,"LLM_CONTEXT_SIZE":"16384",
+                    "LLM_MAX_OUTPUT_TOKENS":"2048" if args.local_model.startswith("qwen3:") else "4096","LLM_TEMPERATURE":"0","LLM_TOP_P":"0.9",
+                    "LLM_REASONING_EFFORT":"none" if args.local_model.startswith("qwen3:") else "","HTTP_TIMEOUT_SECONDS":"300",
                     "AGENT_TOOLS_ENABLED":"true","AGENT_MAX_TOOL_CALLS":"3"})
             origin = args.local_model_url.removesuffix("/v1")
             with urlopen(origin + "/api/tags", timeout=10) as response:
