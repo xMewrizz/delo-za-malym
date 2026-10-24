@@ -19,6 +19,8 @@
 .bank-decision-steps strong { display: block; font-size: 14px; line-height: 1.5; font-weight: 550; }
 .bank-decision-steps p { margin-top: 5px; font-size: 12px; color: var(--muted-foreground); line-height: 1.6; }
 .bank-decision-progress { padding-top: 28px; }
+.bank-decision-reference .ui-disclosure-content { padding:0; }
+.bank-decision-reference .decision-trace { border:0;background:transparent;border-radius:0;padding-top:0; }
 .bank-decision-progress .bank-decision-steps { padding-inline: 4px; }
 .bank-decision-progress .bank-decision-steps li:last-child { padding-bottom: 0; }
 .bank-decision-basis { padding: 18px 22px 22px; border-top: 1px solid var(--border); }

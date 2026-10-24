@@ -13,6 +13,8 @@ const view = (status="offers_ready") => ({events:[{type:"application_submitted",
 describe("live decision explanation",()=>{
  it("connects the saved score, capacity, policy and decision without turning them into a new assessment",()=>{
   const html=renderToStaticMarkup(<BankDecisionTimeline view={view()}/>);
+  expect(html).toContain('<details class="ui-disclosure bank-decision-reference">');
+  expect(html).not.toContain('<details open');
   expect(html).toContain("90 из 100");expect(html).toContain("50 000 ₽ / мес.");
   expect(html).toContain("Платежи по заменяемым кредитам исключены");
   expect(html).toContain("Долговая нагрузка в пределах правил.");expect(html).toContain("версия заявки 3");

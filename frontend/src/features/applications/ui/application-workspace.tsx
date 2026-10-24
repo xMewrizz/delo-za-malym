@@ -296,8 +296,8 @@ export function ApplicationWorkspace({
       ) : (
         <>
           {status === "draft" && <SelectionSteps current="review" busy={busy} />}
-          {status !== "draft" && <BankDecisionTimeline view={view} />}
           {status !== "draft" && <OfferResults onNewSelection={onNewSelection} view={view} busy={busy} onSelect={actions.select} onSign={actions.sign} onComplete={actions.complete} />}
+          {status !== "draft" && <BankDecisionTimeline view={view} />}
           {renderDocuments?.(() => undefined)}
           <Card>
             <CardHeader>
