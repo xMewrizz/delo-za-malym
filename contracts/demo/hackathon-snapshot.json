@@ -1,13 +1,14 @@
 {
   "schema_version": 1,
   "captured_on": "2026-10-25",
-  "source": "local showcase demo cabinet",
-  "sha256": "e4583afa6f5d261a80d3c300393c4780411bbf5782bd112e657e1bee9bc9ac78",
-  "size_bytes": 1028096,
+  "source": "curated synthetic business history through normal application services",
+  "generation_command": "python -m scripts.build_submission_snapshot --date 2026-10-25",
+  "sha256": "d0b03d4bb43ff2a04438f2962f2228eefe52fc263f37789d8f7a74e685432f90",
+  "size_bytes": 991232,
   "counts": {
     "applications": 13,
-    "chats": 2,
-    "documents": 2,
-    "account_payments": 2
+    "chats": 1,
+    "documents": 1,
+    "account_payments": 4
   }
 }

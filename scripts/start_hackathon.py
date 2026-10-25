@@ -13,12 +13,13 @@ def main():
     parser.add_argument("--port", type=int, default=18007)
     parser.add_argument("--env-file", type=Path, help="Defaults to the ignored .env.api file.")
     parser.add_argument("--no-build", action="store_true")
+    parser.add_argument("--without-ai", action="store_true", help="Run the complete manual credit flow without a model, API key or model download.")
     args = parser.parse_args()
     if not re.fullmatch(r"[a-z0-9][a-z0-9_-]*", args.project) or not 1024 <= args.port <= 65535:
         parser.error("Use a lowercase Docker project name and port 1024–65535.")
     root = Path(__file__).resolve().parent.parent
     config = (args.env_file or root / ".env.api").resolve()
-    if not config.exists():
+    if not args.without_ai and not config.exists():
         key = getpass("Dahl API key (saved locally in .env.api): ").strip()
         if not key or any(character in key for character in "\r\n'\"$"):
             parser.error("A non-empty API key without quotes, newlines or dollar signs is required.")
@@ -27,18 +28,23 @@ def main():
         with config.open("x", encoding="utf-8") as output:
             output.write(template.replace("LLM_API_KEY=\n", f"LLM_API_KEY='{key}'\n"))
         config.chmod(0o600)
-    env = {**os.environ, "DEMO_PORT": str(args.port)}
+    env = {**os.environ, "DEMO_PORT": str(args.port), "DEMO_CHAT_MODE": "demo"}
     # The selected env file is authoritative, even in a developer shell with another LLM configured.
     for key in list(env):
-        if key.startswith(("LLM_", "TAVILY_", "DEMO_BUSINESS_")) or key in ("HTTP_TIMEOUT_SECONDS", "CHAT_MAX_CONCURRENT_GENERATIONS"):
+        if key.startswith(("LLM_", "TAVILY_", "AGENT_", "DEMO_BUSINESS_")) or key in ("HTTP_TIMEOUT_SECONDS", "CHAT_MAX_CONCURRENT_GENERATIONS"):
             del env[key]
-    command = ["docker", "compose", "--env-file", str(config), "-p", args.project]
-    for name in ("compose.demo.yaml", "compose.api.yaml", "compose.hackathon.yaml"):
+    command = ["docker", "compose", "--env-file", os.devnull if args.without_ai else str(config), "-p", args.project]
+    files = ["compose.demo.yaml"]
+    if not args.without_ai:
+        files.append("compose.api.yaml")
+    files.append("compose.hackathon.yaml")
+    for name in files:
         command.extend(["-f", str(root / name)])
     arguments = ["up", "-d", "--wait", "--no-build" if args.no_build else "--build", "api"]
     subprocess.run([*command, *arguments], cwd=root, env=env, check=True)
     print(f"Cabinet: http://localhost:{args.port}/cabinet?mode=business")
-    print("Dahl API mode. The saved snapshot is restored only on the first launch into an empty volume.")
+    print("Manual mode without a model." if args.without_ai else "Configured API mode (Dahl by default).")
+    print("The saved snapshot is restored only on the first launch into an empty volume.")
 
 
 if __name__ == "__main__":

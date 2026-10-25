@@ -124,3 +124,6 @@
 @media(max-width:600px){.ep-products-section .ep-product-scroll{margin-top:22px}.ep-home .ep-journey{padding-top:45px}}
 /* Match the end of the scroll range to the actual scene height, including tall desktop windows. */
 .ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{height:min(100svh,800px)}
+/* Keep every product preview centred in its own column, without a rotated bounding box. */
+.ep-product-panel-visual{display:grid;place-items:center;align-self:stretch}
+.ep-product-panel-visual .ep-product-ui{width:100%;max-width:560px;transform:none}

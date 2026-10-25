@@ -44,6 +44,25 @@
         }
       }
     },
+    "/api/profile/sync": {
+      "post": {
+        "tags": [
+          "Данные клиента"
+        ],
+        "summary": "Sync Demo Profile",
+        "operationId": "sync_demo_profile_api_profile_sync_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/calendar": {
       "get": {
         "tags": [
@@ -63,6 +82,386 @@
         }
       }
     },
+    "/api/account/payments": {
+      "get": {
+        "tags": [
+          "Расчётный счёт"
+        ],
+        "summary": "Account Payments",
+        "operationId": "account_payments_api_account_payments_get",
+        "parameters": [
+          {
+            "name": "overdraft_application_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Overdraft Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "Расчётный счёт"
+        ],
+        "summary": "Supplier Payment",
+        "operationId": "supplier_payment_api_account_payments_post",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierPaymentOperation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/payments/preview": {
+      "post": {
+        "tags": [
+          "Расчётный счёт"
+        ],
+        "summary": "Supplier Preview",
+        "operationId": "supplier_preview_api_account_payments_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SupplierPaymentPreview"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/account/invoice": {
+      "post": {
+        "tags": [
+          "Расчётный счёт"
+        ],
+        "summary": "Supplier Invoice",
+        "operationId": "supplier_invoice_api_account_invoice_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/calendar/penalty-preview": {
+      "post": {
+        "tags": [
+          "Платёжный календарь"
+        ],
+        "summary": "Penalty Preview",
+        "operationId": "penalty_preview_api_calendar_penalty_preview_post",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PenaltyPreviewRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/loan": {
+      "get": {
+        "tags": [
+          "Погашение кредита"
+        ],
+        "summary": "Loan State",
+        "operationId": "loan_state_api_applications__application_id__loan_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/loan/preview": {
+      "post": {
+        "tags": [
+          "Погашение кредита"
+        ],
+        "summary": "Loan Payment Preview",
+        "operationId": "loan_payment_preview_api_applications__application_id__loan_preview_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanPaymentPreview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/loan/payments": {
+      "post": {
+        "tags": [
+          "Погашение кредита"
+        ],
+        "summary": "Loan Payment",
+        "operationId": "loan_payment_api_applications__application_id__loan_payments_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/LoanPaymentRequest"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/loan/orders/{order_id}/cancel": {
+      "post": {
+        "tags": [
+          "Погашение кредита"
+        ],
+        "summary": "Cancel Loan Order",
+        "operationId": "cancel_loan_order_api_applications__application_id__loan_orders__order_id__cancel_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          },
+          {
+            "name": "order_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Order Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CancelLoanOrder"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/products": {
       "get": {
         "tags": [
@@ -76,6 +475,146 @@
             "content": {
               "application/json": {
                 "schema": {}
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/overdraft": {
+      "get": {
+        "tags": [
+          "Овердрафт"
+        ],
+        "summary": "Overdraft State",
+        "operationId": "overdraft_state_api_applications__application_id__overdraft_get",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/overdraft/preview": {
+      "post": {
+        "tags": [
+          "Овердрафт"
+        ],
+        "summary": "Overdraft Preview",
+        "operationId": "overdraft_preview_api_applications__application_id__overdraft_preview_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverdraftPreview"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/applications/{application_id}/overdraft/operations": {
+      "post": {
+        "tags": [
+          "Овердрафт"
+        ],
+        "summary": "Overdraft Operation",
+        "operationId": "overdraft_operation_api_applications__application_id__overdraft_operations_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/OverdraftOperation"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
               }
             }
           }
@@ -1498,6 +2037,48 @@
         }
       }
     },
+    "/api/applications/{application_id}/repeat": {
+      "post": {
+        "tags": [
+          "Заявки"
+        ],
+        "summary": "Repeat Application",
+        "operationId": "repeat_application_api_applications__application_id__repeat_post",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ApplicationView"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/applications/{application_id}": {
       "get": {
         "tags": [
@@ -1524,6 +2105,55 @@
                 "schema": {
                   "$ref": "#/components/schemas/ApplicationView"
                 }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      },
+      "delete": {
+        "tags": [
+          "Заявки"
+        ],
+        "summary": "Delete Draft",
+        "description": "Удаляет только черновик актуальной версии вместе с его диалогами и документами.",
+        "operationId": "delete_draft_api_applications__application_id__delete",
+        "parameters": [
+          {
+            "name": "application_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "title": "Application Id"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ConfirmedAction"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
               }
             }
           },
@@ -2246,6 +2876,21 @@
         ],
         "title": "ApplyOption"
       },
+      "CancelLoanOrder": {
+        "properties": {
+          "base_loan_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Loan Version"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_loan_version"
+        ],
+        "title": "CancelLoanOrder"
+      },
       "ChatMessage": {
         "properties": {
           "base_chat_version": {
@@ -2636,6 +3281,135 @@
         ],
         "title": "LineOperation"
       },
+      "LoanPaymentPreview": {
+        "properties": {
+          "base_loan_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Loan Version"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "execution_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Date"
+          },
+          "payment_kind": {
+            "type": "string",
+            "enum": [
+              "early",
+              "regular"
+            ],
+            "title": "Payment Kind",
+            "default": "early"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "reduce_payment",
+              "reduce_term"
+            ],
+            "title": "Strategy",
+            "default": "reduce_payment"
+          },
+          "full_repayment": {
+            "type": "boolean",
+            "title": "Full Repayment",
+            "default": false
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_loan_version",
+          "amount"
+        ],
+        "title": "LoanPaymentPreview"
+      },
+      "LoanPaymentRequest": {
+        "properties": {
+          "base_loan_version": {
+            "type": "integer",
+            "minimum": 1.0,
+            "title": "Base Loan Version"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "execution_date": {
+            "anyOf": [
+              {
+                "type": "string",
+                "format": "date"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Execution Date"
+          },
+          "payment_kind": {
+            "type": "string",
+            "enum": [
+              "early",
+              "regular"
+            ],
+            "title": "Payment Kind",
+            "default": "early"
+          },
+          "strategy": {
+            "type": "string",
+            "enum": [
+              "reduce_payment",
+              "reduce_term"
+            ],
+            "title": "Strategy",
+            "default": "reduce_payment"
+          },
+          "full_repayment": {
+            "type": "boolean",
+            "title": "Full Repayment",
+            "default": false
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "calculated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Calculated On"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_loan_version",
+          "amount",
+          "request_id",
+          "calculated_on",
+          "confirmed"
+        ],
+        "title": "LoanPaymentRequest"
+      },
       "LoanPreferences": {
         "properties": {
           "requested_amount": {
@@ -2726,6 +3500,65 @@
         ],
         "title": "OfferAction"
       },
+      "OverdraftOperation": {
+        "properties": {
+          "base_account_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Base Account Version"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "receipt"
+            ],
+            "title": "Kind"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "supplier",
+              "payroll",
+              "tax",
+              "operating",
+              "revenue"
+            ],
+            "title": "Purpose"
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "calculated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Calculated On"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_account_version",
+          "kind",
+          "amount",
+          "purpose",
+          "request_id",
+          "calculated_on",
+          "confirmed"
+        ],
+        "title": "OverdraftOperation"
+      },
       "OverdraftPlanUpdate": {
         "properties": {
           "mode": {
@@ -2779,6 +3612,129 @@
         "additionalProperties": false,
         "type": "object",
         "title": "OverdraftPlanUpdate"
+      },
+      "OverdraftPreview": {
+        "properties": {
+          "base_account_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Base Account Version"
+          },
+          "kind": {
+            "type": "string",
+            "enum": [
+              "expense",
+              "receipt"
+            ],
+            "title": "Kind"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "purpose": {
+            "type": "string",
+            "enum": [
+              "supplier",
+              "payroll",
+              "tax",
+              "operating",
+              "revenue"
+            ],
+            "title": "Purpose"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_account_version",
+          "kind",
+          "amount",
+          "purpose"
+        ],
+        "title": "OverdraftPreview"
+      },
+      "PenaltyPreviewRequest": {
+        "properties": {
+          "from_date": {
+            "type": "string",
+            "format": "date",
+            "title": "From Date"
+          },
+          "target_date": {
+            "type": "string",
+            "format": "date",
+            "title": "Target Date"
+          },
+          "products": {
+            "items": {
+              "$ref": "#/components/schemas/PenaltyProduct"
+            },
+            "type": "array",
+            "maxItems": 100,
+            "minItems": 1,
+            "title": "Products"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "from_date",
+          "target_date",
+          "products"
+        ],
+        "title": "PenaltyPreviewRequest"
+      },
+      "PenaltyProduct": {
+        "properties": {
+          "product_id": {
+            "type": "string",
+            "maxLength": 150,
+            "minLength": 6,
+            "title": "Product Id"
+          },
+          "daily_rate_percent": {
+            "anyOf": [
+              {
+                "type": "string",
+                "pattern": "^(?:\\d{1,3})(?:\\.\\d{1,6})?$"
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Daily Rate Percent"
+          },
+          "rate_source": {
+            "type": "string",
+            "enum": [
+              "manual",
+              "contract"
+            ],
+            "title": "Rate Source",
+            "default": "manual"
+          },
+          "terms_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 200,
+                "minLength": 1
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Terms Id"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "product_id"
+        ],
+        "title": "PenaltyProduct"
       },
       "PlannedOperation": {
         "properties": {
@@ -2871,6 +3827,165 @@
           "offer_id"
         ],
         "title": "SelectOffer"
+      },
+      "SupplierPaymentOperation": {
+        "properties": {
+          "base_account_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Base Account Version"
+          },
+          "overdraft_application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overdraft Application Id"
+          },
+          "recipient_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Recipient Name"
+          },
+          "recipient_inn": {
+            "type": "string",
+            "pattern": "^(?:[0-9]{10}|[0-9]{12})$",
+            "title": "Recipient Inn"
+          },
+          "recipient_account": {
+            "type": "string",
+            "pattern": "^[0-9]{20}$",
+            "title": "Recipient Account"
+          },
+          "recipient_bik": {
+            "type": "string",
+            "pattern": "^[0-9]{9}$",
+            "title": "Recipient Bik"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 210,
+            "minLength": 5,
+            "title": "Purpose"
+          },
+          "invoice_number": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Invoice Number",
+            "default": ""
+          },
+          "request_id": {
+            "type": "string",
+            "format": "uuid",
+            "title": "Request Id"
+          },
+          "calculated_on": {
+            "type": "string",
+            "format": "date",
+            "title": "Calculated On"
+          },
+          "confirmed": {
+            "type": "boolean",
+            "title": "Confirmed"
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_account_version",
+          "recipient_name",
+          "recipient_inn",
+          "recipient_account",
+          "recipient_bik",
+          "amount",
+          "purpose",
+          "request_id",
+          "calculated_on",
+          "confirmed"
+        ],
+        "title": "SupplierPaymentOperation"
+      },
+      "SupplierPaymentPreview": {
+        "properties": {
+          "base_account_version": {
+            "type": "string",
+            "pattern": "^[0-9a-f]{64}$",
+            "title": "Base Account Version"
+          },
+          "overdraft_application_id": {
+            "anyOf": [
+              {
+                "type": "string",
+                "maxLength": 100
+              },
+              {
+                "type": "null"
+              }
+            ],
+            "title": "Overdraft Application Id"
+          },
+          "recipient_name": {
+            "type": "string",
+            "maxLength": 160,
+            "minLength": 2,
+            "title": "Recipient Name"
+          },
+          "recipient_inn": {
+            "type": "string",
+            "pattern": "^(?:[0-9]{10}|[0-9]{12})$",
+            "title": "Recipient Inn"
+          },
+          "recipient_account": {
+            "type": "string",
+            "pattern": "^[0-9]{20}$",
+            "title": "Recipient Account"
+          },
+          "recipient_bik": {
+            "type": "string",
+            "pattern": "^[0-9]{9}$",
+            "title": "Recipient Bik"
+          },
+          "amount": {
+            "type": "string",
+            "pattern": "^[0-9]{1,12}\\.[0-9]{2}$",
+            "title": "Amount"
+          },
+          "purpose": {
+            "type": "string",
+            "maxLength": 210,
+            "minLength": 5,
+            "title": "Purpose"
+          },
+          "invoice_number": {
+            "type": "string",
+            "maxLength": 80,
+            "title": "Invoice Number",
+            "default": ""
+          }
+        },
+        "additionalProperties": false,
+        "type": "object",
+        "required": [
+          "base_account_version",
+          "recipient_name",
+          "recipient_inn",
+          "recipient_account",
+          "recipient_bik",
+          "amount",
+          "purpose"
+        ],
+        "title": "SupplierPaymentPreview"
       },
       "UpdateApplication": {
         "properties": {

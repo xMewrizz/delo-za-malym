@@ -43,11 +43,12 @@ class ShowcaseAssistant:
 
 
 class Showcase:
-    def __init__(self, path: Path, today: date):
+    def __init__(self, path: Path, today: date, *, rich: bool = False):
         if path.exists():
             raise ValueError(f"Output database already exists: {path}")
         self.today = today
-        self.now = datetime.combine(today - timedelta(days=110), datetime.min.time(), MSK).replace(hour=12)
+        self.rich = rich
+        self.now = datetime.combine(today - timedelta(days=150 if rich else 110), datetime.min.time(), MSK).replace(hour=12)
         self.store = Store(path)
         self.store.initialize()
         self.process = CreditProcess(self.store, lambda: self.now)
@@ -132,6 +133,14 @@ class Showcase:
             amount=amount, purpose=purpose, invoice_number=number, request_id=uuid4(), calculated_on=self.now.date(), confirmed=True))
 
     def build(self):
+        if self.rich:
+            self.issue(self.create("repaid_loan", "working_capital_loan", "120000.00", 6))
+            self.advance(self.today - timedelta(days=120))
+            state = self.loans.get(self.ids["repaid_loan"])
+            self.loans.pay(self.ids["repaid_loan"], LoanPaymentRequest(
+                base_loan_version=state["version"], request_id=uuid4(), calculated_on=self.now.date(),
+                amount=state["amount_to_close"], full_repayment=True, confirmed=True))
+            self.advance(self.today - timedelta(days=110))
         self.issue(self.create("refinanced_original", "working_capital_loan", "180000.00", 12))
         self.advance(self.today - timedelta(days=75))
         self.issue(self.create("working_capital", "working_capital_loan", "280000.00", 18))
@@ -167,6 +176,17 @@ class Showcase:
         od = self.overdrafts.get(self.ids["overdraft"])
         self.overdrafts.operate(self.ids["overdraft"], OverdraftOperation(base_account_version=od["account_version"],
             request_id=uuid4(), kind="receipt", purpose="revenue", amount="165000.00", calculated_on=self.now.date(), confirmed=True))
+        if self.rich:
+            # A completed customer order funds further experiments. This is an actual
+            # recorded receipt, not a balance override or an exemption from scoring.
+            self.advance(self.today - timedelta(days=2))
+            od = self.overdrafts.get(self.ids["overdraft"])
+            self.overdrafts.operate(self.ids["overdraft"], OverdraftOperation(
+                base_account_version=od["account_version"], request_id=uuid4(), kind="receipt", purpose="revenue",
+                amount="1500000.00", calculated_on=self.now.date(), confirmed=True))
+            self.supplier("ООО «Логистика Сервис»", "90000.00", "ЛС-417", "Доставка сезонной партии товара по счёту ЛС-417. Включая НДС.")
+            self.advance(self.today - timedelta(days=1))
+            self.supplier("ООО «Север Снабжение»", "180000.00", "СС-128", "Пополнение складских запасов по счёту СС-128. Включая НДС.")
         self.advance(self.today)
         # Pending examples are calculated only after the final portfolio is known.
         self.ready(self.create("ready_to_sign", "working_capital_loan", "100000.00", 12))
@@ -190,6 +210,13 @@ class Showcase:
             proposal = chat["chat"]["messages"][-1].get("proposal")
             if proposal:
                 chat = self.chats.resolve(chat["chat"]["chat_id"], proposal["proposal_id"], chat["chat"]["chat_version"], apply=True)
+        if self.rich:
+            offers = self.create("offers_ready", "working_capital_loan", "400000.00", 24)
+            offers = self.process.submit(offers["application"]["application_id"], offers["application"]["application_version"])
+            assert (offers.get("result") or {}).get("assessment", {}).get("offers"), offers["state"]
+            cancelled = self.create("cancelled_project", "investment_loan", None, 36,
+                need={"purpose": "investment", "project_cost": "1000000.00", "own_funds": "200000.00"})
+            self.process.cancel(cancelled["application"]["application_id"], cancelled["application"]["application_version"])
         self.validate()
         return {"schema_version": 1, "prepared_at": self.now.isoformat(), "company": "ООО «Север»",
                 "contexts": {key: self.ids[key] for key in ("manual", "assistant")}, "applications": self.ids,
@@ -211,6 +238,9 @@ class Showcase:
         assert Decimal(od["principal"]) == 0 and len(od["operations"]) >= 2
         assert Decimal(self.lines.get(self.ids["credit_line"])["principal"]) > 0
         assert self.refresh({"application": {"application_id": self.ids["refinanced_original"]}})["completion"].get("refinanced_by")
+        if self.rich:
+            assert Decimal(self.process.profile()["financials"]["cash_balance"]) >= Decimal("1000000.00")
+            assert Decimal(self.loans.get(self.ids["repaid_loan"])["principal"]) == 0
 
 
 def main():

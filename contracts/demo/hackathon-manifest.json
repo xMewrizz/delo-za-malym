@@ -1,29 +1,32 @@
 {
   "schema_version": 1,
-  "prepared_at": "2026-10-24T19:49:57.461704+03:00",
+  "prepared_at": "2026-10-25T16:34:44.074084+03:00",
   "company": "ООО «Север»",
   "contexts": {
-    "manual": "c4fba789-fce6-4c81-ba09-c81d0a2e3aad",
-    "assistant": "fce27e7c-a5e9-4f27-99dd-9c0e1f0fa1d6"
+    "manual": "16e8c09b-d60b-4f0b-9a38-ff06023a9717",
+    "assistant": "89582ef6-0950-4a6a-b632-91910ce72f9e"
   },
   "applications": {
-    "refinanced_original": "2d10fce5-cd4a-471e-8261-26869a94c41d",
-    "working_capital": "b2fff530-bfb6-4f4a-9ca3-4fb60626af3c",
-    "credit_line": "2b9dc95a-f008-4dff-b195-5e72729210e7",
-    "investment": "25a61bd2-1cf2-4d47-bfdd-e3fcaf1f1d31",
-    "refinancing": "dbff8844-7d4c-49e1-b7da-f165884988fd",
-    "overdraft": "9eacc87e-9047-4254-91fb-004f8279e349",
-    "ready_to_sign": "3f32925f-38f8-4a0c-8481-8d4a205a60ef",
-    "needs_contribution": "2afe6cc4-2828-47db-8426-30c8eadc3243",
-    "manual": "c4fba789-fce6-4c81-ba09-c81d0a2e3aad",
-    "assistant": "fce27e7c-a5e9-4f27-99dd-9c0e1f0fa1d6"
+    "repaid_loan": "3bfa6a29-3ce7-41f0-adb3-f58396cae50c",
+    "refinanced_original": "91408f9d-6335-454f-a44a-fa081cb40504",
+    "working_capital": "d1e7a05f-428f-4d1f-8e6c-b858960dfa62",
+    "credit_line": "1cd5d359-d930-4505-8b9e-b708ffd7cf67",
+    "investment": "847cce99-1239-4aed-9bb9-f2bde27a48c5",
+    "refinancing": "3819eba4-8609-4655-bdf3-94eadee08952",
+    "overdraft": "c7ce56e9-3a4e-40ad-8ec3-a454d013db57",
+    "ready_to_sign": "9b69e426-d3c8-42ee-91b9-8b76ffece6ae",
+    "needs_contribution": "e7430e3a-5781-451b-9533-67d8e4231c44",
+    "manual": "16e8c09b-d60b-4f0b-9a38-ff06023a9717",
+    "assistant": "89582ef6-0950-4a6a-b632-91910ce72f9e",
+    "offers_ready": "c50c72c1-a3b0-4c43-bc9a-59dbdf752361",
+    "cancelled_project": "a62ede67-071a-4230-a64f-ee604d19b4bc"
   },
-  "chat_id": "60829e6b-ce9f-4ad7-9fe7-bd4c6bc30aba",
+  "chat_id": "68add97a-282b-41dc-9036-93ac22c0a6e1",
   "summary": {
-    "applications": 10,
-    "cash_balance": "129976.99",
+    "applications": 13,
+    "cash_balance": "1359976.99",
     "active_products": 5,
-    "calendar_events": 106,
-    "supplier_payments": 2
+    "calendar_events": 111,
+    "supplier_payments": 4
   }
 }
