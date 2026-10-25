@@ -9,6 +9,7 @@ import { ChoiceField, FormField } from "@/shared/ui/form-field";
 import { Disclosure } from "@/shared/ui/disclosure";
 import type { ApplicationView } from "../api/applications";
 import { normalizeMoneyInput } from "../model/need";
+import { refinancingIds } from "../model/refinancing";
 import { describeIssue, productName } from "../model/presentation";
 import { flowDaysSchema } from "../api/applications";
 import { CashFlowChart } from "./cash-flow-chart";
@@ -18,6 +19,8 @@ import { InvestmentTerms } from "./investment-terms";
 import { RefinancingBaseline, RefinancingEffect } from "./refinancing-comparison";
 import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
 import { z } from "zod";
+import {useQuery} from "@tanstack/react-query";
+import {productQueries} from "@/features/products/model/queries";
 import "./offer-comparison.css";
 
 type ProductId = "working_capital_loan" | "overdraft" | "refinancing" | "revolving_credit_line" | "investment_loan";
@@ -75,6 +78,8 @@ export function ExplorationPanel({
   const [delayId, setDelayId] = useState(""),
     [delayDays, setDelayDays] = useState("7");
   const latest = view.explorations.at(-1);
+  const catalog=useQuery(productQueries.list());
+  const currentRules=catalog.data?.find(item=>item.product_id===latest?.product_id)?.rules_fingerprint;
   const plan = view.application.product_details?.overdraft;
   const inflows =
     plan &&
@@ -95,7 +100,7 @@ export function ExplorationPanel({
   const days = flowDaysSchema.safeParse(latest?.result.daily);
   const baselineDays = flowDaysSchema.safeParse(latest?.result.baseline_daily);
   const current =
-    latest?.application_version === view.application.application_version;
+    latest?.application_version === view.application.application_version && (!currentRules || latest?.result.rules_fingerprint===currentRules);
   const baseline = z.object({ monthly_payment: z.string() }).safeParse(latest?.result.baseline);
   const options = latest?.result.options || [];
   const minimumRequired = latest?.result.required_information?.some(issue => issue && typeof issue === "object" && "code" in issue && issue.code === "minimum_acceptable_amount_required");
@@ -304,7 +309,7 @@ export function ExplorationPanel({
       <CardContent className="comparison-body">
         {error && <p role="alert" className="my-3 text-sm text-destructive">{error}</p>}
         {latest && (
-          <ExplorationResult current={current} busy={busy} refresh={() => onExplore(product, preserveAmount ? {} : {preserve_amount:false})}><div className="mt-5 space-y-3">
+          <ExplorationResult current={current} busy={busy} selectionRequired={product === "refinancing" && !refinancingIds(view).length} productChanged={latest.product_id !== product ? productName(product) : undefined} refresh={() => {if(product === "refinancing" && !refinancingIds(view).length && onEditNeed) onEditNeed(); else onExplore(product, preserveAmount ? {} : {preserve_amount:false});}}><div className="mt-5 space-y-3">
             {!current && <p className="text-xs text-muted-foreground">Условия для предыдущей версии заявки</p>}
             {Boolean(latest.result.delay) && (
               <div className="rounded-xl border border-primary/30 p-4">
@@ -388,7 +393,7 @@ export function ExplorationPanel({
             </Disclosure>}
           </div></ExplorationResult>
         )}
-        {!minimumRequired && <Disclosure ref={settings} className="exploration-settings mt-5" open={!latest && !compact} title="Изменить параметры сравнения" description="Уточните платёж или диапазон сроков и получите другие варианты.">
+        {!minimumRequired && !["overdraft"].includes(product) && <Disclosure ref={settings} className="exploration-settings mt-5" open={!latest && !compact} title="Изменить параметры сравнения" description="Уточните платёж или диапазон сроков и получите другие варианты.">
           <form
           onSubmit={submit}
           className="space-y-5"
@@ -542,9 +547,9 @@ export function ExplorationPanel({
   );
 }
 
-function ExplorationResult({ current, busy, refresh, children }: { current: boolean; busy: boolean; refresh: () => void; children: ReactNode }) {
+function ExplorationResult({ current, busy, refresh, children, selectionRequired=false, productChanged }: { current: boolean; busy: boolean; refresh: () => void; children: ReactNode; selectionRequired?:boolean; productChanged?:string }) {
   if (current) return children;
-  return <><div className="exploration-stale" role="status"><div><strong>Условия нужно обновить</strong><p>Данные заявки или обязательства изменились. Прежние предложения сохранены в истории.</p></div><Button disabled={busy} onClick={refresh}>{busy ? "Пересчитываем…" : "Пересчитать условия"}</Button></div><Disclosure className="exploration-context mt-4" title="Предыдущий расчёт" description="Сохранён для справки, выбрать эти условия уже нельзя.">{children}</Disclosure></>;
+  return <><div className="exploration-stale" role="status"><div><strong>{selectionRequired ? "Выберите кредиты для рефинансирования" : productChanged ? `Новый запрос: ${productChanged}` : "Пересчитаем условия по новым данным"}</strong><p>{selectionRequired ? "В разделе «Данные» отметьте действующие долги, которые хотите погасить. Сумму нового кредита рассчитаем по их остаткам." : productChanged ? "Предыдущие предложения относятся к другому продукту. Параметры нового запроса уже сохранены — осталось рассчитать условия." : "Изменились параметры заявки, обязательства или правила продукта. Повторно вводить сохранённые данные не нужно."}</p></div><Button disabled={busy} onClick={refresh}>{busy ? "Пересчитываем…" : selectionRequired ? "Выбрать кредиты" : productChanged ? "Рассчитать условия" : "Пересчитать условия"}</Button></div><Disclosure className="exploration-context mt-4" title="Предыдущий расчёт" description="Сохранён для справки, выбрать эти условия уже нельзя.">{children}</Disclosure></>;
 }
 
 function ExplorationEmpty({ result, busy, onEdit, onRetry, onSettings }: {
@@ -559,10 +564,12 @@ function ExplorationEmpty({ result, busy, onEdit, onRetry, onSettings }: {
   const filtered = result.status === "no_matching_options";
   const checking = ["check_retry_pending", "needs_checks"].includes(result.status);
   const needsData = ["needs_information", "invalid_data"].includes(result.status);
-  const title = minimum ? "Подойдёт ли сумма меньше?" : filtered ? "Измените ограничения сравнения" : checking ? "Проверка ещё не завершена" : needsData ? "Уточним данные для расчёта" : "На эту сумму не нашли подходящих условий";
-  const text = minimum ? "На всю запрошенную сумму подходящих условий нет. Если задачу можно решить с меньшей суммой, укажите свой минимум. Если нужна вся сумма — так и отметьте." : filtered ? "Доступные предложения не укладываются в выбранный платёж или срок. Попробуйте расширить диапазон." : checking ? "Данные сохранены. Повторите проверку, чтобы получить актуальный результат." : needsData ? "Для продолжения нужны только сведения ниже. Уже заполненные данные сохранены." : "Платёж или сумма не укладываются в условия продукта с учётом текущей нагрузки бизнеса. Можно изменить запрос и попробовать другие параметры.";
-  const issues = minimum ? [] : [...questions, ...(Array.isArray(result.issues) ? result.issues : [])];
-  const reasons = needsData || checking || filtered || minimum ? [] : (result.reasons || []).filter(reason => reason.code !== "no_eligible_offer").map(reason => reason.message);
+  const noGap=result.reasons?.some(reason=>reason.code==="no_financing_gap");
+  const unpaid=result.reasons?.some(reason=>reason.code==="repayment_not_demonstrated");
+  const title = noGap ? "Для этого плана хватает своих денег" : unpaid ? "В плане остаётся непогашенный овердрафт" : minimum ? "Подойдёт ли сумма меньше?" : filtered ? "Измените ограничения сравнения" : checking ? "Проверка ещё не завершена" : needsData ? "Уточним данные для расчёта" : "На эту сумму не нашли подходящих условий";
+  const text = noGap ? "Указанные расходы покрываются остатком счёта и известными поступлениями. Если есть другие предстоящие расходы, добавьте их в план." : unpaid ? "Расчёт выполнен, но известных поступлений не хватает на возврат долга и процентов. Можно дополнить план, когда появится информация о выручке, или рассмотреть кредит с постепенным возвратом." : minimum ? "Полная сумма не проходит ограничения ниже. Если меньшей суммы достаточно для вашей задачи, укажите свой минимум. Исходную сумму без вашего согласия не изменим." : filtered ? "Доступные предложения не укладываются в выбранный платёж или срок. Попробуйте расширить диапазон." : checking ? "Данные сохранены. Повторите проверку, чтобы получить актуальный результат." : needsData ? "Для продолжения нужны только сведения ниже. Уже заполненные данные сохранены." : "Платёж или сумма не укладываются в условия продукта с учётом текущей нагрузки бизнеса. Можно изменить запрос и попробовать другие параметры.";
+  const issues = minimum || unpaid ? [] : [...questions, ...(Array.isArray(result.issues) ? result.issues : [])];
+  const reasons = checking || filtered || noGap || unpaid ? [] : (result.reasons || []).filter(reason => reason.code !== "project_details_required" && !(reason.code === "reduced_amount_requires_confirmation" && reason.message === "Нужно подтвердить достаточность меньшей суммы.")).map(reason => reason.message);
   const messages = [...new Set([...issues.map(describeIssue), ...reasons])];
   return <section className="exploration-empty-state" aria-label="Следующий шаг подбора">
     <span className="exploration-empty-icon" aria-hidden="true"><CircleHelp size={25} /></span>

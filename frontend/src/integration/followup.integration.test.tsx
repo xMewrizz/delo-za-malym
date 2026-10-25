@@ -25,21 +25,23 @@ describe.skipIf(!base)("complete requested information against the real bank API
   try{
    let view=await createApplication();
    const id=view.application.application_id;
-   view=await patchApplication(id,view.application.application_version,{"need.purpose":"investment","need.preferred_product":"investment_loan","need.financing_pattern":"gradual_repayment","need.project_cost":"500000.00","need.own_funds":"50000.00","need.term_months":36,"need.principal_grace_months":0});
+   view=await patchApplication(id,view.application.application_version,{"need.purpose":"investment","need.preferred_product":"investment_loan","need.financing_pattern":"gradual_repayment","need.project_cost":"6000000.00","need.own_funds":"50000.00","need.term_months":36,"need.principal_grace_months":0});
    view=await versionAction(id,view.application.application_version,"submit");
    expect(view.state.status).toBe("waiting_for_data");const previousVersion=view.application.application_version;
    requests.length=0;
    await act(async()=>root.render(<QueryClientProvider client={client}><MemoryRouter initialEntries={[`/cabinet?mode=applications&application=${id}`]}><CabinetPage/></MemoryRouter></QueryClientProvider>));
    await until(()=>button("Уточнить взнос и стоимость"));await click("Уточнить взнос и стоимость");
+   const fillOwn=async(value:string)=>act(async()=>{const field=host.querySelector<HTMLInputElement>("#followup-own")!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(field,value);field.dispatchEvent(new Event("input",{bubbles:true}));});
+   await fillOwn("6000000");
    await click("Сохранить и отправить на проверку");
    expect(host.querySelector("#followup-own")?.getAttribute("aria-invalid")).toBe("true");
    expect(requests.filter(item=>item.method==="PATCH")).toHaveLength(0);
-   await act(async()=>{const field=host.querySelector<HTMLInputElement>("#followup-own")!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(field,"100000");field.dispatchEvent(new Event("input",{bubbles:true}));});
+   await fillOwn("5600000");
    await click("Сохранить и отправить на проверку");
    await until(()=>host.textContent?.includes("Выбрать предложение"));
    const result=await getApplication(id);
    expect(result.state.status).toBe("offers_ready");
-   expect(result.application.need.own_funds).toBe("100000.00");
+   expect(result.application.need.own_funds).toBe("5600000.00");
    expect(result.application.need.requested_amount).toBe("400000.00");
    expect(result.application.application_version).toBe(previousVersion+1);
    expect(requests.filter(item=>item.method==="PATCH")).toHaveLength(1);

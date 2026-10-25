@@ -7,6 +7,22 @@ import type { ApplicationView } from "../api/applications";
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const view={application:{application_id:"step-test",application_version:1,need:{},financials:{cash_balance:"300000.00",existing_loans:[]}},client_data:{bank_financials:{cash_balance:"300000.00"}},field_sources:{}} as unknown as ApplicationView;
 describe("guided financing form",()=>{
+  it("shows the server catalogue range before entry and keeps an oversized request on the amount step",async()=>{
+    localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
+    vi.stubGlobal("fetch",vi.fn(async()=>new Response(JSON.stringify([{product_id:"working_capital_loan",name:"Кредит",policy_version:"demo-v1",minimum_amount:"100000.00",maximum_amount:"100000000.00",annual_rate_percent:"24.00",terms:[6,12,18,24,36]}]),{status:200,headers:{"Content-Type":"application/json"}})));
+    const host=document.createElement("div");document.body.append(host);const root=createRoot(host);const save=vi.fn();
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>('button')].find(item=>!item.closest('[hidden]')&&item.textContent===text)!.click());
+    try{
+      await act(async()=>root.render(<NeedForm view={view} busy={false} onSave={save} continueToNextStep/>));
+      await click("Закупить товар");await click("Продолжить");
+      expect(host.textContent?.replace(/\s/g,"")).toContain("100000000₽");
+      await act(async()=>{const input=host.querySelector<HTMLInputElement>('#need-amount')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,'150000000');input.dispatchEvent(new Event('input',{bubbles:true}));});
+      await click("Продолжить");
+      expect(host.querySelector('#need-amount')?.getAttribute('aria-invalid')).toBe('true');
+      expect(host.querySelector('.need-step-heading')?.textContent).toContain('Сколько нужно на задачу?');
+      expect(save).not.toHaveBeenCalled();
+    }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();vi.unstubAllGlobals();}
+  });
   it("shows the remaining steps, validates before advancing, preserves answers and submits only after the final step",async()=>{
     localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
     const host=document.createElement("div");document.body.append(host);const root=createRoot(host);const save=vi.fn();
@@ -43,6 +59,9 @@ describe("guided financing form",()=>{
       const field=host.querySelector<HTMLInputElement>('[id^="operation-amount-"]')!;
       await act(async()=>{Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(field,"450000");field.dispatchEvent(new Event("input",{bubbles:true}));});
       await click("Продолжить");
+      expect(host.querySelector('label[for^="operation-amount-"]')).toBeNull();
+      expect(host.textContent).toContain("Если поступления пока неизвестны");
+      await click("Поступление");
       expect(host.querySelector('label[for^="operation-amount-"]')?.textContent).toBe("Сколько поступит, ₽");
     }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
   });

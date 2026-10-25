@@ -84,7 +84,7 @@ class ClarificationTests(unittest.TestCase):
         card = self.view["clarification"]
         self.assertIn("50 000 ₽", card["description"])
         self.assertIn("300 000 ₽", card["description"])
-        self.assertEqual(card["input_label"], "Полная сумма платежа, ₽")
+        self.assertEqual(card["input_label"], "Предстоящие расходы, ₽")
         self.assertNotIn(PLAN_PATH, self.pending()["changes"])
         self.answer("use_known_amount")
         operations = self.pending()["changes"][PLAN_PATH]["transactions"]

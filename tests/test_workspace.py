@@ -125,6 +125,15 @@ class WorkspaceTests(unittest.TestCase):
         exploration=self.explore();option=exploration["result"]["options"][0];self.now+=timedelta(days=8)
         self.assertEqual(self.post(f"/explorations/{exploration['exploration_id']}/apply",option_id=option["option_id"],confirmed=True).json()["detail"]["code"],"exploration_expired")
 
+    def test_updated_product_rules_require_a_new_comparison(self):
+        exploration=self.explore();option=exploration["result"]["options"][0]
+        original=deepcopy(self.record["application"])
+        with patch("backend.workspace.product_fingerprint",return_value="updated-rules"):
+            response=self.post(f"/explorations/{exploration['exploration_id']}/apply",option_id=option["option_id"],confirmed=True)
+        self.assertEqual(response.status_code,409)
+        self.assertEqual(response.json()["detail"]["code"],"exploration_stale")
+        self.assertEqual(self.client.get(self.path()).json()["application"],original)
+
     def test_overdraft_unknown_limit_is_calculated_without_modifying_request(self):
         self.record=self.case("overdraft","01_overdraft_approved")
         self.patch({"need.requested_amount":None})

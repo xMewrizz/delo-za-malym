@@ -42,6 +42,7 @@ import { BusinessProfile, CabinetOverview, FinancingPortfolio } from "./cabinet-
 import { loadShowcaseContexts, resolveCabinetContexts } from "./demo-contexts";
 import {SavedSelectionEntry} from "./selection-entry";
 import {useSelectionAdmission} from "./use-selection-admission";
+import {FreshSelectionForm} from "./fresh-selection";
 
 type Mode = CabinetMode;
 type WorkspaceSource = "manual" | "assistant" | "applications";
@@ -315,6 +316,11 @@ export function CabinetPage() {
     onNew={() => create.mutate({source:mode === "assistant" ? "assistant" : "manual"})}/>;
   const entryView = mode === "manual" ? manual.data : mode === "assistant" ? assistant.data : undefined;
   const showSavedEntry = Boolean(entryView && !selectionAdmission.opened.has(entryView.application.application_id) && !invoiceFinancingId);
+  function startFreshSelection(view:ApplicationView) {
+    update(view);
+    selectionAdmission.allow(view.application.application_id);
+    setContexts(current=>({...current,manual:view.application.application_id}));
+  }
   function openApplication(id:string) {
     const item=list.data?.find(record=>record.application_id===id);
     if(item?.state.status === "draft" && !item.ready_for_application) {
@@ -370,7 +376,7 @@ export function CabinetPage() {
           </Button>
         ))}
         </div>
-        {!showSavedEntry && (
+        {(!showSavedEntry || mode === "manual") && (
           <Button
             className="cabinet-new-selection"
             variant="ghost"
@@ -423,8 +429,8 @@ export function CabinetPage() {
       <div hidden={mode !== "manual"}>
         {mode === "manual" && invoiceFinancingId && <Button className="mb-4" variant="outline" onClick={() => setSearch(current => {const next = new URLSearchParams(current); next.set("pay", "supplier"); return next;})}>Вернуться к счёту поставщика</Button>}
         {mode === "manual" &&
-          (manual.data ? (
-            showSavedEntry ? savedEntry(manual.data) : <ApplicationWorkspace
+          (!manual.data || showSavedEntry ? <FreshSelectionForm profile={profile.data} onReady={startFreshSelection} onImport={()=>create.mutate({source:"manual"})}/> : (
+            <ApplicationWorkspace
               key={manual.data.application.application_id}
               mode="selection"
               onNewSelection={() => create.mutate({ source: "manual" })}
@@ -440,15 +446,6 @@ export function CabinetPage() {
               busy={action.isPending || create.isPending}
               actions={actionsFor(manual.data, "manual")}
             />
-          ) : (
-            !manual.isFetching && (
-              <StartCard
-                title="Начнём с вашей задачи"
-                text="Заполните потребность. Профиль компании и данные банка уже подставлены."
-                busy={create.isPending}
-                onStart={() => create.mutate({ source: "manual" })}
-              />
-            )
           ))}
       </div>
       <div hidden={mode !== "assistant"}>

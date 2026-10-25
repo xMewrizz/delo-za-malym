@@ -116,14 +116,14 @@
 /* Keep the first product immediately below its heading; center neither empty space nor the tab row. */
 .ep-products-section>.ep-section-heading{margin-bottom:0}
 .ep-products-section .ep-product-scroll{margin-top:26px}
-.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{justify-content:flex-start;padding-block:18px 24px}
+.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{justify-content:center;padding-block:18px 24px}
 .ep-product-scroll[data-scrub=on] .ep-product-window{height:clamp(400px,66svh,650px)}
 .ep-home .ep-journey{padding-top:70px}
 .ep-home .ep-faq .ep-section-heading h2{margin-top:0}
 @media(min-width:900px) and (max-height:780px){.ep-product-scroll[data-scrub=on] .ep-product-window{height:calc(100svh - 160px)}}
 @media(max-width:600px){.ep-products-section .ep-product-scroll{margin-top:22px}.ep-home .ep-journey{padding-top:45px}}
 /* Match the end of the scroll range to the actual scene height, including tall desktop windows. */
-.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{height:min(100svh,800px)}
+.ep-product-scroll[data-scrub=on] .ep-product-showcase-pin{height:100svh}
 /* Keep every product preview centred in its own column, without a rotated bounding box. */
 .ep-product-panel-visual{display:grid;place-items:center;align-self:stretch}
 .ep-product-panel-visual .ep-product-ui{width:100%;max-width:560px;transform:none}

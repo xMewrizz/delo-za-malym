@@ -3,6 +3,7 @@ import { Plus, Save, Trash2 } from "lucide-react";
 import { Button } from "@/shared/ui/button";
 import { Card, CardContent, CardHeader } from "@/shared/ui/card";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
+import { Disclosure } from "@/shared/ui/disclosure";
 import { formatMoney } from "@/shared/lib/format";
 import { FieldOrigin } from "@/shared/ui/field-origin";
 import { originFor } from "@/shared/lib/field-source";
@@ -84,7 +85,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               </div>
               {draft.rows.filter(row => !direction || row.direction === direction).length === 0 && (
                 <p className="rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
-                  {direction === "inflow" ? "Добавьте ожидаемое поступление, из которого вернёте деньги." : direction === "outflow" ? "Добавьте платёж, на который нужны деньги." : "Добавьте платёж, на который нужны деньги, и ожидаемое поступление."}
+                  {direction === "inflow" ? "Если поступления пока неизвестны, оставьте этот раздел пустым. В расчёте покажем, останется ли непогашенный долг." : direction === "outflow" ? "Добавьте платёж, на который нужны деньги." : "Добавьте известные расходы и поступления. Неизвестную выручку указывать не нужно."}
                 </p>
               )}
               {draft.rows.filter(row => !direction || row.direction === direction).map((row, index) => (
@@ -178,13 +179,12 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
                 или подтверждаю, что их в нём нет.
               </label>
             )}
-    <details hidden={direction === "outflow"} className="rounded-xl border border-border p-4">
-      <summary className="cursor-pointer text-sm font-semibold">Резерв и период расчёта</summary>
-      <p className="my-3 text-xs text-muted-foreground">Период определяем по датам платежей и поступлений. Здесь его можно расширить и оставить запас денег на счёте.</p>
+    {direction !== "outflow" && <Disclosure title="Настройки прогноза" description="Необязательно · даты расчёта и запас денег на текущие расходы">
+      <p className="my-3 text-sm leading-relaxed text-muted-foreground">По умолчанию считаем до последней известной операции. Продлите период, если хотите увидеть остаток позже. Резерв — сумма, которую в прогнозе не тратим: например, 50 000 ₽ на ежедневные расходы. Деньги на счёте не блокируются.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 id="plan-start"
-                label="Начало периода"
+                label="Считать с даты"
                 type="date"
                 value={period.start}
                 onChange={(event) =>
@@ -198,7 +198,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               />
               <FormField
                 id="plan-end"
-                label="Конец периода"
+                label="Показать прогноз до"
                 type="date"
                 value={period.end}
                 onChange={(event) =>
@@ -212,7 +212,8 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               />
               <FormField
                 id="plan-reserve"
-                label="Неприкосновенный резерв, ₽"
+                label="Оставить на текущие расходы, ₽"
+                hint="0 ₽ — используем в прогнозе весь доступный остаток."
                 inputMode="decimal"
                 value={draft.reserve}
                 onChange={(event) =>
@@ -224,7 +225,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               />
             </div>
       {!draft.automaticPeriod && <Button type="button" variant="ghost" size="sm" onClick={() => setDraft(current => ({ ...current, automaticPeriod: true }))}>Определить период по датам</Button>}
-    </details>
+    </Disclosure>}
   </div>;
 }
 

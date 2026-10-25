@@ -5,6 +5,7 @@ const decimal = z.string().regex(/^\d+(\.\d+)?$/)
 const common = {
   name: z.string(),
   policy_version: z.string(),
+  rules_fingerprint: z.string().optional(),
   minimum_amount: decimal,
   maximum_amount: decimal,
   annual_rate_percent: decimal,

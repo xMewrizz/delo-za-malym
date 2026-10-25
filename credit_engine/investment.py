@@ -1,8 +1,8 @@
-"""Финансирование проекта с собственным взносом и отсрочкой основного долга."""
+"""Финансирование проекта с необязательным взносом и отсрочкой основного долга."""
 
 from copy import deepcopy
 from dataclasses import replace
-from decimal import Decimal, ROUND_CEILING
+from decimal import Decimal
 from uuid import uuid4
 
 from .assessment import WorkingCapitalPolicy, assess_application
@@ -12,10 +12,10 @@ from .financials import FinancialPolicy, MONEY_PATTERN
 from .loans import calculate_loan
 
 PRODUCT = "investment_loan"
-POLICY = replace(WorkingCapitalPolicy(), version="demo-investment-v1", amount_step=Decimal("0.01"),
+POLICY = replace(WorkingCapitalPolicy(), version="demo-investment-v2", amount_step=Decimal("0.01"),
                  annual_rate_percent="18.00", terms=(12, 24, 36, 48, 60))
 GRACE_MONTHS = (0, 3, 6)
-MINIMUM_OWN_SHARE = Decimal("0.20")
+MINIMUM_OWN_SHARE = Decimal("0.00")
 
 
 class InvestmentResult:
@@ -32,14 +32,16 @@ def project_values(need):
     for field, question in (("project_cost", "Сколько стоит весь проект или оборудование?"),
                             ("own_funds", "Какую сумму вложите собственными средствами?")):
         value = need.get(field)
+        if field == "own_funds" and value is None:
+            continue  # Полное финансирование проверяется прежде дополнительного взноса.
         if not isinstance(value, str) or len(value) > 16 or not MONEY_PATTERN.fullmatch(value):
             questions.append({"field": f"need.{field}", "code": "project_data_required", "question": question})
     if questions:
         return None, questions
-    cost, own = Decimal(need["project_cost"]), Decimal(need["own_funds"])
+    cost, own = Decimal(need["project_cost"]), Decimal(need.get("own_funds") or "0.00")
     if cost <= 0 or own >= cost:
         return None, [{"field": "need.own_funds", "code": "invalid_project_funding", "question": "Стоимость проекта должна быть положительной, а собственный взнос — меньше стоимости. Если своих денег хватает, кредит не нужен."}]
-    grace = need.get("principal_grace_months")
+    grace = need.get("principal_grace_months") if need.get("principal_grace_months") is not None else 0
     if type(grace) is not int or grace not in GRACE_MONTHS:
         return None, [{"field": "need.principal_grace_months", "code": "grace_required", "question": "Выберите отсрочку основного долга: без отсрочки, 3 или 6 месяцев. Проценты платятся ежемесячно."}]
     return {"project_cost": f"{cost:.2f}", "own_funds": f"{own:.2f}", "loan_amount": f"{cost - own:.2f}",
@@ -54,9 +56,6 @@ def assess_investment(application, checks, *, calculated_at, stage="final", asse
     project, questions = project_values(need)
     if need.get("purpose") != "investment" or need.get("preferred_product") != PRODUCT:
         questions.append({"field": "need.preferred_product", "code": "investment_product_required", "question": "Выберите инвестиционный кредит для финансирования проекта."})
-    minimum_own = (Decimal(project["project_cost"]) * MINIMUM_OWN_SHARE).quantize(Decimal("0.01"), rounding=ROUND_CEILING) if project else None
-    if project and Decimal(project["own_funds"]) < minimum_own:
-        questions = [{"field": "need.own_funds", "code": "own_contribution_required", "question": f'Для проекта нужен собственный взнос от {minimum_own:.2f} ₽ (20%). Уточните, сможете ли его внести.'}]
     if project and need.get("requested_amount") != project["loan_amount"]:
         questions.append({"field": "need.requested_amount", "code": "project_amount_mismatch", "question": "Сумма кредита должна равняться стоимости проекта за вычетом собственных средств. Сохраните параметры проекта заново."})
     if questions:
@@ -97,7 +96,7 @@ def assess_investment(application, checks, *, calculated_at, stage="final", asse
         if not offers and (assessment["outcome"] in ("approved", "conditional_approval", "alternative_offers") or
                            any(item["field"] == "need.minimum_acceptable_amount" for item in assessment["required_information"])):
             assessment.update(outcome="needs_information", required_information=[{"field": "need.own_funds", "code": "project_funding_gap",
-                "question": "Полная сумма проекта не укладывается в доступный платёж. Увеличьте собственный взнос или уменьшите стоимость проекта."}],
+                "question": "Полная сумма проекта не проходит ограничения суммы или платежа. Можно уменьшить стоимость проекта или добавить собственные средства, чтобы сократить сумму кредита."}],
                 reasons=[{"code": "project_funding_gap", "message": "Не предлагаем меньший кредит, который не покроет стоимость проекта."}])
     return InvestmentResult(result)
 

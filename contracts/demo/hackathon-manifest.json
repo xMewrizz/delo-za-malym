@@ -1,27 +1,27 @@
 {
   "schema_version": 1,
-  "prepared_at": "2026-10-25T16:34:44.074084+03:00",
+  "prepared_at": "2026-10-25T12:00:00+03:00",
   "company": "ООО «Север»",
   "contexts": {
-    "manual": "16e8c09b-d60b-4f0b-9a38-ff06023a9717",
-    "assistant": "89582ef6-0950-4a6a-b632-91910ce72f9e"
+    "manual": "cc8f5e38-8ed2-4654-9872-06f1aa2d7b08",
+    "assistant": "89c3370e-f5d0-40c8-9066-ba1f5362106c"
   },
   "applications": {
-    "repaid_loan": "3bfa6a29-3ce7-41f0-adb3-f58396cae50c",
-    "refinanced_original": "91408f9d-6335-454f-a44a-fa081cb40504",
-    "working_capital": "d1e7a05f-428f-4d1f-8e6c-b858960dfa62",
-    "credit_line": "1cd5d359-d930-4505-8b9e-b708ffd7cf67",
-    "investment": "847cce99-1239-4aed-9bb9-f2bde27a48c5",
-    "refinancing": "3819eba4-8609-4655-bdf3-94eadee08952",
-    "overdraft": "c7ce56e9-3a4e-40ad-8ec3-a454d013db57",
-    "ready_to_sign": "9b69e426-d3c8-42ee-91b9-8b76ffece6ae",
-    "needs_contribution": "e7430e3a-5781-451b-9533-67d8e4231c44",
-    "manual": "16e8c09b-d60b-4f0b-9a38-ff06023a9717",
-    "assistant": "89582ef6-0950-4a6a-b632-91910ce72f9e",
-    "offers_ready": "c50c72c1-a3b0-4c43-bc9a-59dbdf752361",
-    "cancelled_project": "a62ede67-071a-4230-a64f-ee604d19b4bc"
+    "repaid_loan": "bd485cdf-ada1-4c44-a6b9-2f28cd2fa078",
+    "refinanced_original": "bdf7acbc-2204-4f56-91d4-542a34c43de2",
+    "working_capital": "45401231-0b7f-4e02-bde8-b56891a4bb95",
+    "credit_line": "6fdc27e9-1343-481c-b122-034a47a404ec",
+    "investment": "d72d8aa7-2b86-4af4-b593-ff4b15827ed7",
+    "refinancing": "1366142f-13ff-4b2e-a6cf-d0b5d74e9e3f",
+    "overdraft": "f2b82d67-9409-43e7-90cc-3c69eaee7d8c",
+    "ready_to_sign": "f8201d6a-2357-45cb-a616-7015569579b1",
+    "needs_contribution": "321be86a-989c-4da2-ab5c-c577a1a314eb",
+    "manual": "cc8f5e38-8ed2-4654-9872-06f1aa2d7b08",
+    "assistant": "89c3370e-f5d0-40c8-9066-ba1f5362106c",
+    "offers_ready": "5e282639-a068-4f28-bced-cb5c50be1fad",
+    "cancelled_project": "0b51e794-63a5-4cb8-acc3-8181de06d1e9"
   },
-  "chat_id": "68add97a-282b-41dc-9036-93ac22c0a6e1",
+  "chat_id": "4820ec44-df6d-4f23-8881-494ae4de60fc",
   "summary": {
     "applications": 13,
     "cash_balance": "1359976.99",

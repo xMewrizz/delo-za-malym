@@ -17,7 +17,7 @@ from .checks import parse_timestamp, validate_external_checks
 class WorkingCapitalPolicy:
     version: str = "demo-v1"
     minimum_amount: Decimal = Decimal("100000.00")
-    maximum_amount: Decimal = Decimal("5000000.00")
+    maximum_amount: Decimal = Decimal("100000000.00")
     amount_step: Decimal = Decimal("10000.00")
     terms: tuple[int, ...] = (6, 12, 18, 24, 36)
     annual_rate_percent: str = "24.00"
@@ -311,7 +311,16 @@ def _assess_application(
                        if (candidate := _maximum_affordable(amount, candidate_term, metrics.available_monthly_payment, policy))
                        is not None and candidate.amount < amount]
         if reduced:
-            return finish("needs_information", "reduced_amount_requires_confirmation", "Нужно подтвердить достаточность меньшей суммы.", fields=(
+            affordable = [candidate for candidate_term in policy.terms
+                          if (candidate := _maximum_affordable(amount, candidate_term, metrics.available_monthly_payment, policy)) is not None]
+            maximum = max(candidate.amount for candidate in affordable)
+            money = lambda value: f"{value:,.2f}".replace(",", " ").removesuffix(".00").replace(".", ",")
+            limits = (f"Запрошено {money(amount)} ₽. Максимум этого продукта — {money(policy.maximum_amount)} ₽. "
+                      if amount > policy.maximum_amount else f"Запрошено {money(amount)} ₽. ")
+            message = (limits + f"С учётом доходов, расходов и действующих обязательств доступно до {money(maximum)} ₽ на допустимых сроках. "
+                       f"Доступная нагрузка — {money(metrics.available_monthly_payment)} ₽ в месяц. "
+                       "Остаток денег на счёте сам по себе не определяет лимит кредита.")
+            return finish("needs_information", "reduced_amount_requires_confirmation", message, fields=(
                 CalculationIssue("need.minimum_acceptable_amount", "minimum_acceptable_amount_required",
                                  "Какая минимальная сумма кредита решит вашу задачу с учётом собственных средств?"),))
     return finish("declined", "no_eligible_offer", "В реализованном каталоге первого продукта нет допустимых условий для этой задачи.")

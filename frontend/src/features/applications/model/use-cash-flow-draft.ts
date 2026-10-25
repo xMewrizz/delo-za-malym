@@ -36,7 +36,6 @@ export function useCashFlowDraft(view: ApplicationView, seedRows = false) {
       automaticPeriod: readSaved(periodModeKey, merged.automaticPeriod),
       rows: merged.rows.length || !seedRows ? merged.rows : [
         { id: crypto.randomUUID(), date: initial.start, direction: "outflow" as const, amount: "", loanId: "" },
-        { id: crypto.randomUUID(), date: initial.end, direction: "inflow" as const, amount: "", loanId: "" },
       ],
       openingCash: bankCash || "0.00",
     },

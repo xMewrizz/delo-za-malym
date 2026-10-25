@@ -132,6 +132,11 @@ def check_case(case, before, view):
         issues.append("debt_confirmed_without_user_consent")
     if expected.get("question") and not (view.get("clarification") or view["chat"]["messages"][-1].get("question")):
         issues.append("missing_clarification")
+    clarification = (view.get("clarification") or {}).get("field")
+    if "clarification_field" in expected and clarification != expected["clarification_field"]:
+        issues.append(f"clarification_field: expected {expected['clarification_field']!r}, got {clarification!r}")
+    if clarification in expected.get("forbidden_clarification_fields", []):
+        issues.append(f"stale_clarification:{clarification}")
     text = view["chat"]["messages"][-1]["text"].lower().replace("ё", "е")
     for phrase in expected.get("forbidden_phrases", []):
         if phrase in text:

@@ -24,9 +24,12 @@ def is_workflow_question(text):
 
 
 def workflow_help(text, context):
+    need = effective_need(context)
+    if (need.get("purpose") == "investment" or need.get("preferred_product") == "investment_loan") and re.search(
+        r"обязательн.{0,30}(?:вкладыва|взнос|свои)|можно.{0,35}(?:всю|полную).{0,20}(?:стоимость|сумму).{0,20}кредит", text.casefold()):
+        return "Собственный взнос необязателен: можно проверить кредит на полную стоимость проекта. Сумма зависит от правил продукта и доступной нагрузки бизнеса. Если полного финансирования не хватит, собственные средства помогут уменьшить нужный кредит; заранее вкладывать 20% не требуется."
     if not is_workflow_question(text):
         return None
-    need = effective_need(context)
     pending = any(item.get("status") == "pending" for item in context.get("previous_proposals", []))
     clarification = context.get("clarification") or {}
     summary = []

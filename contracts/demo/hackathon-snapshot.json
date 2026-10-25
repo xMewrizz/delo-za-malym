@@ -3,7 +3,7 @@
   "captured_on": "2026-10-25",
   "source": "curated synthetic business history through normal application services",
   "generation_command": "python -m scripts.build_submission_snapshot --date 2026-10-25",
-  "sha256": "d0b03d4bb43ff2a04438f2962f2228eefe52fc263f37789d8f7a74e685432f90",
+  "sha256": "32c4cb2a8fd69b21cb42690e9bfdb395ca3c85f046c03c9420cbb8ec3ece0dd1",
   "size_bytes": 991232,
   "counts": {
     "applications": 13,

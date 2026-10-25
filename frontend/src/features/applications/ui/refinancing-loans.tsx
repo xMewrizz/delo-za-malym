@@ -10,7 +10,7 @@ import { productName } from "../model/presentation";
 export function RefinancingLoans({ view, selected, onChange }: {
   view: ApplicationView; selected: string[]; onChange: (ids: string[]) => void;
 }) {
-  const loans = (view.application.financials.existing_loans || []).filter(loan => loan.is_commitment !== true);
+  const loans = (view.application.financials.existing_loans || []).filter(loan => loan.is_commitment !== true && Number(loan.outstanding_principal || 0) > 0);
   const chosen = loans.filter(loan => selected.includes(loan.loan_id));
   return <section className="space-y-4 rounded-2xl border border-border p-4" aria-label="Кредиты для рефинансирования">
     <h3 className="font-bold">Какие кредиты хотите заменить?</h3>

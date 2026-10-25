@@ -64,21 +64,17 @@ def next_clarification(chat, record, now, *, respect_conversation=True):
         description += "Здесь нужна вся сумма предстоящего платежа, включая ту часть, которую оплатите своими деньгами."
         update = ({"transactions": [{"transaction_id": transaction_id, "amount": amount}]} if transaction_id else
                   {"_new_expense_amount": amount})
-        return card(field, "Какой платёж нужно закрыть?", [
+        return card(field, "Какие расходы ожидаются до поступления денег?", [
             choice("use_known_amount", f"Платёж тоже {display_amount(amount)} ₽", plan_update=update)],
             input_type="money", direction="outflow", transaction_id=transaction_id,
-            description=description, input_label="Полная сумма платежа, ₽")
+            description=description, input_label="Предстоящие расходы, ₽")
 
     if need.get("purpose") == "investment" or need.get("preferred_product") == "investment_loan":
         if not need.get("project_cost"):
             return card("need.project_cost", "Сколько стоит весь проект или оборудование?", input_type="money")
-        if need.get("own_funds") is None:
-            return card("need.own_funds", "Какую сумму вложите сами? Нужно не менее 20% стоимости проекта.", input_type="money")
-        if need.get("principal_grace_months") is None:
-            return card("need.principal_grace_months", "Нужна отсрочка основного долга? Проценты платятся ежемесячно.", [
-                choice("none", "Без отсрочки", {"need.principal_grace_months": 0}),
-                choice("three", "3 месяца", {"need.principal_grace_months": 3}),
-                choice("six", "6 месяцев", {"need.principal_grace_months": 6})])
+        if need.get("term_months") is None:
+            return card("need.term_months", "На какой срок нужен кредит?", [
+                choice(str(months), f"{months} мес.", {"need.term_months": months}) for months in (12,24,36,48,60)])
         return None
 
     if plan:
@@ -127,6 +123,13 @@ def next_clarification(chat, record, now, *, respect_conversation=True):
         return None
 
     if need.get("purpose") is None:
+        purchase = " ".join(message["text"] for message in chat["messages"] if message["role"] == "user").lower()
+        if re.search(r"ноутбук|монитор|компьютер|оборудован|станок|станк", purchase):
+            amount = need.get("requested_amount") or need.get("project_cost")
+            return card("need.purpose", "Для чего покупаете оборудование?", [
+                choice("resale", "Для перепродажи — это товар", {"need.purpose":"working_capital", "need.preferred_product":"working_capital_loan", "need.financing_pattern":"gradual_repayment", "need.project_cost":None}),
+                choice("business_use", "Для работы своего бизнеса", {"need.purpose":"investment", "need.preferred_product":"investment_loan", **({"need.project_cost":amount} if amount else {})})],
+                description="От этого зависит продукт. Уже названную сумму сохраняем.")
         return card("need.purpose", "Для какой задачи нужны деньги?", [
             choice("purchase", "Закупить товар или сырьё", {"need.purpose": "working_capital"}),
             choice("cash_gap", "Заплатить до поступления денег", {"need.purpose": "working_capital", "need.financing_pattern": "cash_gap"})])

@@ -94,7 +94,7 @@ export function FinancingPortfolio() {
   const debt = sumDisplayAmounts(active.map(product => ({ amount: product.principal || "0" })));
   const available = sumDisplayAmounts(active.filter(product => product.kind === "limit").map(product => ({ amount: product.available || "0" })));
   const nextDate = active.map(product => product.nextPayment?.date).filter((value): value is string => Boolean(value)).sort()[0];
-  const nextAmount = sumDisplayAmounts(active.filter(product => product.nextPayment?.date === nextDate).map(product => ({ amount: product.nextPayment!.amount })));
+  const nextAmount = sumDisplayAmounts(active.filter(product => nextDate && product.nextPayment?.date === nextDate).map(product => ({ amount: product.nextPayment!.amount })));
   const tabs = [
     { id: "all", label: "Все активные", count: active.length },
     { id: "loan", label: "Кредиты", count: active.filter(product => product.kind === "loan").length },

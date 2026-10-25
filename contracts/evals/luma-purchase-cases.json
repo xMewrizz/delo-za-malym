@@ -1,0 +1,191 @@
+{
+  "calculated_at": "2026-10-26T10:00:00+03:00",
+  "cases": [
+    {
+      "id": "ambiguous_laptops",
+      "text": "Хочу купить ноутбуков на 2 ляма",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "2000000.00"
+        },
+        "clarification_field": "need.purpose",
+        "forbidden_phrases": [
+          "20%",
+          "400 000",
+          "обязательный взнос"
+        ]
+      }
+    },
+    {
+      "id": "laptops_resale",
+      "text": "Хочу закупить ноутбуки для перепродажи на 2 миллиона рублей. Кредит на два года, возврат ежемесячно.",
+      "expect": {
+        "changes": {
+          "need.purpose": "working_capital",
+          "need.requested_amount": "2000000.00",
+          "need.term_months": 24
+        },
+        "forbidden_clarification_fields": [
+          "need.own_funds",
+          "need.requested_amount"
+        ]
+      }
+    },
+    {
+      "id": "laptops_for_staff",
+      "text": "Нужен кредит на ноутбуки для сотрудников офиса: вся покупка стоит 2 миллиона, своих денег не вкладываю. На два года, без отсрочки.",
+      "expect": {
+        "changes": {
+          "need.purpose": "investment",
+          "need.project_cost": "2000000.00",
+          "need.own_funds": "0.00",
+          "need.term_months": 24
+        },
+        "forbidden_clarification_fields": [
+          "need.own_funds",
+          "need.requested_amount"
+        ],
+        "forbidden_phrases": [
+          "минимальный взнос",
+          "не менее 20%"
+        ]
+      }
+    },
+    {
+      "id": "investment_no_own",
+      "need": {
+        "purpose": "investment",
+        "preferred_product": "investment_loan",
+        "project_cost": "2000000.00",
+        "requested_amount": "2000000.00",
+        "term_months": 24
+      },
+      "text": "Не хочу вкладывать свои деньги, нужна вся сумма в кредит.",
+      "expect": {
+        "changes": {
+          "need.own_funds": "0.00"
+        },
+        "not_changed": [
+          "need.project_cost",
+          "need.term_months"
+        ],
+        "forbidden_clarification_fields": [
+          "need.own_funds",
+          "need.requested_amount"
+        ],
+        "forbidden_phrases": [
+          "минимальный взнос",
+          "не менее 20%"
+        ]
+      }
+    },
+    {
+      "id": "investment_term_only",
+      "need": {
+        "purpose": "investment",
+        "preferred_product": "investment_loan",
+        "project_cost": "2000000.00",
+        "requested_amount": "2000000.00",
+        "term_months": null
+      },
+      "text": "Давайте на два года",
+      "expect": {
+        "changes": {
+          "need.term_months": 24
+        },
+        "not_changed": [
+          "need.project_cost",
+          "need.requested_amount"
+        ],
+        "forbidden_clarification_fields": [
+          "need.requested_amount",
+          "need.own_funds"
+        ]
+      }
+    },
+    {
+      "id": "project_with_voluntary_own",
+      "text": "Инвестиционный кредит на оборудование. Проект стоит 3 миллиона, миллион вкладываю сам, кредит нужен на 2 миллиона на 36 месяцев, без отсрочки.",
+      "expect": {
+        "changes": {
+          "need.project_cost": "3000000.00",
+          "need.own_funds": "1000000.00",
+          "need.requested_amount": "2000000.00",
+          "need.term_months": 36
+        }
+      }
+    },
+    {
+      "id": "ambiguous_monitors",
+      "text": "Нужно купить мониторы на 1,2 миллиона рублей. Хочу оформить кредит.",
+      "expect": {
+        "changes": {
+          "need.requested_amount": "1200000.00"
+        },
+        "clarification_field": "need.purpose"
+      }
+    },
+    {
+      "id": "equipment_own_question",
+      "need": {
+        "purpose": "investment",
+        "preferred_product": "investment_loan",
+        "project_cost": "2000000.00",
+        "requested_amount": "2000000.00",
+        "term_months": 24
+      },
+      "text": "Обязательно вкладывать свои деньги или можно взять всю стоимость в кредит?",
+      "expect": {
+        "no_changes": true,
+        "forbidden_phrases": [
+          "минимальный взнос 20",
+          "обязателен взнос",
+          "не менее 20%"
+        ],
+        "required_any_phrases": [
+          [
+            "необяз",
+            "не обяз",
+            "можно",
+            "полную стоимость"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "resale_not_investment",
+      "need": {
+        "purpose": "working_capital",
+        "requested_amount": "2000000.00",
+        "term_months": 24
+      },
+      "text": "Да, ноутбуки пойдут на перепродажу, это товар для магазина.",
+      "expect": {
+        "not_changed": [
+          "need.purpose",
+          "need.requested_amount",
+          "need.term_months"
+        ],
+        "forbidden_clarification_fields": [
+          "need.own_funds",
+          "need.project_cost"
+        ]
+      }
+    },
+    {
+      "id": "investment_full_cost_request",
+      "text": "Нужен инвестиционный кредит на оборудование за 500 тысяч рублей на три года. Без отсрочки.",
+      "expect": {
+        "changes": {
+          "need.project_cost": "500000.00",
+          "need.requested_amount": "500000.00",
+          "need.term_months": 36
+        },
+        "forbidden_clarification_fields": [
+          "need.own_funds",
+          "need.requested_amount"
+        ]
+      }
+    }
+  ]
+}

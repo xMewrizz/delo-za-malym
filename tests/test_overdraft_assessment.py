@@ -44,6 +44,26 @@ class OverdraftAssessmentTests(unittest.TestCase):
         self.assertEqual(offer["max_debt_days"], 60)
         self.assertTrue(result.overdraft_calculation.feasible)
 
+    def test_limit_is_derived_from_plan_when_not_entered(self):
+        self.application["need"]["requested_amount"] = None
+        before=deepcopy(self.application)
+        result=self.assess()
+        self.assertEqual(result.assessment["outcome"], "approved")
+        self.assertTrue(result.overdraft_calculation.feasible)
+        amount=Decimal(result.assessment["offers"][0]["amount"])
+        self.assertGreaterEqual(amount,result.overdraft_calculation.required_limit)
+        self.assertLess(amount,result.overdraft_calculation.required_limit+Decimal("10000"))
+        self.assertEqual(self.application,before)
+
+    def test_unknown_receipts_do_not_invent_repayment(self):
+        self.application["need"]["requested_amount"] = None
+        plan=self.application["product_details"]["overdraft"]
+        plan["transactions"]=[row for row in plan["transactions"] if row["direction"]=="outflow"]
+        result=self.assess()
+        self.assertFalse(result.assessment["offers"])
+        self.assertIn(result.assessment["outcome"],("needs_information","out_of_policy"))
+        self.assertFalse(any(item["field"]=="need.requested_amount" for item in result.assessment["required_information"]))
+
     def test_smaller_limit_is_only_offered_when_same_plan_fits(self):
         self.application["need"]["requested_amount"] = "500000.00"
         result = self.assess()

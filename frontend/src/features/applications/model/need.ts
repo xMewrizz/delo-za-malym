@@ -114,7 +114,6 @@ export function buildNeedChanges(draft: NeedDraft): Record<string, unknown> {
     try { projectCost = normalizeMoneyInput(draft.projectCost || ""); }
     catch (cause) { throw new NeedValidationError("projectCost", (cause as Error).message); }
     if (!projectCost) throw new NeedValidationError("projectCost", "Укажите стоимость проекта.");
-    if (!draft.ownFunds.trim()) throw new NeedValidationError("ownFunds", "Укажите собственный взнос.");
     if (Number(money("ownFunds", true)) >= Number(projectCost)) throw new NeedValidationError("ownFunds", "Собственный взнос должен быть меньше стоимости проекта.");
   }
   if (!investment && draft.amountFlexibility !== "exact" && draft.requestedAmount.trim() && draft.minimumAmount.trim() && Number(money("minimumAmount")) > Number(money("requestedAmount"))) {

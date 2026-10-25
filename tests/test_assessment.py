@@ -43,6 +43,25 @@ class AssessmentTests(unittest.TestCase):
         self.assertEqual(assessment["outcome"], "approved")
         self.assertEqual(assessment["offers"][0]["monthly_payment"], "47279.80")
 
+    def test_reduced_amount_explains_product_limit_and_capacity(self):
+        self.application["need"].update(requested_amount="150000000.00",minimum_acceptable_amount=None)
+        result=self.assess()
+        self.assertEqual(result.assessment["outcome"],"needs_information")
+        reason=result.assessment["reasons"][0]["message"]
+        self.assertIn("150 000 000",reason)
+        self.assertIn("100 000 000",reason)
+        self.assertIn("Доступная нагрузка",reason)
+        self.assertEqual(result.assessment["offers"],[])
+
+    def test_larger_business_can_receive_a_hundred_million(self):
+        self.application["need"].update(requested_amount="100000000.00",term_months=36)
+        for row in self.application["financials"]["monthly"]:
+            for key in ("operating_inflow","operating_outflow","taxes"):
+                row[key]=f"{Decimal(row[key])*100:.2f}"
+        result=self.assess()
+        self.assertEqual(result.assessment["outcome"],"approved")
+        self.assertEqual(result.assessment["offers"][0]["amount"],"100000000.00")
+
     def test_medium_risk_requires_guarantee(self):
         self.application["need"]["requested_amount"] = "500000.00"
         self.checks["credit_history"]["category"] = "no_history"

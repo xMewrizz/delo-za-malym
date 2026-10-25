@@ -37,7 +37,7 @@ describe("resume an application that needs information",()=>{
   });
   it("validates the contribution before saving and submits the new version only after a successful save",async()=>{
     const t=await setup();try{
-      await t.click("Уточнить взнос и стоимость");await t.click("Сохранить и отправить на проверку");
+      await t.click("Уточнить взнос и стоимость");await t.fill("followup-own","500 000");await t.click("Сохранить и отправить на проверку");
       expect(t.actions.save).not.toHaveBeenCalled();
       expect(t.host.querySelector("#followup-own")?.getAttribute("aria-invalid")).toBe("true");
       expect(document.activeElement?.id).toBe("followup-own");

@@ -191,7 +191,7 @@ class Showcase:
         # Pending examples are calculated only after the final portfolio is known.
         self.ready(self.create("ready_to_sign", "working_capital_loan", "100000.00", 12))
         waiting = self.create("needs_contribution", "investment_loan", None, 36,
-            need={"purpose": "investment", "project_cost": "500000.00", "own_funds": "50000.00", "principal_grace_months": 0})
+            need={"purpose": "investment", "project_cost": "30000000.00", "own_funds": "50000.00", "principal_grace_months": 0})
         waiting = self.process.submit(waiting["application"]["application_id"], waiting["application"]["application_version"])
         assert waiting["state"]["status"] == "waiting_for_data", waiting["state"]
         manual = self.create("manual", "working_capital_loan", "330000.00", 24)

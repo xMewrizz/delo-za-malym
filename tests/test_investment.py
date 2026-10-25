@@ -80,9 +80,9 @@ class InvestmentTests(unittest.TestCase):
             self.assertEqual(len(offer["schedule"]), offer["term_months"])
             self.assertEqual(Decimal(offer["monthly_payment"]), max(Decimal(row["total_payment"]) for row in offer["schedule"]))
 
-    def test_missing_project_or_small_contribution_requests_specific_information(self):
-        for changes, field in (({"project_cost": None}, "need.project_cost"), ({"own_funds": "100000.00"}, "need.own_funds"),
-                               ({"principal_grace_months": None}, "need.principal_grace_months"), ({"own_funds": "1000000.00"}, "need.own_funds")):
+    def test_missing_or_invalid_project_requests_specific_information(self):
+        for changes, field in (({"project_cost": None}, "need.project_cost"), ({"own_funds": "bad"}, "need.own_funds"),
+                               ({"principal_grace_months": 2}, "need.principal_grace_months"), ({"own_funds": "1000000.00"}, "need.own_funds")):
             with self.subTest(changes=changes):
                 view = self.action(self.create(**changes), "explorations", product_id="investment_loan")
                 result = view["explorations"][-1]["result"]
@@ -101,12 +101,15 @@ class InvestmentTests(unittest.TestCase):
         self.assertEqual(result["assessment"]["offers"], [])
         self.assertEqual(result["assessment"]["required_information"][0]["field"], "need.own_funds")
 
-    def test_minimum_contribution_rounds_up_to_an_achievable_kopeck(self):
-        view = self.action(self.create(project_cost="1000000.01"), "explorations", product_id="investment_loan")
-        question = view["explorations"][-1]["result"]["required_information"][0]
-        self.assertIn("200000.01", question["question"])
-        view = self.action(self.create(project_cost="1000000.01", own_funds="200000.01"), "explorations", product_id="investment_loan")
-        self.assertTrue(view["explorations"][-1]["result"]["options"])
+    def test_own_funds_are_optional_and_amount_keeps_kopecks(self):
+        for own in (None, "0.00", "100000.00", "200000.01"):
+            with self.subTest(own=own):
+                view=self.create(project_cost="1000000.01",own_funds=own,principal_grace_months=None)
+                expected=f"{Decimal('1000000.01')-Decimal(own or '0'):.2f}"
+                self.assertEqual(view["application"]["need"]["requested_amount"],expected)
+                view=self.action(view,"explorations",product_id="investment_loan")
+                self.assertTrue(view["explorations"][-1]["result"]["options"])
+                self.assertTrue(all(offer["amount"]==expected for offer in view["explorations"][-1]["result"]["options"]))
 
     def test_issue_schedule_calendar_and_next_application_use_same_debt(self):
         view = self.action(self.create(), "submit", confirmed=True)
@@ -143,8 +146,7 @@ class InvestmentTests(unittest.TestCase):
         view = self.create(project_cost=None, own_funds=None, principal_grace_months=None)
         chat = self.client.post("/api/chats", json={"application_id": view["application"]["application_id"]}).json()
         path = "/api/chats/" + chat["chat"]["chat_id"]
-        for field, answer in (("need.project_cost", {"value": "1000000"}), ("need.own_funds", {"value": "200000"}),
-                              ("need.principal_grace_months", {"choice_id": "three"})):
+        for field, answer in (("need.project_cost", {"value": "1000000"}),):
             self.assertEqual(chat["clarification"]["field"], field)
             response = self.client.post(path + "/clarifications/" + chat["clarification"]["question_id"] + "/answer", json={
                 "base_chat_version": chat["chat"]["chat_version"], "base_application_version": chat["record"]["application"]["application_version"],
@@ -157,7 +159,7 @@ class InvestmentTests(unittest.TestCase):
             json={"base_chat_version": chat["chat"]["chat_version"], "confirmed": True})
         self.assertEqual(response.status_code, 200, response.text)
         record = response.json()["record"]
-        self.assertEqual(record["application"]["need"]["requested_amount"], "800000.00")
+        self.assertEqual(record["application"]["need"]["requested_amount"], "1000000.00")
         self.assertTrue(record["explorations"][-1]["result"]["options"])
         self.assertEqual(record["application"]["financials"], view["application"]["financials"])
 

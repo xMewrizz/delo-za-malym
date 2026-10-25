@@ -15,6 +15,7 @@ from credit_engine.investment import investment_options
 
 from . import demo
 from .imports import HEADERS, preview_csv
+from .product_rules import product_fingerprint
 from .service import EDITABLE_STATES, ProcessError, event
 
 
@@ -32,7 +33,9 @@ class ProductWorkspace:
         exploration = next((item for item in record.get("explorations", []) if item["exploration_id"] == exploration_id), None)
         if not exploration:
             raise ProcessError("exploration_not_found", "Расчёт не найден. Пересчитайте варианты.", 404)
-        if exploration["application_version"] != version or parse_timestamp(exploration["valid_until"]) <= self.process.clock():
+        if (exploration["application_version"] != version
+                or exploration["result"].get("rules_fingerprint") != product_fingerprint(exploration["product_id"])
+                or parse_timestamp(exploration["valid_until"]) <= self.process.clock()):
             raise ProcessError("exploration_stale", "Данные или условия изменились. Пересчитайте варианты.")
         option = next((item for item in exploration["result"]["options"] if item["option_id"] == option_id), None)
         if not option or option.get("product_id") != "working_capital_loan":
@@ -71,6 +74,7 @@ class ProductWorkspace:
 
     def save_exploration_record(self, record, exploration, now):
         from .penalty_terms import attach_demo_penalties
+        exploration["result"]["rules_fingerprint"] = product_fingerprint(exploration["product_id"])
         attach_demo_penalties(exploration["result"].get("options", []))
         self.process._version(record, exploration["application_version"])
         if record["state"]["status"] not in EDITABLE_STATES:
@@ -86,6 +90,8 @@ class ProductWorkspace:
                 raise ProcessError("exploration_not_found", "Расчёт не найден. Обновите подбор.", 404)
             if exploration["application_version"] != version:
                 raise ProcessError("exploration_stale", "Заявка изменилась. Пересчитайте варианты.")
+            if exploration["result"].get("rules_fingerprint") != product_fingerprint(exploration["product_id"]):
+                raise ProcessError("exploration_stale", "Правила продукта обновились. Пересчитайте варианты.")
             if parse_timestamp(exploration["valid_until"]) <= now:
                 raise ProcessError("exploration_expired", "Расчёт устарел. Обновите подбор.")
             option = next((item for item in exploration["result"]["options"] if item["option_id"] == option_id), None)

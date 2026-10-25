@@ -204,8 +204,9 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
         loan, overdraft = WorkingCapitalPolicy(), OverdraftCreditPolicy()
         from credit_engine.refinancing import POLICY as refinancing
         from credit_engine.revolving import POLICY as revolving
-        from credit_engine.investment import POLICY as investment, GRACE_MONTHS
-        return [
+        from credit_engine.investment import POLICY as investment, GRACE_MONTHS, MINIMUM_OWN_SHARE
+        from .product_rules import product_fingerprint
+        catalog = [
             {"product_id": "working_capital_loan", "name": "Кредит на оборотные цели", "policy_version": loan.version,
              "minimum_amount": str(loan.minimum_amount), "maximum_amount": str(loan.maximum_amount),
              "annual_rate_percent": loan.annual_rate_percent, "terms": list(loan.terms),
@@ -229,9 +230,10 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
             {"product_id": "investment_loan", "name": "Инвестиционный кредит", "policy_version": investment.version,
              "minimum_amount": str(investment.minimum_amount), "maximum_amount": str(investment.maximum_amount),
              "annual_rate_percent": investment.annual_rate_percent, "terms": list(investment.terms), "purpose": "investment",
-             "minimum_own_share_percent": "20.00", "principal_grace_months": list(GRACE_MONTHS),
+             "minimum_own_share_percent": f"{MINIMUM_OWN_SHARE * 100:.2f}", "principal_grace_months": list(GRACE_MONTHS),
              "minimum_business_months": investment.minimum_business_months, "history_months": 6},
         ]
+        return [{**product,"rules_fingerprint":product_fingerprint(product["product_id"])} for product in catalog]
 
     credit_lines = CreditLines(process)
     overdrafts = Overdrafts(process)

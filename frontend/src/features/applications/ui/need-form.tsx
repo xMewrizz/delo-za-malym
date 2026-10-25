@@ -4,6 +4,8 @@ import { Button } from "@/shared/ui/button";
 import { FieldOrigin } from "@/shared/ui/field-origin";
 import { originFor } from "@/shared/lib/field-source";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
+import {getProducts, type Product} from "@/features/products/api/products";
+import {formatMoney} from "@/shared/lib/format";
 import { Disclosure } from "@/shared/ui/disclosure";
 import { readSaved, useSavedDraft } from "@/shared/lib/saved-draft";
 import type { ApplicationView } from "../api/applications";
@@ -66,6 +68,19 @@ export function NeedForm({
   const refinancing = draft.purpose === "refinancing" || draft.preferredProduct === "refinancing";
   const investment = draft.purpose === "investment" || draft.preferredProduct === "investment_loan";
   const revolving = draft.preferredProduct === "revolving_credit_line";
+  const [catalog,setCatalog]=useState<Product[]>([]);
+  useEffect(()=>{
+    const abort=new AbortController();
+    void getProducts(abort.signal).then(setCatalog).catch(()=>{/* Server validates the range when the catalogue is unavailable. */});
+    return()=>abort.abort();
+  },[]);
+  const bounds=catalog.find(product=>product.product_id===(draft.preferredProduct || (draft.financingPattern==="cash_gap" ? "overdraft" : "working_capital_loan")));
+  const amountRange=bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(bounds.maximum_amount)} по правилам продукта. Доступную сумму рассчитаем по данным бизнеса.` : "Доступную сумму рассчитаем по данным бизнеса.";
+  function validateProductAmount() {
+    if(!bounds || refinancing || nextIsPlan)return;
+    const amount=investment ? Number((draft.projectCost||"0").replaceAll(" ","").replace(",","."))-Number((draft.ownFunds||"0").replaceAll(" ","").replace(",",".")) : Number(draft.requestedAmount.replaceAll(" ","").replace(",","."));
+    if(Number.isFinite(amount) && amount > Number(bounds.maximum_amount)) throw new NeedValidationError(investment ? "projectCost" : "requestedAmount",`Максимальная сумма этого продукта — ${formatMoney(bounds.maximum_amount)}. Укажите сумму в пределах диапазона.`);
+  }
   const [refinancingLoans, setRefinancingLoans] = useSavedDraft(`delo-refinancing:${view.application.application_id}:${view.application.application_version}`, refinancingIds(view));
   const nextIsPlan =
     !investment && !revolving && (draft.preferredProduct === "overdraft" || draft.financingPattern === "cash_gap");
@@ -94,6 +109,7 @@ export function NeedForm({
     try {
       if (page === 0) validateTask();
       if (page === 1) {
+        validateProductAmount();
         if (refinancing && !refinancingLoans.length) throw new Error("Выберите хотя бы один кредит.");
         if (investment) buildNeedChanges({...draft, termMonths:""});
         else if (!refinancing && !nextIsPlan) {
@@ -128,6 +144,7 @@ export function NeedForm({
     if (wizard && page < 2) { advance(); return; }
     try {
       validateTask();
+      validateProductAmount();
       const changes = buildNeedChanges(refinancing ? { ...draft, requestedAmount: "", minimumAmount: "", ownFunds: "" } : draft);
       if (wizard && !refinancing && !investment && !revolving && !nextIsPlan) validateAmountChoice(draft);
       if (!investment) { changes["need.project_cost"] = null; changes["need.principal_grace_months"] = null; }
@@ -184,7 +201,8 @@ export function NeedForm({
               onChange={(event) => set("requestedAmount", event.target.value)}
               inputMode="decimal"
               placeholder="Например, 500 000"
-              hint={nextIsPlan ? "Можно не указывать: рассчитаем нехватку по платежам и остатку на счёте." : undefined}
+              hint={nextIsPlan ? "Можно не указывать: рассчитаем нехватку по платежам и остатку на счёте." : amountRange}
+              onBlur={()=>{try{validateProductAmount();}catch(cause){setError((cause as Error).message);setErrorField("requestedAmount");}}}
             />
             <FieldOrigin
               source={originFor(view.field_sources, "need.requested_amount")}
@@ -201,8 +219,8 @@ export function NeedForm({
             {draft.amountFlexibility === "flexible" && <div className="need-minimum-field"><FormField id="need-minimum" label="Минимальная сумма, с которой задача решится, ₽" value={draft.minimumAmount} inputMode="decimal" error={fieldError("minimumAmount")} onChange={event => set("minimumAmount", event.target.value)} placeholder="Например, 300 000" hint="Ниже этой суммы предложения показывать не будем." /></div>}
           </fieldset>}
           {investment && <div hidden={wizard && page !== 1} className="need-project-fields">
-            <FormField id="need-project-cost" label="Стоимость проекта, ₽" value={draft.projectCost || ""} inputMode="decimal" error={fieldError("projectCost")} onChange={event => set("projectCost", event.target.value)} hint="Оборудование, ремонт или запуск новой точки — полная стоимость." />
-            <FormField id="need-own" label="Собственный взнос, ₽" value={draft.ownFunds} inputMode="decimal" error={fieldError("ownFunds")} onChange={event => set("ownFunds", event.target.value)} hint="От 20% стоимости проекта. Кредит покроет оставшуюся часть." />
+            <FormField id="need-project-cost" label="Стоимость проекта, ₽" value={draft.projectCost || ""} inputMode="decimal" error={fieldError("projectCost")} onChange={event => set("projectCost", event.target.value)} hint={`Полная стоимость покупки. ${amountRange}`} />
+            <FormField id="need-own" label="Собственный взнос, ₽" value={draft.ownFunds} inputMode="decimal" error={fieldError("ownFunds")} onChange={event => set("ownFunds", event.target.value)} hint="Необязательно. Можно оставить пустым — проверим финансирование всей стоимости." />
             <p className="rounded-xl bg-secondary p-4 text-sm self-end">Кредит на проект: {Math.max(0, Number((draft.projectCost || "0").replaceAll(" ", "").replace(",", ".")) - Number((draft.ownFunds || "0").replaceAll(" ", "").replace(",", "."))).toLocaleString("ru-RU")} ₽</p>
           </div>}
           {!nextIsPlan && <div hidden={wizard && page !== 2}><FormField

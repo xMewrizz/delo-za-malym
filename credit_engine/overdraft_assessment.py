@@ -4,7 +4,7 @@ from calendar import monthrange
 from collections.abc import Mapping
 from dataclasses import dataclass, replace
 from datetime import date, datetime, timedelta
-from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, localcontext
+from decimal import Decimal, ROUND_DOWN, ROUND_HALF_UP, ROUND_UP, localcontext
 from typing import Any
 from uuid import uuid4
 
@@ -195,15 +195,13 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
         elif not isinstance(value, str) or not value.strip():
             invalid.append(CalculationIssue(name, "invalid_value", "Нужна непустая строка."))
     amount = need.get("requested_amount")
-    if amount is None:
-        missing.append(CalculationIssue("need.requested_amount", "missing_value", "Укажите желаемый лимит."))
-    elif not isinstance(amount, str) or not MONEY_PATTERN.fullmatch(amount) or Decimal(amount) <= 0:
+    if amount is not None and (not isinstance(amount, str) or not MONEY_PATTERN.fullmatch(amount) or Decimal(amount) <= 0):
         invalid.append(CalculationIssue("need.requested_amount", "invalid_amount", "Нужен положительный лимит строкой с двумя знаками."))
     if invalid:
         return result("invalid_data", issues=invalid + missing)
     if missing:
         return finish("needs_information", "missing_application_data", "Нужны данные заявки.", fields=missing)
-    amount = Decimal(amount)
+    amount = Decimal(amount) if amount is not None else None
     try:
         registered = date.fromisoformat(business["registered_at"])
         if registered > now.date() or registered.isoformat() != business["registered_at"]:
@@ -254,7 +252,7 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
         return result("invalid_data", issues=scoring.issues)
     if scoring.risk_grade == "high":
         return finish("out_of_policy", "risk_grade_not_eligible", "Высокий риск не допускается этим продуктом.")
-    if amount < policy.minimum_limit:
+    if amount is not None and amount < policy.minimum_limit:
         return finish("out_of_policy", "requested_limit_below_minimum", "Запрошенный лимит ниже минимума продукта.")
 
     months = {row.month for row in metrics.monthly_cash_flow}
@@ -282,7 +280,7 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
     if details is not None and not isinstance(details, Mapping):
         return result("invalid_data", issues=(CalculationIssue("product_details", "invalid_section", "Параметры продукта должны быть объектом."),))
     scenario = details.get("overdraft") if details is not None else None
-    offered_limit = (min(amount, maximum) // policy.limit_step) * policy.limit_step
+    offered_limit = (min(amount, maximum) // policy.limit_step) * policy.limit_step if amount is not None else maximum
     calculation_policy = OverdraftPolicy(policy.annual_rate_percent, policy.max_debt_days, policy.max_scenario_days, policy.version)
     simulation = calculate_overdraft(scenario, f"{offered_limit:.2f}", policy=calculation_policy)
     scenario_issues = tuple(CalculationIssue(
@@ -292,6 +290,11 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
         return result("invalid_data", issues=scenario_issues)
     if simulation.status == "needs_information":
         return finish("needs_information", "missing_overdraft_plan", "Нужен план поступлений и расходов.", fields=scenario_issues)
+    if amount is None:
+        required = simulation.calculation.required_limit
+        steps = (required / policy.limit_step).to_integral_value(rounding=ROUND_UP)
+        offered_limit = min(maximum, max(policy.minimum_limit, steps * policy.limit_step))
+        simulation = calculate_overdraft(scenario, f"{offered_limit:.2f}", policy=calculation_policy)
     start, end = date.fromisoformat(scenario["start_date"]), date.fromisoformat(scenario["end_date"])
     if start < now.date():
         return finish("needs_information", "outdated_overdraft_plan", "Обновите план на период не раньше даты рассмотрения.", fields=(
@@ -345,7 +348,7 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
         },
         "conditions": conditions, "valid_until": (now + timedelta(days=policy.offer_valid_days)).isoformat(),
     }
-    if offered_limit != amount:
+    if amount is not None and offered_limit != amount:
         return finish("alternative_offers", "reduced_limit_covers_plan", f"Запрошено {amount:.2f} ₽; доступен лимит {offered_limit:.2f} ₽, достаточный для подтверждённого плана.", offers=(offer,))
     return finish("conditional_approval" if conditions else "approved",
                   "guarantor_required" if conditions else "requested_limit_eligible",

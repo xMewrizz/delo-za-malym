@@ -56,7 +56,7 @@ need — пожелания клиента, а не одобренные усл�
 Для рефинансирования предложи purpose=refinancing и preferred_product=refinancing. Кредиты для замены клиент отмечает в рабочей области: не проси вручную переписывать банковские остатки и графики, не выдумывай их идентификаторы. Сумму определяет система по выбранным долгам. Разницу в платеже и общей оставшейся стоимости объясняй отдельно: меньший платёж не обязательно означает экономию.
 Ты не вызываешь отправку, подпись или выдачу. Изменения сначала подтверждает клиент.
 В рефинансировании current_monthly_payment и monthly_payment_reduction сравнивают максимальную суммарную нагрузку за календарный месяц по графикам. Отдельно сравни выплаты первого месяца нового графика: comparison_month, current_payment_in_comparison_month и new_payment_in_comparison_month. Если прежний кредит имеет отсрочку, после замены ближайшие выплаты могут вырасти даже при снижении пикового платежа. Не обещай немедленного уменьшения платежа и не называй продление срока экономией без снижения всех оставшихся выплат.
-Инвестиционный кредит — purpose=investment, preferred_product=investment_loan. Для оборудования или проекта собери project_cost (полная стоимость), own_funds (собственный взнос), principal_grace_months (0/3/6, только если клиент выбрал) и срок. Сумму кредита система вычисляет как стоимость минус взнос; не приравнивай стоимость проекта к кредиту. Минимальный взнос 20%. Во время отсрочки платятся проценты, затем основной долг; отсрочка увеличивает переплату и последующий платёж. Не обещай одобрение.
+Инвестиционный кредит — purpose=investment, preferred_product=investment_loan: оборудование для работы бизнеса, развитие или явно выбранный продукт. Для перепродажи оборудование является товаром (working_capital). Если назначение покупки неясно, не выбирай продукт и цель: сохрани сумму, приложение спросит назначение. project_cost — вся стоимость; requested_amount — нужный кредит, при отсутствии взноса равен стоимости. own_funds необязателен, только явно названный взнос; отказ вкладывать свои деньги означает "0.00". Обязательных 20% нет. Собери срок; principal_grace_months 0/3/6 — только выбранная отсрочка. Отсрочка увеличивает переплату, не обещай одобрение.
 
 Возобновляемая кредитная линия — preferred_product=revolving_credit_line, purpose=working_capital. Подходит для регулярных закупок; сумма запроса здесь желаемый лимит. Выборки частями, погашение основного долга восстанавливает доступный лимит, оплата процентов его не увеличивает. Проценты начисляются на фактический долг, а не весь открытый лимит. После открытия клиент управляет выборками и платежами в «Моём финансировании» с отдельным подтверждением. Ты не выполняешь эти операции и не утверждаешь, что уже выдала деньги. Резерв нагрузки в предложении — проверка платёжеспособности всего лимита, не фиксированный платёж по договору.
 Ответь ровно одним JSON-объектом без markdown и рассуждений:
@@ -123,6 +123,25 @@ class AssistantReply(RequestModel):
     question: str | None = Field(default=None, max_length=2000)
     preferences: LoanPreferences | None = None
     overdraft_plan: OverdraftPlanUpdate | None = None
+
+    @field_validator("preferences", mode="before")
+    @classmethod
+    def canonical_preference_scalars(cls, value):
+        # Some OpenAI-compatible providers stringify canonical JSON scalars.
+        # Only lossless representations are accepted; the bounded schema still validates them.
+        if isinstance(value, dict):
+            value = dict(value)
+            # Unspecified comparison settings use their schema defaults.
+            # This does not change the underlying application.
+            for field in ("minimum_term", "maximum_term", "preserve_amount"):
+                if value.get(field) is None:
+                    value.pop(field, None)
+            for field in ("minimum_term", "maximum_term"):
+                if isinstance(value.get(field), str) and re.fullmatch(r"[1-9][0-9]{0,2}", value[field]):
+                    value[field] = int(value[field])
+            if value.get("preserve_amount") in ("true", "false"):
+                value["preserve_amount"] = value["preserve_amount"] == "true"
+        return value
 
     @field_validator("question", mode="before")
     @classmethod
@@ -516,11 +535,11 @@ need.financing_pattern: gradual_repayment/cash_gap;
 need.project_cost, need.requested_amount, need.minimum_acceptable_amount, need.own_funds: строки рублей с двумя знаками, например "150000.00";
 need.principal_grace_months: 0, 3 или 6; need.term_months: целое число месяцев, например 12; need.needed_by: строка YYYY-MM-DD;
 need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/preserve_amount.
-Инвестиционный кредит — purpose=investment, preferred_product=investment_loan. Для оборудования или проекта собери project_cost (полная стоимость), own_funds (собственный взнос), principal_grace_months (0/3/6, только если клиент выбрал) и срок. Сумму кредита система вычисляет как стоимость минус взнос; не приравнивай стоимость проекта к кредиту. Минимальный взнос 20%. Во время отсрочки платятся проценты, затем основной долг; отсрочка увеличивает переплату и последующий платёж. Не обещай одобрение.
+Инвестиционный кредит — purpose=investment, preferred_product=investment_loan: оборудование для работы бизнеса, развитие или явно выбранный продукт. Для перепродажи оборудование является товаром (working_capital). Если назначение покупки неясно, не выбирай продукт и цель: сохрани сумму, приложение спросит назначение. project_cost — вся стоимость; requested_amount — нужный кредит, при отсутствии взноса равен стоимости. own_funds необязателен, только явно названный взнос; отказ вкладывать свои деньги означает "0.00". Обязательных 20% нет. Собери срок; principal_grace_months 0/3/6 — только выбранная отсрочка. Отсрочка увеличивает переплату, не обещай одобрение.
 Покупка товара и сырья — purpose=working_capital. minimum_acceptable_amount — только если клиент явно подтвердил достаточность меньшей суммы.
 Фраза «нужны именно 500 тысяч, меньше не хватит» оставляет changes пустым, если запрос уже 500000.00: minimum_acceptable_amount не заполняй и не приравнивай к requested_amount.
 Не добавляй другие поля, например валюту, банк, комментарий или тип заёмщика.
-Не приравнивай сумму расхода или поступления к запрашиваемому кредиту. Никаких иных полей JSON."""
+Сумму отдельного расхода или поступления не приравнивай к кредиту. В запросе «хочу купить на 2 ляма» без собственного взноса requested_amount="2000000.00"; «к»/«тыс» — тысячи, «лям»/«млн» — миллионы. Известную сумму не переспрашивай. Никаких иных полей JSON."""
         application = context.get("application", {})
         pending = next((item for item in reversed(context.get("previous_proposals", [])) if item["status"] == "pending"), None)
         pending_changes = (pending or {}).get("changes", {})
@@ -565,10 +584,39 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
         except ValidationError as exc:
             logger.warning("Plan extraction rejected: validation=%s", [(error["loc"], error["type"], error["msg"]) for error in exc.errors()])
             raise AssistantResponseError("Модель вернула некорректные данные операций.") from None
-        proposed = bool(extracted.changes or extracted.overdraft_plan is not None)
+        user_text = messages[-1]["content"].lower().replace("ё", "е")
+        known = effective_need(context)
+        changes = dict(extracted.changes)
+        asset = re.search(r"ноутбук|монитор|компьютер|оборудован|станок|станк", user_text)
+        usage = re.search(r"перепродаж|на продаж|для сотрудник|для офис|для работы|для своего|для собствен|инвестицион|развити|новую точк", user_text)
+        ambiguous_asset = asset and not usage and not known.get("purpose") and not known.get("preferred_product")
+        if asset and extracted.overdraft_plan is None:
+            mentions = list(re.finditer(r"(?<![\d.,])(\d+(?:[ \u00a0\u202f]\d{3})*(?:[.,]\d{1,2})?)\s*(лям\w*|млн\.?|миллион\w*|тыс\w*|к\b|руб\w*|₽)", user_text))
+            if len(mentions) == 1 and not re.search(r"сво[июе]|взнос|собствен", user_text) and not changes.get("need.requested_amount"):
+                match = mentions[0]
+                number = Decimal(re.sub(r"[ \u00a0\u202f]", "", match[1]).replace(",", "."))
+                unit = match[2]
+                multiplier = 1000000 if unit.startswith(("лям", "млн", "миллион")) else 1000 if unit.startswith("тыс") or unit == "к" else 1
+                amount = number * multiplier
+                if Decimal("0") < amount < Decimal("1000000000000"):
+                    changes["need.requested_amount"] = f"{amount:.2f}"
+            is_investment = changes.get("need.preferred_product", known.get("preferred_product")) == "investment_loan" or changes.get("need.purpose", known.get("purpose")) == "investment"
+            if is_investment and not ambiguous_asset:
+                if re.search(r"(?:сво[июе].{0,15}(?:деньг|средств).{0,15}не вкладыва|без (?:своих|собственных)|не (?:хочу |буду )?вкладыва)", user_text):
+                    changes["need.own_funds"] = "0.00"
+                if not changes.get("need.project_cost") and not known.get("project_cost") and changes.get("need.requested_amount"):
+                    own = changes.get("need.own_funds", known.get("own_funds")) or "0.00"
+                    changes["need.project_cost"] = f"{Decimal(changes['need.requested_amount']) + Decimal(own):.2f}"
+        if ambiguous_asset and extracted.overdraft_plan is None:
+            if not changes.get("need.requested_amount") and changes.get("need.project_cost"):
+                changes["need.requested_amount"] = changes["need.project_cost"]
+            for field in ("purpose", "preferred_product", "project_cost", "own_funds", "principal_grace_months", "financing_pattern"):
+                changes.pop("need." + field, None)
+        proposed = bool(changes or extracted.overdraft_plan is not None)
         return AssistantReply(text="Собрала будущие операции. Проверьте суммы и даты в карточке." if extracted.overdraft_plan is not None else
+            "Сумму покупки учла. Это товар для перепродажи или оборудование для работы своего бизнеса?" if ambiguous_asset else
             extracted.text or "Уточните данные потребности в карточке.", intent="propose_changes" if proposed else "answer_question",
-            changes=extracted.changes, overdraft_plan=extracted.overdraft_plan, question=extracted.question)
+            changes=changes, overdraft_plan=extracted.overdraft_plan, question=extracted.question)
 
     def reply_with_tools(self, messages, *, process, record, now):
         messages = deepcopy(messages)
@@ -588,6 +636,9 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
             pending_plan = any(item["status"] == "pending" and PLAN_PATH in item["changes"]
                                for item in context.get("previous_proposals", []))
         known_need = effective_need(context)
+        if (known_need.get("preferred_product") == "investment_loan" or known_need.get("purpose") == "investment") and re.fullmatch(
+            r"(?:не хочу|не буду|не готов) вкладывать сво[июе].{0,35}(?:деньг|средств|сумм).{0,60}[.!]?|без собственных средств[.!]?", text):
+            return AssistantTurn(AssistantReply(text="Учла: собственный взнос — 0 ₽. Проверим кредит на всю стоимость проекта. Доступность определит расчёт по данным бизнеса.", intent="propose_changes", changes={"need.own_funds":"0.00"}), ())
         if guidance := workflow_help(text, context):
             return AssistantTurn(AssistantReply(text=guidance, intent="answer_question"), ())
         hypothetical = re.search(r"\bа если\b|что если|что будет|сравни", text)
@@ -598,7 +649,7 @@ need.recurring: JSON boolean; need.priority: lowest_payment/lowest_total_cost/pr
         dated_payment = re.search(r"платеж", text) and re.search(r"завтра|сегодня|через|\d{1,2}[./]\d{1,2}|\d{4}-\d{2}-\d{2}", text)
         new_operations = not hypothetical and (operation or dated_payment) and re.search(r"\d|завтра|сегодня|недел|дней|денег", text)
         calculation_request = hypothetical or re.search(r"рассчита|посчита|пересчита|калькулятор|покажи.{0,50}вариант", text)
-        need_words = re.search(r"\d|тысяч|миллион|рубл|год|месяц|сумм|срок|минимум|хватит|собствен", text)
+        need_words = re.search(r"\d|тысяч|миллион|рубл|год|месяц|сумм|срок|минимум|хватит|собствен|вкладыва|свои.{0,15}деньг|перепродаж", text)
         need_statement = re.search(r"нуж(?:ен|на|но|ны)|хочу|измени|изменить|поменяй|поправ|давай|запрос|хватит|остав", text)
         need_question = ((context.get("clarification") or {}).get("field") or "").startswith("need.")
         new_need = not calculation_request and need_words and (need_statement or need_question)

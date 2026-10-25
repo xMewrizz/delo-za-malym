@@ -35,10 +35,12 @@ function visible(element: HTMLElement) {
 }
 function button(label: string): HTMLButtonElement | undefined {
   return [...document.querySelectorAll<HTMLButtonElement>("button")].find(
-    (item) => visible(item) && ((item.getAttribute("aria-label") || item.textContent?.trim()) === label || label === "Новый подбор" && item.textContent?.trim() === "Начать новый подбор"),
+    (item) => visible(item) && ((item.getAttribute("aria-label") || item.textContent?.trim()) === label || label === "Новый подбор" && item.textContent?.trim() === "Начать новый подбор" || label === "Начать подбор" && document.querySelector('[data-fresh-selection]') && item.textContent?.trim() === "Новый подбор"),
   );
 }
 async function click(label: string) {
+  const contextsBefore=localStorage.getItem("delo-react-contexts");
+  const newManual=label==="Начать подбор" && Boolean(document.querySelector('[data-fresh-selection]'));
   if (["Закупить товар", "Дождаться выручки", "Купить оборудование", "Объединить кредиты", "Регулярные закупки"].includes(label)
     && document.querySelector(".need-progress")) await needPage(0);
   if (label === "3 месяца" && document.querySelector(".need-progress")) await needPage(2);
@@ -60,6 +62,8 @@ async function click(label: string) {
   await act(async () => {
     item!.click();
   });
+  if(newManual) await until(()=>!document.querySelector('[data-fresh-selection]') && localStorage.getItem("delo-react-contexts")!==contextsBefore,"created manual task");
+  if(label==="Новый подбор" || label==="Начать новый подбор") await until(()=>localStorage.getItem("delo-react-contexts")!==contextsBefore,"created separate task");
   // Navigation now asks explicitly whether to resume a draft. These journeys
   // continue their saved task; selection-entry tests cover both entry choices.
   if (["Получить финансирование", "С Лумой", "Подобрать продукт"].includes(label)) {
@@ -179,10 +183,20 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
         </QueryClientProvider>,
       ),
     );
-      if (resume) {
-        await until(() => button("Продолжить подбор") || button("Открыть заявку"), "saved task entry");
-        if (button("Продолжить подбор")) await click("Продолжить подбор");
-      }
+      await until(()=>document.querySelector('[data-fresh-selection]') || button("Продолжить подбор"),"new task form");
+      if (resume) await resumeManualFromApplications();
+  }
+  async function resumeManualFromApplications() {
+    const id=JSON.parse(localStorage.getItem("delo-react-contexts")||"{}").manual;
+    if(!id)return;
+    const view=await nativeFetch(`${base}/api/applications/${id}`).then(response=>response.json());
+    if(view.state?.status!=="draft")return;
+    await until(()=>[...document.querySelectorAll<HTMLButtonElement>('button')].some(item=>visible(item)&&/^Заявки/.test(item.textContent||'')),"applications entry");
+    await act(async()=>[...document.querySelectorAll<HTMLButtonElement>('button')].find(item=>visible(item)&&/^Заявки/.test(item.textContent||''))!.click());
+    await until(()=>document.querySelector(`[aria-labelledby="application-${id}"] button`),"saved draft in applications");
+    const card=document.querySelector(`[aria-labelledby="application-${id}"]`)!;
+    const resume=[...card.querySelectorAll<HTMLButtonElement>('button')].find(item=>item.textContent?.trim()==="Продолжить подбор");
+    if(resume)await act(async()=>resume.click());
   }
   it("completes a manual loan, independently collects the assistant plan and restores unsaved input", async () => {
     await render();
@@ -402,6 +416,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-amount", "600000");
     await openAssistant();
     await click("Получить финансирование");
+    await resumeManualFromApplications();
     await until(
       () =>
         (document.querySelector("#need-amount") as HTMLInputElement)?.value ===
@@ -447,6 +462,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       "Следующий вопрос ещё не отправлен",
     );
     await click("Получить финансирование");
+    await resumeManualFromApplications();
     await act(async () => {
       holdMessages = false;
       releaseMessage!();
@@ -576,6 +592,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input(`#${dates[0].id}`, date(1));
     await input(`#${amounts[0].id}`, "950000");
     await click("Продолжить");
+    await click("Поступление");
     const incomeDate = document.querySelector<HTMLInputElement>('[id^="operation-date-"]')!;
     const incomeAmount = document.querySelector<HTMLInputElement>('[id^="operation-amount-"]')!;
     await input(`#${incomeDate.id}`, date(7));
@@ -593,12 +610,11 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       .find((item) => item.parentElement?.textContent?.includes("Я учёл в расходах"));
     if (debtConfirmation) await act(async () => debtConfirmation.click());
     await click("Посмотреть подходящие предложения");
-    await until(() => document.querySelector(".exploration-settings"), "cash gap options step");
+    await until(() => document.querySelector(".exploration-option"), "cash gap options step");
     await until(() => button("Предложения")?.getAttribute("aria-current") === "step", "cash gap calculation completed");
-    expect(document.body.textContent).toContain("Рассчитаем: Овердрафт");
+    expect(document.body.textContent).toContain("Овердрафт");
     expect(document.querySelector("#compare-amount")).toBeNull();
-    const settings = document.querySelector("#compare-product")!.closest("details")!;
-    expect(settings.open).toBe(false);
+    expect(document.querySelector("#compare-product")).toBeNull();
     expect(button("Показать варианты")).toBeUndefined();
     await until(() => button("Выбрать условия"), "real overdraft options");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
@@ -948,7 +964,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await until(
       () =>
         document.body.textContent?.includes(
-          "Условия нужно обновить",
+          "Пересчитаем условия по новым данным",
         ),
       "saved changed plan",
     );

@@ -81,8 +81,7 @@ function InvestmentFollowup({view, busy, onSave, submitLabel}: {view: Applicatio
   function validate(key: "project" | "own") {
     try {
       const value = normalizeMoneyInput(values[key], key === "own");
-      if (!value) return "Укажите сумму в рублях.";
-      if (key === "own" && project > 0 && Number(value) < project * .2) return `Для этого проекта нужен взнос от ${formatMoney((Math.ceil(project * 20) / 100).toFixed(2))} — 20% стоимости.`;
+      if (!value && key !== "own") return "Укажите сумму в рублях.";
       if (key === "own" && project > 0 && Number(value) >= project) return "Взнос должен быть меньше стоимости проекта. Иначе кредит не потребуется.";
       return "";
     } catch {return "Введите сумму в рублях, например 100 000. Не больше двух знаков после запятой.";}
@@ -96,7 +95,7 @@ function InvestmentFollowup({view, busy, onSave, submitLabel}: {view: Applicatio
   }
   return <form onSubmit={submit} noValidate className="followup-investment-form">
     <fieldset disabled={busy}><FormField id="followup-project" label="Стоимость проекта, ₽" required inputMode="decimal" value={values.project} error={errors.project} onBlur={() => setErrors(current => ({...current, project: validate("project")}))} onChange={event => {setValues(current => ({...current, project: event.target.value})); setErrors({});}} hint="Полная стоимость оборудования, ремонта или новой точки."/>
-      <FormField id="followup-own" label="Ваш собственный взнос, ₽" required inputMode="decimal" value={values.own} error={errors.own} onBlur={() => setErrors(current => ({...current, own: validate("own")}))} onChange={event => {setValues(current => ({...current, own: event.target.value})); setErrors(current => ({...current, own: ""}));}} hint={project > 0 ? `Не менее ${formatMoney((Math.ceil(project * 20) / 100).toFixed(2))} — 20% стоимости проекта.` : "Не менее 20% стоимости проекта."}/></fieldset>
+      <FormField id="followup-own" label="Собственные средства, ₽" inputMode="decimal" value={values.own} error={errors.own} onBlur={() => setErrors(current => ({...current, own: validate("own")}))} onChange={event => {setValues(current => ({...current, own: event.target.value})); setErrors(current => ({...current, own: ""}));}} hint="Необязательно. Взнос уменьшает сумму кредита; сам по себе не увеличивает доступный платёж."/></fieldset>
     <div className="followup-loan-preview"><span>Сумма кредита после уточнения</span><strong>{formatMoney(Math.max(0, project - own).toFixed(2))}</strong></div>
     <Button type="submit" disabled={busy}>{busy ? "Сохраняем изменения…" : submitLabel}<ArrowRight size={17}/></Button>
   </form>;

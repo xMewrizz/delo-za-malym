@@ -300,7 +300,8 @@ class CreditProcess:
         if need.get("preferred_product") == "investment_loan" or (need.get("purpose") == "investment" and not need.get("preferred_product")):
             need.update(purpose="investment", preferred_product="investment_loan", financing_pattern="gradual_repayment", minimum_acceptable_amount=None)
             project, _ = project_values(need)
-            need["requested_amount"] = project["loan_amount"] if project else None
+            if project:
+                need["requested_amount"] = project["loan_amount"]
             application.setdefault("product_details", {}).pop("overdraft", None)
             return
         if need.get("preferred_product") != "refinancing" and need.get("purpose") != "refinancing":

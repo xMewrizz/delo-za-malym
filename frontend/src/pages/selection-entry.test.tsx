@@ -33,37 +33,37 @@ async function setup(){
  return{host,client,click,dispose:async()=>{await act(async()=>root.unmount());client.clear();host.remove();}};
 }
 describe("explicit saved selection recovery",()=>{
- it("waits for Continue before opening the old form, and offers recovery again on a fresh financing entry",async()=>{
+ it("opens a blank form and recovers an old draft only from Applications",async()=>{
   const test=await setup();try{
-   expect(test.host.textContent).toContain("Продолжить начатый подбор?");
+   expect(test.host.textContent).toContain("На что нужны деньги?");
+   expect(test.host.textContent).not.toContain("Продолжить начатый подбор?");
    expect(test.host.querySelector("[data-workspace]")).toBeNull();expect(createApplication).not.toHaveBeenCalled();
-   await test.click("Продолжить подбор");expect(test.host.querySelector('[data-workspace="saved-selection"]')).toBeTruthy();
-   await test.click("Получить финансирование");expect(test.host.querySelector("[data-workspace]")).toBeNull();
    await test.click("Заявки1");expect(test.host.querySelectorAll(".application-record")).toHaveLength(1);
    await test.click("Продолжить подбор");expect(test.host.querySelector('[data-workspace="saved-selection"]')).toBeTruthy();
+   await test.click("Получить финансирование");expect(test.host.querySelector("[data-workspace]")).toBeNull();
+   expect(test.host.textContent).toContain("На что нужны деньги?");
+   expect(createApplication).not.toHaveBeenCalled();
   }finally{await test.dispose();}
  });
- it("starts an empty, distinct selection while preserving the old draft and showing locally saved amounts",async()=>{
+ it("preserves saved draft values without putting them into the new form or creating empty server records",async()=>{
   localStorage.setItem("delo-need:saved-selection:1",JSON.stringify({requestedAmount:"410000",termMonths:"18"}));
   const fresh=fixture("new-selection");vi.mocked(createApplication).mockResolvedValue(fresh);
   const test=await setup();try{
-   expect(test.host.querySelector(".saved-selection-facts")?.textContent?.replace(/\s/g,"")).toContain("410000");
-   await test.click("Начать новый подбор");
-   expect(createApplication).toHaveBeenCalledTimes(1);
-   expect(test.host.querySelector('[data-workspace="new-selection"]')).toBeTruthy();
+   expect(test.host.querySelector<HTMLInputElement>("#need-amount")?.value).toBe("");
+   expect(createApplication).not.toHaveBeenCalled();
    expect(test.client.getQueryData(applicationKeys.detail("saved-selection"))).toEqual(old);
    expect(localStorage.getItem("delo-need:saved-selection:1")).toContain("410000");
    expect(fresh.application.need.requested_amount).toBeUndefined();
   }finally{await test.dispose();}
  });
- it("asks to resume after a long absence without resetting the saved form data",async()=>{
+ it("returns to a new entry after a long absence while preserving the saved application",async()=>{
   let now=1000;vi.spyOn(Date,"now").mockImplementation(()=>now);
   const test=await setup();try{
-   await test.click("Продолжить подбор");
+   await test.click("Заявки1");await test.click("Продолжить подбор");
    await act(async()=>window.dispatchEvent(new Event("blur")));now+=3*60*60*1000;
    await act(async()=>window.dispatchEvent(new Event("focus")));
    expect(test.host.querySelector("[data-workspace]")).toBeNull();
-   expect(test.host.querySelector(".saved-selection-entry")).toBeTruthy();
+   expect(test.host.textContent).toContain("На что нужны деньги?");
    expect(test.client.getQueryData(applicationKeys.detail("saved-selection"))).toEqual(old);
   }finally{await test.dispose();}
  });
