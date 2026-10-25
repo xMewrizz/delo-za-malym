@@ -1,45 +1,28 @@
 # Документация
 
-## Для продуктовой проверки
+## Продукт
 
-- [Обзор решения: выводы анализа, ключевые механики и ограничения](PRODUCT.md).
-- [Требования сдачи и где их проверить](SUBMISSION.md).
-- [Руководство по всем разделам кабинета](../frontend/public/project-docs/guide.md) — также доступно в приложении на `/documentation`.
+- [Задачи бизнеса и возможности кабинета](PRODUCT.md).
+- [Демонстрационный кабинет](DEMO.md).
+- [Руководство пользователя](../frontend/public/project-docs/guide.md) — также доступно на `/documentation`.
 
-## Запуск и проверка
+## Запуск
 
-- [Развёртывание из клона, Dahl, режим без ИИ и свой API](CLONE_AND_RUN.md).
+- [Установка, Docker, Dahl и собственный API](CLONE_AND_RUN.md).
 - [Локальная Gemma и переключение режимов](LLM_MODES.md).
 - [Развёртывание на VPS](technical/DEPLOYMENT.md).
-- [Тестовые сценарии](technical/SCENARIOS.md), [тесты](../tests), [Postman](../contracts/credit_process.postman_collection.json).
 
-## Как устроено решение
+## Устройство приложения
 
-- [Архитектура, диаграмма состояний и модель данных](technical/ARCHITECTURE.md).
-- [API](technical/BACKEND.md), [OpenAPI](technical/openapi.json), [контракты данных](technical/CONTRACTS.md).
-- [Финансовые показатели](technical/FINANCIAL_METRICS.md), [скоринг](technical/SCORING.md), [решение](technical/ASSESSMENT.md).
-- [Оборотный кредит](technical/FIRST_PRODUCT.md), [овердрафт](technical/OVERDRAFT.md), [линия](technical/REVOLVING_CREDIT_LINE.md), [рефинансирование](technical/REFINANCING.md), [инвестиционный кредит](technical/INVESTMENT_LOAN.md).
-- [LLM-ассистент](technical/LLM_AGENT.md), [диалог и API](technical/CHAT.md).
-- [Сторонние компоненты, модели и симуляторы](../THIRD_PARTY_NOTICES.md).
+- [Архитектура, состояния и модель данных](technical/ARCHITECTURE.md).
+- [Backend](technical/BACKEND.md), [OpenAPI](technical/openapi.json), [контракты](technical/CONTRACTS.md), [Postman](../contracts/credit_process.postman_collection.json).
+- [Финансовые показатели](technical/FINANCIAL_METRICS.md), [скоринг](technical/SCORING.md), [принятие решения](technical/ASSESSMENT.md).
+- [Оборотный кредит](technical/FIRST_PRODUCT.md), [овердрафт](technical/OVERDRAFT.md), [кредитная линия](technical/REVOLVING_CREDIT_LINE.md), [рефинансирование](technical/REFINANCING.md), [инвестиционный кредит](technical/INVESTMENT_LOAN.md).
+- [Лума и инструменты](technical/LLM_AGENT.md), [API диалога](technical/CHAT.md).
 
-## Проверки
+## Разработка
 
-- [Результаты и воспроизведение приёмки](CHECKS.md).
-- Журналы, промежуточные отчёты и технические скриншоты сохраняются локально в `reports/` и исключены из Git.
+- [Фронтенд](../frontend/README.md).
+- [Тестирование](TESTING.md), [тестовые сценарии](technical/SCENARIOS.md).
+- [Сторонние компоненты и лицензии](../THIRD_PARTY_NOTICES.md).
 - [Команда](TEAM.md).
-
-## Запуск тестов
-
-Из корня репозитория, с установленными uv и Node.js 24+:
-
-```shell
-uv sync --frozen
-uv run --frozen python -m unittest discover -s tests
-npm --prefix frontend ci
-npm --prefix frontend run check
-uv run --frozen python -m scripts.run_frontend_checks
-```
-
-Последняя команда создаёт отдельную временную базу для каждого набора UI/API-тестов.
-Не направляйте эти тесты на демонстрационный кабинет: сценарии создают и подписывают
-синтетические заявки. Для пользовательского просмотра используйте шаги из корневого README.

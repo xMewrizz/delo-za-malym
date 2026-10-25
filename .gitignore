@@ -1,5 +1,6 @@
 tmp/
 reports/
+/submission/
 __pycache__/
 *.py[cod]
 .venv/

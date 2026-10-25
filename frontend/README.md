@@ -1,6 +1,6 @@
 # Фронтенд «Дело за малым»
 
-React, TypeScript и Vite. Главная `/` — обзорный лендинг; `/project` — описание проекта и документация; `/cabinet` — рабочий кабинет:
+React, TypeScript и Vite. Главная `/` — обзорный лендинг; `/project` — описание проекта; `/documentation` — руководство и документация; `/cabinet` — рабочий кабинет:
 
 - **Обзор** — остаток, ближайший платёж и текущие заявки.
 - **Данные бизнеса** — профиль и финансовая история из API.
@@ -56,4 +56,4 @@ uv run --frozen python -m scripts.run_frontend_checks
 - `src/shared/api/client.ts` — запросы, таймауты и проверка ответов.
 - `src/styles/tokens.css`, `src/shared/ui` — тема и общие компоненты.
 
-[Архитектура](../docs/technical/FRONTEND.md) · [Что готово и что осталось](docs/ROADMAP.md).
+[Архитектура](../docs/technical/FRONTEND.md) · [Описание продукта](../docs/PRODUCT.md).
