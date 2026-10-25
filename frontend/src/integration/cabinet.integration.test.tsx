@@ -223,8 +223,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Отправить заявку");
     await until(() => button("Выбрать предложение"), "bank offers");
     await click("Выбрать предложение");
-    await until(() => button("Подписать и завершить"), "signing readiness");
-    await click("Подписать и завершить");
+    await until(() => button("Подписать договор"), "signing readiness");
+    await click("Подписать договор");
     await until(() => button("Подписать"), "signing confirmation");
     await click("Подписать");
     await until(
@@ -992,8 +992,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Отправить заявку");
     await until(() => button("Выбрать предложение"), "refinancing final offer");
     await click("Выбрать предложение");
-    await until(() => button("Подписать и завершить"), "refinancing ready");
-    await click("Подписать и завершить");
+    await until(() => button("Подписать договор"), "refinancing ready");
+    await click("Подписать договор");
     await click("Подписать");
     await until(() => document.body.textContent?.includes("Рефинансирование завершено"), "refinancing complete");
     const after = await nativeFetch(`${base}/api/profile`).then(response => response.json());
@@ -1030,7 +1030,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Проверить и отправить");
     await click("Отправить заявку");
     await click("Выбрать предложение");
-    await click("Подписать и завершить");
+    await click("Подписать договор");
     await click("Подписать");
     await until(() => document.querySelector(".application-detail-page")?.textContent?.includes("Лимит открыт"), "opened line");
     const opened = await nativeFetch(base + "/api/profile").then(response => response.json());
@@ -1091,7 +1091,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Проверить и отправить");
     await click("Отправить заявку");
     await click("Выбрать предложение");
-    await click("Подписать и завершить");
+    await click("Подписать договор");
     await click("Подписать");
     await until(async () => (await nativeFetch(`${base}/api/applications/${id}`).then(response => response.json())).completion?.product_id === "investment_loan", "investment issued");
     const view = await nativeFetch(`${base}/api/applications/${id}`).then(response => response.json());
@@ -1130,7 +1130,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Проверить и отправить");
     await click("Отправить заявку");
     await click("Выбрать предложение");
-    await click("Подписать и завершить");
+    await click("Подписать договор");
     await click("Подписать");
     await until(async () => (await nativeFetch(`${base}/api/applications/${secondId}`).then(response => response.json())).completion?.product_id === "working_capital_loan", "second loan issued");
     await act(async () => { root.unmount(); });
@@ -1174,7 +1174,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       await click("Подтвердить поручительство");
       await click("Подтвердить");
     }
-    await click("Подписать и завершить");
+    await click("Подписать договор");
     await click("Подписать");
     await until(async () => (await nativeFetch(`${base}/api/applications/${id}`).then(response => response.json())).completion?.product_id === "refinancing", "replacement completed");
     const profile = await nativeFetch(base + "/api/profile").then(response => response.json());

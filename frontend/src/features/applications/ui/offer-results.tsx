@@ -1,5 +1,5 @@
 import { PenaltyTermsNote } from "@/shared/ui/penalty-terms-note";
-import { ArrowRight, Check, Clock3, FileCheck2, ShieldCheck } from "lucide-react";
+import { ArrowRight, Check, Clock3, FileCheck2 } from "lucide-react";
 import { Link } from "react-router";
 import { formatMoney } from "@/shared/lib/format";
 import { Button } from "@/shared/ui/button";
@@ -8,6 +8,7 @@ import { ConfirmAction } from "@/shared/ui/confirm-action";
 import type { ApplicationView, Offer } from "../api/applications";
 import { describeIssue, outcomeName, productName } from "../model/presentation";
 import { completionLifecycle } from "../model/completion-lifecycle";
+import { SigningPanel } from "./signing-panel";
 
 import { InvestmentTerms } from "./investment-terms";
 import { RefinancingEffect } from "./refinancing-comparison";
@@ -263,20 +264,7 @@ export function OfferResults({
           </div>
         )}
         {selected && view.state.status === "ready_to_sign" && (
-          <div className="rounded-2xl border border-success/30 bg-success/10 p-5">
-            <p className="flex items-center gap-2 font-bold">
-              <ShieldCheck className="size-5 text-success" />
-              Предложение готово к подписанию
-            </p>
-            <ConfirmAction
-              label="Подписать и завершить"
-              title="Подписать предложение?"
-              description="Подтвердите выбранные условия. После оформления продукт появится в разделе «Моё финансирование». Операция в демо-кабинете."
-              confirmLabel="Подписать"
-              disabled={busy}
-              onConfirm={() => onSign(selected.offer_id)}
-            />
-          </div>
+          <SigningPanel offer={selected} busy={busy} onSign={onSign} />
         )}
         {view.state.status === "check_retry_pending" && (
           <p className="flex items-center gap-2 rounded-xl bg-background px-4 py-3 text-sm text-muted-foreground">
