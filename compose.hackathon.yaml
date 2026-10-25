@@ -1,0 +1,8 @@
+# Reproduce the saved cabinet, using Dahl and no local model downloads.
+# Combine with compose.demo.yaml and compose.api.yaml.
+services:
+  seed:
+    environment:
+      DEMO_SNAPSHOT_DIRECTORY: /app/contracts/demo
+  api:
+    restart: unless-stopped

@@ -1,0 +1,13 @@
+{
+  "schema_version": 1,
+  "captured_on": "2026-10-25",
+  "source": "local showcase demo cabinet",
+  "sha256": "e4583afa6f5d261a80d3c300393c4780411bbf5782bd112e657e1bee9bc9ac78",
+  "size_bytes": 1028096,
+  "counts": {
+    "applications": 13,
+    "chats": 2,
+    "documents": 2,
+    "account_payments": 2
+  }
+}

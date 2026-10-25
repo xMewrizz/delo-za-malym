@@ -1,0 +1,29 @@
+{
+  "schema_version": 1,
+  "prepared_at": "2026-10-24T19:49:57.461704+03:00",
+  "company": "ООО «Север»",
+  "contexts": {
+    "manual": "c4fba789-fce6-4c81-ba09-c81d0a2e3aad",
+    "assistant": "fce27e7c-a5e9-4f27-99dd-9c0e1f0fa1d6"
+  },
+  "applications": {
+    "refinanced_original": "2d10fce5-cd4a-471e-8261-26869a94c41d",
+    "working_capital": "b2fff530-bfb6-4f4a-9ca3-4fb60626af3c",
+    "credit_line": "2b9dc95a-f008-4dff-b195-5e72729210e7",
+    "investment": "25a61bd2-1cf2-4d47-bfdd-e3fcaf1f1d31",
+    "refinancing": "dbff8844-7d4c-49e1-b7da-f165884988fd",
+    "overdraft": "9eacc87e-9047-4254-91fb-004f8279e349",
+    "ready_to_sign": "3f32925f-38f8-4a0c-8481-8d4a205a60ef",
+    "needs_contribution": "2afe6cc4-2828-47db-8426-30c8eadc3243",
+    "manual": "c4fba789-fce6-4c81-ba09-c81d0a2e3aad",
+    "assistant": "fce27e7c-a5e9-4f27-99dd-9c0e1f0fa1d6"
+  },
+  "chat_id": "60829e6b-ce9f-4ad7-9fe7-bd4c6bc30aba",
+  "summary": {
+    "applications": 10,
+    "cash_balance": "129976.99",
+    "active_products": 5,
+    "calendar_events": 106,
+    "supplier_payments": 2
+  }
+}
