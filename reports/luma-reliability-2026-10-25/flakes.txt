@@ -1,3 +1,0 @@
-Flake detection: STABLE  (k=3, min trials=3)
-  cases 20: stable-pass 20, stable-fail 0, flaky 0, insufficient 0
-  flake rate 0.0%   mean pass@3 1.0   mean pass^3 1.0

@@ -1,7 +1,0 @@
-OK 01_overdraft_approved: assessed / approved
-OK 02_overdraft_lower_limit: assessed / alternative_offers
-OK 03_overdraft_missing_plan: assessed / needs_information
-OK 04_overdraft_repayment_unclear: assessed / needs_information
-OK 05_overdraft_guarantor: assessed / conditional_approval
-OK 06_overdraft_declined: assessed / declined
-OK 07_overdraft_check_unavailable: check_retry_pending / assessment отсутствует

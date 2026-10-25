@@ -1,2 +1,0 @@
-Trajectory check: ALL_MATCH
-  trials checked: 60, deviating: 0

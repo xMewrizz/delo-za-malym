@@ -1,7 +1,0 @@
-dark text: 9.00:1
-light text: 5.24:1
-dark line: 8.41:1
-light line: 5.36:1
-inflow sign: 14.05:1
-outflow sign: 8.79:1
-Text threshold: 4.5:1; chart line threshold: 3:1.

@@ -4,13 +4,13 @@
 https://github.com/xMewrizz/delo-za-malym
 
 Сдаваемая версия:
-https://github.com/xMewrizz/delo-za-malym/tree/submission-2026-10-25
+https://github.com/xMewrizz/delo-za-malym/tree/submission-2026-10-25-clean
 
 Обзор решения, ключевые механики и результаты проверок:
-https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25/docs/PRODUCT.md
+https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25-clean/docs/PRODUCT.md
 
 Запуск и основной сценарий проверки:
-https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25/README.md
+https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25-clean/README.md
 
 Документация, архитектура, скоринг и API:
-https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25/docs/README.md
+https://github.com/xMewrizz/delo-za-malym/blob/submission-2026-10-25-clean/docs/README.md
