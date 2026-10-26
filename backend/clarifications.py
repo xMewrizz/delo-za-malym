@@ -7,6 +7,9 @@ from hashlib import sha256
 import json
 import re
 
+from credit_engine.assessment import WorkingCapitalPolicy
+from credit_engine.revolving import POLICY as REVOLVING_POLICY
+
 from .overdraft_chat import PLAN_PATH, local_now, plan_issues, needs_repayment_inflow
 from .service import EDITABLE_STATES
 
@@ -51,6 +54,21 @@ def next_clarification(chat, record, now, *, respect_conversation=True):
 
     def display_amount(value):
         return f"{Decimal(value):,.2f}".replace(",", " ").removesuffix(".00").replace(".", ",")
+
+    def term_card():
+        if need.get("term_months") is not None:
+            return None
+        # A preference is optional. Remember an explicit request to compare terms
+        # in this conversation without inventing an application field or term.
+        skipped = any(message.get("clarification_field") == "need.term_months" and
+                      (message.get("clarification_answer") or {}).get("choice_id") == "compare_terms"
+                      for message in chat["messages"])
+        if skipped:
+            return None
+        policy = REVOLVING_POLICY if need.get("preferred_product") == "revolving_credit_line" else WorkingCapitalPolicy()
+        return card("need.term_months", "На какой срок нужны деньги?", [
+            *[choice(str(months), f"{months} мес.", {"need.term_months": months}) for months in policy.terms],
+            choice("compare_terms", "Сравнить доступные сроки")])
 
     def expense_amount_card(title, transaction_id=None):
         amount = need.get("requested_amount")
@@ -120,6 +138,8 @@ def next_clarification(chat, record, now, *, respect_conversation=True):
             return card(PLAN_PATH + ".existing_debt_payments", title, choices)
         if ordinary and need.get("requested_amount") is None:
             return card("need.requested_amount", "Сколько хотите занять?", input_type="money")
+        if ordinary:
+            return term_card()
         return None
 
     if need.get("purpose") is None:
@@ -148,7 +168,31 @@ def next_clarification(chat, record, now, *, respect_conversation=True):
         return expense_amount_card("Сколько нужно заплатить до поступления денег?")
     if need.get("requested_amount") is None:
         return card("need.requested_amount", "Сколько хотите занять?", input_type="money")
-    return None
+    return term_card()
+
+
+def align_reply_with_clarification(message, clarification):
+    """A proposed draft and its answer controls must ask the same question."""
+    if message.get("intent") != "propose_changes":
+        return
+    if message.get("mode") == "form":
+        message["question"] = clarification["title"] if clarification else None
+        message["text"] = (clarification["title"] if clarification else
+                           "Данные собраны. Проверьте запрос справа и подтвердите его, чтобы увидеть подходящие условия.")
+        return
+    if not clarification:
+        return
+    title = clarification["title"]
+    question = message.get("question")
+    text = message["text"].strip()
+    if question and question in text:
+        text = text.replace(question, title)
+    elif text.endswith("?"):
+        # Replace only the final question; retain acknowledgements and facts.
+        text = re.sub(r"(?:^|(?<=[.!?])\s+)[^.!?]*\?$", lambda match: (" " if match.start() else "") + title, text)
+    if title not in text:
+        text = text + " " + title
+    message["question"], message["text"] = title, text.strip()
 
 
 def public_clarification(card):

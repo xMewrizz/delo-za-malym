@@ -22,7 +22,7 @@ export function AssistantWorkspace({
   return (
     <div className="assistant-working-area assistant-workspace">
       <h2 ref={headingRef} tabIndex={-1} className="sr-only">Данные и предложения</h2>
-      <header className="assistant-workspace-heading"><span><LumaMark/>Запрос с Лумой</span><div className="assistant-update-status" data-busy={updating} role="status"><i aria-hidden="true"/><span>{updating ? "Обновляем запрос…" : pending ? "Есть новые данные" : "Данные синхронизированы"}</span></div></header>
+      <header className="assistant-workspace-heading"><span><LumaMark/>Ваш запрос</span><div className="assistant-update-status" data-busy={updating} role="status">{(updating || pending) && <><i aria-hidden="true"/><span>{updating ? "Обновляем…" : "Проверьте изменения"}</span></>}</div></header>
       <Tabs.Root className="assistant-workspace-tabs" value={section} onValueChange={value => onSectionChange(value as WorkspaceSection)}>
         <Tabs.List className="assistant-workspace-navigation" aria-label="Рабочая область Лумы">
           <Tabs.Trigger value="data">Данные{pending && <span className="assistant-tab-dot" aria-label="Есть неподтверждённые изменения" />}</Tabs.Trigger>

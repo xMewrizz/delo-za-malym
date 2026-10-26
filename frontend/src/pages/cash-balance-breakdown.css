@@ -1,0 +1,21 @@
+.account-history-trigger[data-slot=button]{align-self:flex-start;min-height:28px;height:auto;padding:2px 0;color:var(--primary);font-size:12px;gap:7px}
+.account-history-empty{padding:24px 0;font-size:14px;line-height:1.6;color:var(--muted-foreground)}
+.account-history-empty [data-slot=button]{margin-top:12px}
+.account-history-list{margin:0;padding:0;list-style:none}
+.account-history-list>li{display:grid;grid-template-columns:32px minmax(0,1fr) auto;align-items:center;gap:12px;padding:16px 0;border-bottom:1px solid var(--border)}
+.account-history-direction{display:grid;place-items:center;width:30px;height:30px;border-radius:8px;background:var(--secondary);color:var(--accent-foreground)}
+.account-history-direction[data-inflow=true]{background:color-mix(in srgb,var(--growth) 14%,var(--card));color:var(--foreground)}
+.account-history-list strong{display:block;font-size:13px;line-height:1.5;font-weight:600}
+.account-history-list li div>span{display:block;margin-top:4px;font-size:12px;line-height:1.5;color:var(--muted-foreground)}
+.account-history-list b{font-size:14px;font-weight:600;white-space:nowrap;font-variant-numeric:tabular-nums}
+.account-history-list b[data-inflow=true]{color:var(--accent-foreground)}
+.account-history-overlay{position:fixed;inset:0;z-index:75;background:#0009;backdrop-filter:blur(5px)}
+.account-history-dialog{position:fixed;z-index:76;top:50%;left:50%;transform:translate(-50%,-50%);width:min(780px,calc(100vw - 48px));max-height:85dvh;display:flex;flex-direction:column;background:var(--card);color:var(--foreground);border:1px solid var(--border);border-radius:var(--radius-dialog);overflow:hidden}
+.account-history-dialog>header{display:flex;align-items:flex-start;justify-content:space-between;gap:20px;padding:24px 28px;border-bottom:1px solid var(--border)}
+.account-history-dialog h2{font-size:24px;font-weight:600;line-height:1.3;letter-spacing:-.03em}
+.account-history-dialog header p{font-size:13px;line-height:1.6;color:var(--muted-foreground);margin-top:7px}
+.account-history-scroll{overflow-y:auto;overscroll-behavior:contain;padding:0 28px;min-height:0;scrollbar-gutter:stable}
+.account-history-scroll:focus-visible{outline:2px solid var(--ring);outline-offset:-3px}
+.account-history-dialog>footer{display:flex;justify-content:space-between;gap:24px;border-top:1px solid var(--border);padding:18px 28px;background:var(--background)}
+.account-history-dialog footer span{font-size:12px;line-height:1.6;color:var(--muted-foreground)}
+.account-history-dialog footer strong{display:block;margin-top:4px;font-size:17px;color:var(--foreground);font-variant-numeric:tabular-nums}

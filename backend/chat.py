@@ -10,7 +10,7 @@ from .assistant import AssistantReply, AssistantResponseError, build_messages, v
 from .models import LoanPreferences, OverdraftPlanUpdate
 from .service import EDITABLE_STATES, ProcessError
 from .overdraft_chat import PLAN_PATH, engine_plan, merge_plan, plan_issues
-from .clarifications import next_clarification, pending_proposal, public_clarification, resolve_answer
+from .clarifications import align_reply_with_clarification, next_clarification, pending_proposal, public_clarification, resolve_answer
 from scr.delo_za_malyn.Models.Llm.client import LLMContextLimit, LLMOutputLimit, LLMProtocolError, LLMRateLimit, request_budget
 
 logger = logging.getLogger(__name__)
@@ -57,6 +57,8 @@ class ChatService:
                     proposal["plan_issues"] = plan_issues(record, proposal["changes"][PLAN_PATH], self.clock(), proposal["changes"])
         pending = pending_proposal(chat)
         clarification = None if pending and self.conflicts(pending, record) else next_clarification(chat, record, self.clock())
+        if public["messages"] and pending and not self.conflicts(pending, record):
+            align_reply_with_clarification(public["messages"][-1], clarification)
         return {"chat": public, "record": self.process.public(record), "assistant": self.settings(),
                 "clarification": public_clarification(clarification)}
 
@@ -127,13 +129,14 @@ class ChatService:
             now = self.clock().isoformat()
             chat["messages"].extend([
                 {"message_id": str(uuid4()), "role": "user", "text": label, "created_at": now,
-                 "request_id": request_id, "clarification_answer": identity, "clarification_question": card["title"]},
+                 "request_id": request_id, "clarification_answer": identity, "clarification_question": card["title"],
+                 "clarification_field": card["field"]},
                 {"message_id": str(uuid4()), "role": "assistant", "text": "Учла ответ в черновике.",
                  "intent": "propose_changes", "question": None, "proposal": proposal,
                  "created_at": now, "mode": "form", "model": None, "tools": []}])
             chat["chat_version"] += 1
             following = next_clarification(chat, record, self.clock())
-            chat["messages"][-1]["question"] = following["title"] if following else None
+            align_reply_with_clarification(chat["messages"][-1], following)
             self.store.save_chat(connection, chat)
         return self._public(chat, record)
 
@@ -292,6 +295,7 @@ class ChatService:
                             message["proposal"]["status"] = "superseded"
                 current["messages"].extend([user, answer])
                 current["chat_version"] += 1
+                align_reply_with_clarification(answer, next_clarification(current, record, self.clock()))
                 self.store.save_chat(connection, current)
             record = self._record(connection, current["application_id"])
         return self._public(current, record)

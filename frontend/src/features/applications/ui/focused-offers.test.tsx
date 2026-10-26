@@ -12,6 +12,12 @@ Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const options=[6,12,18,24,36].map(term=>({option_id:`option-${term}`,offer_id:`offer-${term}`,product_id:'working_capital_loan',term_months:term,amount:'600000.00',monthly_payment:String(720000/term),annual_rate_percent:'24.00',total_repayment:'720000.00',total_interest:'120000.00',fees_total:'0.00'}));
 const view={application:{application_id:'comparison',application_version:1,need:{purpose:'working_capital',preferred_product:'working_capital_loan',requested_amount:'600000.00'},financials:{existing_loans:[]}},explorations:[{exploration_id:'explore',application_version:1,product_id:'working_capital_loan',result:{status:'options_ready',options}}]} as unknown as ApplicationView;
 describe('compact comparison in manual selection and Luma',()=>{
+ it('does not open stale details or comparison while conditions are recalculated',()=>{
+  const markup=renderToStaticMarkup(<FocusedOffers view={view} explorationId="explore" options={options} busy comparison={['option-6','option-12']} onComparison={vi.fn()} onApply={vi.fn()}/>);
+  const host=document.createElement('div');host.innerHTML=markup;
+  expect(host.querySelector<HTMLButtonElement>('[aria-label="Подробнее: 12 мес."]')?.disabled).toBe(true);
+  expect([...host.querySelectorAll('button')].find(item=>item.textContent?.startsWith('Сравнить'))?.disabled).toBe(true);
+ });
  it('keeps grace periods and refinancing payment increases visible before opening details',()=>{
   const markup=renderToStaticMarkup(<FocusedOffers view={view} explorationId="explore" options={[{...options[0],product_id:'investment_loan',investment:{principal_grace_months:3,grace_monthly_payment:'6000'}},{...options[1],product_id:'refinancing',refinancing:{first_month_payment_change:'2000',monthly_payment_reduction:'5000',total_cost_change:'10000'}}]} busy={false} comparison={[]} onComparison={()=>{}} onApply={()=>{}}/>);
   const host=document.createElement('div');host.innerHTML=markup;

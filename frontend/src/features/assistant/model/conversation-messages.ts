@@ -5,7 +5,6 @@ type Message = ChatView["chat"]["messages"][number];
 
 export type ConversationMessage = {
   message: Message;
-  clarification?: { question: string; answer: string };
 };
 
 function formatAnswer(text: string): string {
@@ -16,30 +15,21 @@ function formatAnswer(text: string): string {
     : formatMoneyPrecise(money[1]);
 }
 
-/** Present a saved form exchange as one question-and-answer bubble from Luma. */
-export function conversationMessages(messages: readonly Message[]): ConversationMessage[] {
+/** Keep answers in the user's voice; the current question lives with its controls. */
+export function conversationMessages(messages: readonly Message[], currentQuestion?: string): ConversationMessage[] {
   const result: ConversationMessage[] = [];
   for (let index = 0; index < messages.length; index++) {
     const message = messages[index];
-    const reply = messages[index + 1];
-    if (
-      message.role === "user" &&
-      message.clarification_answer?.question_id &&
-      message.clarification_question?.trim() &&
-      reply?.role === "assistant" &&
-      reply.mode === "form"
-    ) {
-      result.push({
-        message: reply,
-        clarification: {
-          question: message.clarification_question,
-          answer: formatAnswer(message.text),
-        },
-      });
-      index++;
-    } else {
-      result.push({ message });
+    let text = message.text;
+    if (message.role === "user" && message.clarification_answer) text = formatAnswer(text);
+    if (message.role === "assistant" && message.mode === "form" && typeof message.question === "string") {
+      text = message.question;
     }
+    if (message.role === "assistant" && index === messages.length - 1 && currentQuestion && text.endsWith(currentQuestion)) {
+      text = text.slice(0, -currentQuestion.length).trim();
+      if (!text) continue;
+    }
+    result.push({ message: text === message.text ? message : { ...message, text } });
   }
   return result;
 }

@@ -1,4 +1,12 @@
 import {useCallback,useEffect,useState} from "react";
+import type {ApplicationView} from "@/features/applications";
+
+export function hasSavedSelection(view: ApplicationView) {
+  if (view.state.status !== "draft" || view.explorations.length) return true;
+  const need = view.application.need;
+  return Boolean(need.purpose || need.preferred_product || need.financing_pattern ||
+    need.requested_amount || need.project_cost || need.term_months || need.needed_by);
+}
 
 export function useSelectionAdmission() {
   const [opened,setOpened]=useState<ReadonlySet<string>>(()=>new Set());

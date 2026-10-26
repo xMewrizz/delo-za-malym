@@ -19,7 +19,6 @@ import { Textarea } from "@/shared/ui/textarea";
 import {
   answerClarification,
   createChat,
-  editProposal,
   previewProposal,
   resolveProposal,
   sendMessage,
@@ -210,22 +209,6 @@ export function AssistantPanel({
     panel.focus({ preventScroll: true });
     setResultNavigation(null);
   }, [resultNavigation, chatId, pending]);
-  const edit = useMutation({
-    mutationFn: ({
-      changes,
-      plan,
-    }: {
-      changes: Record<string, unknown>;
-      plan?: Record<string, unknown>;
-    }) => {
-      if (!chat.data || !pending) throw new Error("Черновик не загружен.");
-      const fields = { ...pending.changes, ...changes };
-      delete fields["product_details.overdraft"];
-      return editProposal(chat.data, pending.proposal_id, fields, plan);
-    },
-    onSuccess: accept,
-    onError: recover,
-  });
   const preview = useQuery({
     queryKey: [
       "proposal-preview",
@@ -248,8 +231,7 @@ export function AssistantPanel({
     create.isPending ||
     send.isPending ||
     resolve.isPending ||
-    answer.isPending ||
-    edit.isPending;
+    answer.isPending;
   const editable = !["cancelled", "disbursed", "limit_opened"].includes(
     record.state.status,
   );
@@ -259,7 +241,6 @@ export function AssistantPanel({
     sendError ||
     resolve.error ||
     answer.error ||
-    edit.error ||
     chat.error ||
     list.error;
   const projected = projectApplication(record, pending);
@@ -307,7 +288,7 @@ export function AssistantPanel({
           <div className="flex items-center justify-between gap-3">
             <div className="luma-conversation-heading">
               <LumaAvatar size={44} active={replying} />
-              <div><h2 ref={conversationHeading} tabIndex={-1}>Лума</h2><p>Ваш финансовый ИИ-ассистент</p></div>
+              <div><h2 ref={conversationHeading} tabIndex={-1}>Лума</h2><p>Финансовый ассистент</p></div>
             </div>
             <Button
               variant="outline"
@@ -321,9 +302,6 @@ export function AssistantPanel({
               <Plus />
             </Button>
           </div>
-          <p className="luma-conversation-intro">
-            Разберёмся вместе. Вы рассказываете — я собираю данные и объясняю варианты.
-          </p>
         </CardHeader>
         <CardContent className="flex min-h-0 flex-1 flex-col gap-4">
           {error && (
@@ -350,7 +328,6 @@ export function AssistantPanel({
                   create.reset();
                   send.reset();
                   answer.reset();
-                  edit.reset();
                   resolve.reset();
                 }}
               >
@@ -391,19 +368,17 @@ export function AssistantPanel({
             {chat.isPending && (
               <p className="text-xs text-muted-foreground">Загружаем диалог…</p>
             )}
-            {!chat.data?.chat.messages.length && !outgoing && (
+            {!chat.isPending && !chat.data?.clarification && !chat.data?.chat.messages.length && !outgoing && (
               <div className="luma-empty">
                 <LumaAvatar size={68} />
                 <h3>Начнём с вашей идеи?</h3>
-                <p>Расскажите, на что нужны деньги и когда. Я помогу уточнить детали и разобраться в вариантах.</p>
                 <div className="luma-starters" aria-label="Примеры задач для Лумы">{[
                   ["Закупить товар", "Нужны деньги на закупку товара."],
                   ["Дождаться выручки", "Нужно оплатить поставщику до поступления выручки."],
                 ].map(([label, text]) => <button key={label} type="button" disabled={busy || !editable} onClick={() => { setMessage(text); messageBox.current?.focus(); }}>{label}</button>)}</div>
-                <small>Предложения проверяете вы. Отправка заявки — после вашего подтверждения.</small>
               </div>
             )}
-            {conversationMessages(chat.data?.chat.messages ?? []).map(({ message: item, clarification }) => (
+            {conversationMessages(chat.data?.chat.messages ?? [], chat.data?.clarification?.title).map(({ message: item }) => (
               <div
                 className={`assistant-message ${item.role === "user" ? "assistant-message-user" : ""}`}
                 key={item.message_id}
@@ -413,14 +388,7 @@ export function AssistantPanel({
                   {item.role !== "user" && <LumaMark size={16} />}
                   {item.role === "user" ? "Вы" : "Лума"}
                 </p>
-                {clarification ? (
-                  <>
-                    <p className="whitespace-pre-wrap">{clarification.question}</p>
-                    <p className="luma-clarification-answer">{clarification.answer}</p>
-                  </>
-                ) : (
-                  item.role === "user" ? <p className="whitespace-pre-wrap">{item.text}</p> : <LumaMessageText text={item.text}/>
-                )}
+                {item.role === "user" ? <p className="whitespace-pre-wrap">{item.text}</p> : <LumaMessageText text={item.text}/>}
               </div>
             ))}
             {outgoing && (
@@ -528,10 +496,8 @@ export function AssistantPanel({
           view={projected}
           proposal={pending}
           preview={preview.data}
-          busy={busy || !editable}
           loading={preview.isFetching}
-          nextQuestion={chat.data?.clarification?.title}
-          onEdit={(changes, plan) => edit.mutate({ changes, plan })}
+          questionPending={Boolean(chat.data?.clarification)}
           expenseImport={chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
         />
         {preview.error && (
@@ -557,7 +523,7 @@ export function AssistantPanel({
         )}
         </>}
         footer={pending && <>
-            {chat.data?.clarification && <p>Ответьте Луме на оставшийся вопрос. Затем можно проверить запрос и подобрать условия.</p>}
+            {chat.data?.clarification && <p>Ответьте на вопрос Лумы, чтобы продолжить.</p>}
             <Button
               disabled={
                 busy ||

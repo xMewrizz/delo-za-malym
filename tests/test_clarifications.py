@@ -96,7 +96,7 @@ class ClarificationTests(unittest.TestCase):
         self.assertEqual(self.client.post(self.last_path, json=self.last_body).json(), self.view)
         self.assertEqual(self.view["record"]["application"]["financials"]["cash_balance"], "300000.00")
         self.assertIsNone(self.view["record"]["application"]["need"]["requested_amount"])
-        self.assertEqual(self.view["chat"]["messages"][-1]["text"], "Учла ответ в черновике.")
+        self.assertEqual(self.view["chat"]["messages"][-1]["text"], self.view["clarification"]["title"])
 
     def test_full_payment_can_differ_from_financing_amount_without_overwriting_it(self):
         self.named_need()
@@ -153,6 +153,8 @@ class ClarificationTests(unittest.TestCase):
         self.answer("gradual")
         self.assertEqual(self.view["clarification"]["field"], "need.requested_amount")
         self.answer(value="500 000,00")
+        self.assertEqual(self.view["clarification"]["field"], "need.term_months")
+        self.answer("compare_terms")
         self.assertIsNone(self.view["clarification"])
         self.assertEqual(self.view["record"]["application"], original)
         self.assertEqual(self.pending()["changes"]["need.requested_amount"], "500000.00")
@@ -163,6 +165,46 @@ class ClarificationTests(unittest.TestCase):
         self.assertTrue(result["record"]["explorations"][-1]["result"]["options"])
         self.assertEqual(result["record"]["application"]["financials"], original["financials"])
         self.assertIsNone(result["clarification"])
+
+    def test_question_and_form_stay_in_sync_and_every_answer_has_a_next_step(self):
+        for trial in range(3):
+            with self.subTest(trial=trial):
+                self.view = self.client.post("/api/chats", json={}).json()
+                self.path = "/api/chats/" + self.view["chat"]["chat_id"]
+                self.app.state.chats.assistant = SimpleNamespace(mode="model", model="test", reply=lambda messages: AssistantReply(
+                    text="Поняла. На какой срок нужны 300 000 рублей?", intent="propose_changes",
+                    question="На какой срок нужны 300 000 рублей?",
+                    changes={"need.purpose": "working_capital", "need.requested_amount": "300000.00"}))
+                response = self.client.post(self.path + "/messages", json={
+                    "base_chat_version": self.view["chat"]["chat_version"], "request_id": str(uuid4()), "text": "Оборотные средства, 300 тысяч"})
+                self.assertEqual(response.status_code, 200, response.text)
+                self.view = response.json()
+                self.assertEqual(self.view["clarification"]["field"], "need.financing_pattern")
+                message = self.view["chat"]["messages"][-1]
+                self.assertEqual(message["question"], self.view["clarification"]["title"])
+                self.assertIn(message["question"], message["text"])
+                self.assertNotIn("На какой срок", message["text"])
+                self.answer("gradual")
+                self.assertEqual(self.view["clarification"]["field"], "need.term_months")
+                self.assertEqual(self.view["chat"]["messages"][-2]["role"], "user")
+                self.assertEqual(self.view["chat"]["messages"][-2]["text"], "Постепенно из выручки")
+                self.assertEqual(self.view["chat"]["messages"][-1]["text"], self.view["clarification"]["title"])
+                self.answer("12")
+                self.assertIsNone(self.view["clarification"])
+                self.assertEqual(self.pending()["changes"]["need.term_months"], 12)
+                self.assertIn("подтвердите", self.view["chat"]["messages"][-1]["text"])
+                self.assertIsNone(self.view["record"]["application"]["need"]["requested_amount"])
+                self.assertEqual(self.client.get(self.path).json(), self.view)
+
+    def test_optional_term_comparison_does_not_invent_a_term_or_repeat_after_reload(self):
+        self.named_need()
+        self.answer("gradual")
+        self.assertEqual(self.view["clarification"]["field"], "need.term_months")
+        self.answer("compare_terms")
+        self.assertIsNone(self.view["clarification"])
+        self.assertNotIn("need.term_months", self.pending()["changes"])
+        self.assertIsNone(self.client.get(self.path).json()["clarification"])
+        self.assertEqual(self.client.post(self.last_path, json=self.last_body).json(), self.view)
 
     def test_operation_questions_target_each_row_and_dates_use_moscow(self):
         original = deepcopy(self.view["record"]["application"])

@@ -29,7 +29,6 @@
 .funding-summary small { font-size:10px; line-height:1.6; color:var(--muted-foreground); }
 .funding-summary .funding-summary-available { background:var(--growth-surface); }
 .funding-summary-available>svg { color:var(--growth)!important; }
-.funding-balance-details { margin-top:-16px; }.funding-balance-details .cash-balance-breakdown { margin-top:0; padding-inline:4px; }
 .funding-filter { display:flex; flex-wrap:wrap; gap:8px; padding-bottom:18px; border-bottom:1px solid var(--border); }
 .funding-filter button { display:flex; align-items:center; gap:9px; min-height:42px; padding:9px 15px; border:1px solid transparent; border-radius:30px; color:var(--muted-foreground); font-size:12px; cursor:pointer; }
 .funding-filter button:hover { color:var(--foreground); background:var(--secondary); }

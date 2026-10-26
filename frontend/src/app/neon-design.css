@@ -140,8 +140,6 @@ html[data-theme=light] .pulse-application-icon { color:var(--primary); }
 .cashflow-plot[data-negative=true] .cashflow-bar { bottom:50%; }
 .cashflow-column[data-below-zero=true] { --bar-color:var(--destructive); }
 .cashflow-plot[data-negative=true] .cashflow-column[data-below-zero=true] .cashflow-bar { top:50%; bottom:auto; }
-.cashflow-column[data-below-zero=true] .cashflow-bar::before { top:100%; background:color-mix(in srgb,var(--bar-color) 72%,var(--background)); clip-path:polygon(0 0,calc(100% - var(--bar-depth)) 0,100% 100%,var(--bar-depth) 100%); }
-.cashflow-column[data-below-zero=true] .cashflow-bar::after { top:0; bottom:calc(-1 * var(--bar-depth)); background:color-mix(in srgb,var(--bar-color) 64%,var(--background)); clip-path:polygon(0 0,100% var(--bar-depth),100% 100%,0 calc(100% - var(--bar-depth))); }
 .chart-footnote { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:28px; color:var(--muted-foreground); font-size:10px; }
 .chart-footnote>span { display:flex; align-items:center; gap:6px; }.chart-footnote i { width:5px; height:5px; border-radius:50%; background:var(--chart-1); }.chart-footnote a { display:flex; gap:4px; align-items:center; text-decoration:none; white-space:nowrap; }
 .chart-empty { min-height:265px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:var(--muted-foreground); font-size:12px; }.chart-empty a { display:flex; gap:6px; color:var(--primary); }

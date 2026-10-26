@@ -8,6 +8,7 @@ import {createApplication,type ApplicationView} from "@/features/applications";
 import {applicationViewSchema} from "@/features/applications/api/applications";
 import {applicationKeys} from "@/features/applications/model/queries";
 import {CabinetPage} from "./cabinet-page";
+import {hasSavedSelection} from "./use-selection-admission";
 
 vi.mock("@/features/applications",async original=>({...await original<typeof import("@/features/applications")>(),createApplication:vi.fn(),ApplicationWorkspace:({view}:{view:ApplicationView})=><output data-workspace={view.application.application_id}>{view.application.application_id}</output>}));
 vi.mock("./cabinet-insights",()=>({CabinetOverview:()=>null,BusinessProfile:()=>null,FinancingPortfolio:()=>null}));
@@ -33,6 +34,13 @@ async function setup(){
  return{host,client,click,dispose:async()=>{await act(async()=>root.unmount());client.clear();host.remove();}};
 }
 describe("explicit saved selection recovery",()=>{
+ it("does not offer recovery for an untouched application containing only the bank profile",()=>{
+  const blank=fixture("blank",{principal_grace_months:0});
+  blank.application.financials.cash_balance="1359976.99";
+  expect(hasSavedSelection(blank)).toBe(false);
+  expect(hasSavedSelection(fixture("amount",{requested_amount:"200000"}))).toBe(true);
+  expect(hasSavedSelection(old)).toBe(true);
+ });
  it("opens a blank form and recovers an old draft only from Applications",async()=>{
   const test=await setup();try{
    expect(test.host.textContent).toContain("На что нужны деньги?");

@@ -225,7 +225,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Посмотреть подходящие предложения");
     await until(() => button("Выбрать условия"), "reopened loan options");
     await until(() => requests.filter(path => path.endsWith(`/applications/${manualId}/explorations`)).length === 2, "second options calculation");
-    const twelveMonthOption = [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("12 мес."))!;
+    await until(() => button("Выбрать условия") && !button("Выбрать условия")!.disabled, "recalculation finished");
+    const twelveMonthOption = [...document.querySelectorAll(".focused-offer-list>li")].find(item => item.textContent?.includes("12 мес."))!;
     expect(twelveMonthOption).toBeTruthy();
     await chooseOption(twelveMonthOption);
     await until(() => button("Перейти к заявке"), "apply confirmation");
@@ -284,7 +285,10 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await until(() => document.querySelectorAll(".funding-card").length === 1, "only the newly issued product");
     const loanFields = [...document.querySelectorAll(".funding-card")].map(card => [...card.querySelectorAll("dt")].map(field => field.textContent));
     expect(loanFields[0]).toEqual(["Ставка", "Проценты на сегодня", "Ближайший платёж", "Дата платежа", "Окончание договора"]);
-    expect(document.querySelector(".cash-balance-total dd")?.textContent?.replace(/\s/g, " ")).toBe("800 000,00 ₽");
+    await click("История операций");
+    expect(document.querySelector(".account-history-dialog footer span:last-child strong")?.textContent?.replace(/\s/g, " ")).toBe("800 000,00 ₽");
+    expect(document.querySelector(".account-history-list")?.textContent).toContain("Кредит получен");
+    await click("Закрыть историю операций");
     const productCalendar = [...document.querySelectorAll<HTMLAnchorElement>(".funding-card a")].find(link => new URL(link.getAttribute("href")!, "http://test").searchParams.get("product") === `app:${manualId}`)!;
     expect(productCalendar).toBeTruthy();
     await act(async () => productCalendar.click());
@@ -340,9 +344,10 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     const expenseQuestion = document.querySelector(".clarification-card h3")!.textContent;
     await click("Ответить");
     await until(() => button("Завтра"), "expense date card");
-    const savedAnswer = [...document.querySelectorAll(".luma-clarification-answer")].at(-1)!;
+    const savedAnswer = [...document.querySelectorAll(".assistant-message-user > p:last-child")].at(-1)!;
     expect(savedAnswer.textContent?.replace(/\s/g, " ")).toBe("950 000 ₽");
-    expect(savedAnswer.previousElementSibling?.textContent).toBe(expenseQuestion);
+    expect(savedAnswer.previousElementSibling?.textContent).toBe("Вы");
+    expect(document.querySelector(".clarification-card h3")?.textContent).not.toBe(expenseQuestion);
     expect(document.querySelector('[role="log"]')?.textContent).not.toContain("Учёл ответ в черновике.");
     expect(document.querySelector('[role="log"]')?.textContent).not.toContain("Учла ответ в черновике.");
     await click("Завтра");
@@ -365,7 +370,8 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
         !button("Подтвердить запрос и подобрать")?.disabled,
       "complete pending plan",
     );
-    expect(document.querySelectorAll(".collected-operation")).toHaveLength(2);
+    expect(document.querySelector('[data-live-field="amount"] dd')?.textContent?.replace(/\s/g," ")).toBe("950 000 ₽");
+    expect(document.querySelector('[data-live-field="receipt-amount"] dd')?.textContent?.replace(/\s/g," ")).toBe("1 000 000 ₽");
     await until(
       () => document.querySelector(".cash-flow-chart"),
       "live cash flow chart",

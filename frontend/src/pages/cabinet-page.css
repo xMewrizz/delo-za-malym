@@ -273,18 +273,6 @@
   font-weight: 800;
   font-size: 1.1rem;
 }
-.collected-correction {
-  font-size: 0.7rem;
-  color: var(--muted-foreground);
-  margin-top: 0.6rem;
-}
-.collected-correction summary {
-  cursor: pointer;
-}
-.collected-correction input {
-  min-width: 6rem;
-  flex: 1;
-}
 .collected-operation {
   display: flex;
   flex-wrap: wrap;
@@ -300,11 +288,6 @@
   font-size: 0.8rem;
   color: var(--primary);
   font-weight: 700;
-}
-.collected-operation-edit {
-  width: 100%;
-  display: grid;
-  gap: 0.5rem;
 }
 .cash-flow-chart {
   min-width: 0;

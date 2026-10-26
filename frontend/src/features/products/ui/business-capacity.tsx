@@ -12,11 +12,11 @@ export function BusinessCapacity({capacity,loading,failed,term,compact=false}:{c
   const unavailable=capacity?.status==="unavailable";
   const overdraft=capacity?.status==="plan_required";
   return <aside className={`business-capacity ${compact?"business-capacity-compact":""}`} aria-label="Доступно вашему бизнесу" aria-busy={loading}>
-    <div className="business-capacity-label"><Landmark size={17} aria-hidden="true"/><span>Предварительная оценка</span></div>
+    <div className="business-capacity-label">{!compact&&<Landmark size={17} aria-hidden="true"/>}<span>Предварительная оценка</span></div>
     {loading ? <p role="status">Считаем по данным банка…</p> : failed ? <p>Не удалось получить лимит. Проверим его при расчёте предложения.</p> : selection ? <p>Отметьте кредиты для замены. Сумму и доступный платёж рассчитаем с учётом погашаемых долгов.</p> : unavailable ? <><strong>Пока нет доступного лимита</strong><p>{capacity?.reasons[0]?.message||"Нужно проверить сведения о бизнесе и действующие обязательства."}</p></> : <>
       <div className="business-capacity-amount"><strong>до {formatMoney(String(Math.floor(Number(amount||0))))}</strong><span>{overdraft ? "верхняя граница лимита" : selected ? `на ${selected.term_months} мес.` : best ? `при сроке ${best.term_months} мес.` : ""}</span></div>
-      <p>{overdraft ? "Нужную часть лимита определим по расходам, остатку счёта и датам поступлений." : capacity?.product_id==="revolving_credit_line" ? "Учтены доходы, расходы и нагрузка по действующим продуктам. Проценты — на использованную часть." : "Учтены доходы, расходы и действующие кредиты. На меньший срок доступная сумма может быть ниже."}</p>
-      <p className="business-capacity-final-note">Итоговая сумма — после проверки заявки.</p>
+      <p>{compact ? overdraft ? "Потребность рассчитаем по вашему плану. Итоговый лимит — после проверки." : "По данным бизнеса. Итоговая сумма — после проверки заявки." : overdraft ? "Нужную часть лимита определим по расходам, остатку счёта и датам поступлений." : capacity?.product_id==="revolving_credit_line" ? "Учтены доходы, расходы и нагрузка по действующим продуктам. Проценты — на использованную часть." : "Учтены доходы, расходы и действующие кредиты. На меньший срок доступная сумма может быть ниже."}</p>
+      {!compact&&<p className="business-capacity-final-note">Итоговая сумма — после проверки заявки.</p>}
       {!compact&&capacity?.available_monthly_payment&&<div className="business-capacity-payment"><Info size={14} aria-hidden="true"/><span>{capacity.product_id==="revolving_credit_line"||overdraft ? "Резерв нагрузки" : "Доступно на новый платёж"}: <b>{formatMoney(capacity.available_monthly_payment)}/мес.</b></span></div>}
     </>}
   </aside>;

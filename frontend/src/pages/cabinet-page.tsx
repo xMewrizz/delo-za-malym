@@ -41,7 +41,7 @@ import { CabinetNavigation, type CabinetMode } from "./cabinet-navigation";
 import { BusinessProfile, CabinetOverview, FinancingPortfolio } from "./cabinet-insights";
 import { loadShowcaseContexts, resolveCabinetContexts } from "./demo-contexts";
 import {SavedSelectionEntry} from "./selection-entry";
-import {useSelectionAdmission} from "./use-selection-admission";
+import {hasSavedSelection,useSelectionAdmission} from "./use-selection-admission";
 import {FreshSelectionForm} from "./fresh-selection";
 
 type Mode = CabinetMode;
@@ -316,6 +316,10 @@ export function CabinetPage() {
     onNew={() => create.mutate({source:mode === "assistant" ? "assistant" : "manual"})}/>;
   const entryView = mode === "manual" ? manual.data : mode === "assistant" ? assistant.data : undefined;
   const showSavedEntry = Boolean(entryView && !selectionAdmission.opened.has(entryView.application.application_id) && !invoiceFinancingId);
+  const allowSelection = selectionAdmission.allow;
+  useEffect(() => {
+    if (mode === "assistant" && entryView && !hasSavedSelection(entryView)) allowSelection(entryView.application.application_id);
+  }, [mode, entryView, allowSelection]);
   function startFreshSelection(view:ApplicationView) {
     update(view);
     selectionAdmission.allow(view.application.application_id);
@@ -337,8 +341,8 @@ export function CabinetPage() {
       "Выберите цель, проверьте параметры и сравните условия по данным бизнеса.",
     ],
     assistant: [
-      "Расскажите о своём деле",
-      "Лума поможет разобраться. Суммы, даты и варианты будут появляться рядом с разговором.",
+      "Подбор с Лумой",
+      "Опишите задачу — параметры появятся в запросе справа.",
     ],
     applications: [
       "Ваши заявки",
@@ -450,7 +454,7 @@ export function CabinetPage() {
       </div>
       <div hidden={mode !== "assistant"}>
         {assistant.data ? (
-          !selectionAdmission.opened.has(assistant.data.application.application_id) ? savedEntry(assistant.data) : <AssistantPanel
+          hasSavedSelection(assistant.data) && !selectionAdmission.opened.has(assistant.data.application.application_id) ? savedEntry(assistant.data) : (mode === "assistant" || selectionAdmission.opened.has(assistant.data.application.application_id)) ? <AssistantPanel
             key={assistant.data.application.application_id}
             applicationId={assistant.data.application.application_id}
             record={assistant.data}
@@ -468,7 +472,7 @@ export function CabinetPage() {
               />
             )}
             actions={actionsFor(assistant.data, "assistant")}
-          />
+          /> : null
         ) : (
           !assistant.isFetching && (
             <StartCard
