@@ -96,6 +96,7 @@ export function AssistantPanel({
   useLumaMotion(motionRoot, chat.data?.chat.chat_id || null);
 
   function accept(view: ChatView) {
+    if (pendingProposal(view)) setWorkspaceSection("data");
     queryClient.setQueryData(chatKeys.detail(view.chat.chat_id), view);
     void queryClient.invalidateQueries({
       queryKey: chatKeys.list(applicationId),
@@ -476,7 +477,6 @@ export function AssistantPanel({
           )}
           {!editable && <div className="luma-task-state" role="status"><strong>Диалог по этой заявке завершён</strong><p>История сохранена. Для новой задачи начните отдельный подбор.</p><div><Button asChild variant="outline" size="sm"><Link to={`/cabinet?mode=applications&application=${applicationId}`}>Открыть заявку</Link></Button><Button size="sm" disabled={startingTask} onClick={onNewTask}>{startingTask ? "Создаём…" : "Новая задача с Лумой"}</Button></div></div>}
           {editable && !chat.data && <p role="status" className="text-sm text-muted-foreground">{error ? "Диалог пока недоступен. Повторите загрузку выше." : "Подключаем диалог…"}</p>}
-          {editable && <p className="text-xs text-muted-foreground">{chat.data?.clarification ? `Следующий шаг: ${chat.data.clarification.title}` : pending ? "Следующий шаг: проверить и подтвердить данные" : "Опишите задачу или уточните условия"}</p>}
           <form onSubmit={submit} className="assistant-composer flex items-end gap-3">
             <Textarea
               ref={messageBox}
@@ -530,6 +530,7 @@ export function AssistantPanel({
           preview={preview.data}
           busy={busy || !editable}
           loading={preview.isFetching}
+          nextQuestion={chat.data?.clarification?.title}
           onEdit={(changes, plan) => edit.mutate({ changes, plan })}
           expenseImport={chat.data && renderDocuments?.({ ...chat.data, record }, accept)}
         />
@@ -556,7 +557,7 @@ export function AssistantPanel({
         )}
         </>}
         footer={pending && <>
-            {chat.data?.clarification && <p>Уточните оставшиеся вопросы в диалоге, затем подтвердите данные.</p>}
+            {chat.data?.clarification && <p>Ответьте Луме на оставшийся вопрос. Затем можно проверить запрос и подобрать условия.</p>}
             <Button
               disabled={
                 busy ||
@@ -569,7 +570,7 @@ export function AssistantPanel({
                 resolve.mutate({ id: pending.proposal_id, confirm: true })
               }
             >
-              Подтвердить данные и подобрать
+              Подтвердить запрос и подобрать
             </Button>
             <Button
               variant="outline"

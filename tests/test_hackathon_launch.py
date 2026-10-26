@@ -27,7 +27,10 @@ class HackathonLaunchTests(unittest.TestCase):
             process = CreditProcess(Store(db), lambda: datetime.fromisoformat(fixture["prepared_at"]))
             ids = fixture["applications"]
             profile = process.profile()["financials"]
-            self.assertEqual(len(process.store.list()), 13)
+            self.assertEqual(len(process.store.list()), 11)
+            self.assertEqual(fixture["contexts"], {})
+            self.assertTrue(all(row["state"]["status"] != "draft" for row in process.store.list()))
+            self.assertEqual(len(process.get(ids["manual"])["documents"]), 1)
             self.assertGreaterEqual(Decimal(profile["cash_balance"]), Decimal("1000000"))
             self.assertEqual({loan["product_id"] for loan in profile["existing_loans"]},
                 {"working_capital_loan", "investment_loan", "refinancing", "overdraft", "revolving_credit_line"})
@@ -92,11 +95,15 @@ class HackathonLaunchTests(unittest.TestCase):
         with TemporaryDirectory() as directory:
             db, manifest = Path(directory) / "cabinet.sqlite3", Path(directory) / "manifest.json"
             first = restore(db, manifest, SOURCE)
-            identifier = first["contexts"]["manual"]
+            process = CreditProcess(Store(db), lambda: datetime.fromisoformat(first["prepared_at"]))
+            draft = process.create()
+            identifier = draft["application"]["application_id"]
+            first["contexts"]["manual"] = identifier
+            first["applications"]["user_draft"] = identifier
+            manifest.write_text(json.dumps(first), encoding="utf-8")
+            process.delete_draft(identifier, draft["application"]["application_version"])
             connection = sqlite3.connect(db)
             try:
-                connection.execute("DELETE FROM applications WHERE application_id=?", (identifier,))
-                connection.commit()
                 second = prepare(db, manifest, date(2026, 10, 26))
                 self.assertNotIn(identifier, second["contexts"].values())
                 self.assertNotIn(identifier, second["applications"].values())

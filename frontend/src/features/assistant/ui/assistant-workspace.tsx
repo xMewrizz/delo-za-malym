@@ -1,6 +1,7 @@
 import { Tabs } from "radix-ui";
 import type { ReactNode, Ref } from "react";
 import "./assistant-workspace.css";
+import {LumaMark} from "@/shared/ui/luma-mark";
 
 export type WorkspaceSection = "data" | "offers";
 
@@ -21,10 +22,7 @@ export function AssistantWorkspace({
   return (
     <div className="assistant-working-area assistant-workspace">
       <h2 ref={headingRef} tabIndex={-1} className="sr-only">Данные и предложения</h2>
-      <div className="assistant-update-status" data-busy={updating} role="status">
-        <i aria-hidden="true" />
-        <span>{updating ? "Обновляем данные и расчёт…" : "Данные из разговора"}</span>
-      </div>
+      <header className="assistant-workspace-heading"><span><LumaMark/>Запрос с Лумой</span><div className="assistant-update-status" data-busy={updating} role="status"><i aria-hidden="true"/><span>{updating ? "Обновляем запрос…" : pending ? "Есть новые данные" : "Данные синхронизированы"}</span></div></header>
       <Tabs.Root className="assistant-workspace-tabs" value={section} onValueChange={value => onSectionChange(value as WorkspaceSection)}>
         <Tabs.List className="assistant-workspace-navigation" aria-label="Рабочая область Лумы">
           <Tabs.Trigger value="data">Данные{pending && <span className="assistant-tab-dot" aria-label="Есть неподтверждённые изменения" />}</Tabs.Trigger>

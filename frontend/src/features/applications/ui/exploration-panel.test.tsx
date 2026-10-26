@@ -10,6 +10,16 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const options = [12,18,24,36].map(term=>({option_id:`option-${term}`,offer_id:`offer-${term}`,product_id:"working_capital_loan",term_months:term,amount:"500000.00",monthly_payment:String(500000/term),total_repayment:"600000.00",total_interest:"100000.00"}));
 const fixture = {application:{application_id:"one",application_version:1,need:{purpose:"working_capital",preferred_product:"working_capital_loan",requested_amount:"500000.00"},financials:{existing_loans:[]}},explorations:[{exploration_id:"explore-one",application_version:1,product_id:"working_capital_loan",result:{status:"options_ready",options}}]} as unknown as ApplicationView;
 describe("offer comparison",()=>{
+  it("separates requested amount, business capacity and payment capacity instead of repeating a paragraph",async()=>{
+    const host=document.createElement("div"),root=createRoot(host),client=new QueryClient();
+    const view={...fixture,explorations:[{...fixture.explorations[0],result:{status:"needs_information",options:[],required_information:[{code:"minimum_acceptable_amount_required"}],reasons:[{code:"reduced_amount_requires_confirmation",message:"Long technical explanation",requested_amount:"10000000.00",maximum_amount:"5800000.00",product_maximum:"100000000.00",available_monthly_payment:"555268.37"}]}}]};
+    try{
+      await act(async()=>root.render(<MemoryRouter><QueryClientProvider client={client}><ExplorationPanel view={view} busy={false} onExplore={vi.fn()} onApply={vi.fn()} onEditNeed={vi.fn()} compact/></QueryClientProvider></MemoryRouter>));
+      expect(host.querySelectorAll('.exploration-limit-facts>div')).toHaveLength(3);
+      expect(host.querySelector('.exploration-limit-facts')?.textContent?.replace(/\s/g,"")).toContain("5800000₽");
+      expect(host.textContent).not.toContain("Long technical explanation");
+    }finally{await act(async()=>root.unmount());client.clear();}
+  });
   it("offers one actionable recovery when the bank needs a smaller-amount decision", async () => {
     const host = document.createElement("div"), root = createRoot(host), client = new QueryClient();
     const edit = vi.fn();
@@ -17,7 +27,7 @@ describe("offer comparison",()=>{
     try {
       await act(async () => root.render(<MemoryRouter><QueryClientProvider client={client}><ExplorationPanel view={view} busy={false} onExplore={vi.fn()} onApply={vi.fn()} onEditNeed={edit} compact /></QueryClientProvider></MemoryRouter>));
       expect(host.querySelectorAll(".exploration-empty-state")).toHaveLength(1);
-      expect(host.textContent).toContain("Подойдёт ли сумма меньше?");
+      expect(host.textContent).toContain("На всю сумму условий нет");
       expect(host.textContent).not.toContain("Статус расчёта");
       expect(host.textContent).not.toContain("Нужно подтвердить достаточность");
       expect(host.querySelector(".exploration-context,.exploration-settings")).toBeNull();

@@ -44,6 +44,52 @@
         }
       }
     },
+    "/api/profile/financing-capacity": {
+      "get": {
+        "tags": [
+          "Данные клиента"
+        ],
+        "summary": "Profile Financing Capacity",
+        "operationId": "profile_financing_capacity_api_profile_financing_capacity_get",
+        "parameters": [
+          {
+            "name": "principal_grace_months",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "enum": [
+                "0",
+                "3",
+                "6"
+              ],
+              "type": "string",
+              "default": "0",
+              "title": "Principal Grace Months"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {}
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/profile/sync": {
       "post": {
         "tags": [

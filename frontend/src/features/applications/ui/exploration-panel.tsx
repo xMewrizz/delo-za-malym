@@ -18,6 +18,7 @@ import { OfferKeyFigures } from "./offer-key-figures";
 import { InvestmentTerms } from "./investment-terms";
 import { RefinancingBaseline, RefinancingEffect } from "./refinancing-comparison";
 import { RevolvingTerms } from "@/features/credit-line/credit-line-panel";
+import {FocusedOffers} from "./focused-offers";
 import { z } from "zod";
 import {useQuery} from "@tanstack/react-query";
 import {productQueries} from "@/features/products/model/queries";
@@ -286,7 +287,7 @@ export function ExplorationPanel({
   }
 
   return (
-    <Card className="comparison-panel gap-0 border border-border bg-card/70">
+    <Card className={`comparison-panel ${focused?"comparison-panel-focused":""} gap-0 border border-border bg-card/70`}>
       <CardHeader className="comparison-header pb-5">
         <div className="flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -302,8 +303,8 @@ export function ExplorationPanel({
           </div>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {latest && current && !options.length ? "" : product === "revolving_credit_line" ? "Сравните лимит и срок. Проценты зависят от того, сколько денег вы используете." : options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
-          {(!latest || options.length > 0) && " Выберите предложение и проверьте заявку перед отправкой."}
+          {latest && current && !options.length ? "" : focused ? "Сравните платёж и полную стоимость. Подробности — в условиях варианта." : product === "revolving_credit_line" ? "Сравните лимит и срок. Проценты зависят от того, сколько денег вы используете." : options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
+          {!focused&&(!latest || options.length > 0) && " Выберите предложение и проверьте заявку перед отправкой."}
         </p>
       </CardHeader>
       <CardContent className="comparison-body">
@@ -327,6 +328,7 @@ export function ExplorationPanel({
             {!options.length ? <ExplorationEmpty result={latest.result} busy={busy} onEdit={onEditNeed} onRetry={() => onExplore(product, preserveAmount ? {} : {preserve_amount:false})} onSettings={() => { if (settings.current) { settings.current.open = true; settings.current.scrollIntoView?.({block:"nearest"}); settings.current.querySelector("summary")?.focus(); } }} /> : <>
               {latest.result.reasons?.length ? <p className="exploration-explanation">{latest.result.reasons.map(reason => reason.message).join(" ")}</p> : null}
             </>}
+            {focused&&current&&options.length>0&&product!=="overdraft" ? <FocusedOffers key={latest.exploration_id} view={view} explorationId={latest.exploration_id} options={options} busy={busy} comparison={comparison} onComparison={setComparison} onApply={onApply} onSavePlan={onSavePlan}/> : <>
             {current && options.length > 1 && <div className="offer-compare-guide"><p>Отметьте до трёх вариантов для сравнения рядом.</p></div>}
             {current && options.filter(option => comparison.includes(option.option_id || option.offer_id)).length > 0 && <section className="offer-compare-tray" aria-label="Выбранные варианты для сравнения"><header><strong>Сравнение вариантов</strong><Button variant="ghost" size="sm" onClick={() => setComparison([])}>Очистить сравнение</Button></header><div className="offer-compare-scroll"><table><caption className="sr-only">Сумма, платёж и стоимость отмеченных вариантов</caption><thead><tr><th scope="col">Параметр</th>{options.filter(option => comparison.includes(option.option_id || option.offer_id)).map(option => <th scope="col" key={option.option_id || option.offer_id}>{option.term_months ? `${option.term_months} мес.` : productName(option.product_id)}</th>)}</tr></thead><tbody>{([ ["Сумма", "amount"], ["В месяц", "monthly_payment"], ["Всего к возврату", "total_repayment"], ["Переплата", "total_interest"] ] as const).map(([label, key]) => <tr key={key}><th scope="row">{label}</th>{options.filter(option => comparison.includes(option.option_id || option.offer_id)).map(option => <td key={option.option_id || option.offer_id}>{typeof option[key] === "string" ? formatMoney(option[key] as string) : "По использованию"}</td>)}</tr>)}</tbody></table></div></section>}
             <div className="offer-comparison-grid" aria-label="Готовые предложения">
@@ -388,6 +390,7 @@ export function ExplorationPanel({
                 </div>
               ))}
             </div>
+            </>}
             {(focused || compact) && options.length > 0 && <Disclosure className="exploration-context mt-5" title="Что учтено в расчёте" description="Обязательства бизнеса, доступный платёж и условия продукта.">
               <div className="space-y-4">{calculationContext}</div>
             </Disclosure>}
@@ -566,14 +569,17 @@ function ExplorationEmpty({ result, busy, onEdit, onRetry, onSettings }: {
   const needsData = ["needs_information", "invalid_data"].includes(result.status);
   const noGap=result.reasons?.some(reason=>reason.code==="no_financing_gap");
   const unpaid=result.reasons?.some(reason=>reason.code==="repayment_not_demonstrated");
-  const title = noGap ? "Для этого плана хватает своих денег" : unpaid ? "В плане остаётся непогашенный овердрафт" : minimum ? "Подойдёт ли сумма меньше?" : filtered ? "Измените ограничения сравнения" : checking ? "Проверка ещё не завершена" : needsData ? "Уточним данные для расчёта" : "На эту сумму не нашли подходящих условий";
-  const text = noGap ? "Указанные расходы покрываются остатком счёта и известными поступлениями. Если есть другие предстоящие расходы, добавьте их в план." : unpaid ? "Расчёт выполнен, но известных поступлений не хватает на возврат долга и процентов. Можно дополнить план, когда появится информация о выручке, или рассмотреть кредит с постепенным возвратом." : minimum ? "Полная сумма не проходит ограничения ниже. Если меньшей суммы достаточно для вашей задачи, укажите свой минимум. Исходную сумму без вашего согласия не изменим." : filtered ? "Доступные предложения не укладываются в выбранный платёж или срок. Попробуйте расширить диапазон." : checking ? "Данные сохранены. Повторите проверку, чтобы получить актуальный результат." : needsData ? "Для продолжения нужны только сведения ниже. Уже заполненные данные сохранены." : "Платёж или сумма не укладываются в условия продукта с учётом текущей нагрузки бизнеса. Можно изменить запрос и попробовать другие параметры.";
+  const constraint=z.object({requested_amount:z.string(),maximum_amount:z.string(),available_monthly_payment:z.string(),product_maximum:z.string()}).safeParse(result.reasons?.find(reason=>reason.code==="reduced_amount_requires_confirmation"));
+  const title = noGap ? "Для этого плана хватает своих денег" : unpaid ? "В плане остаётся непогашенный овердрафт" : minimum ? "На всю сумму условий нет" : filtered ? "Измените ограничения сравнения" : checking ? "Проверка ещё не завершена" : needsData ? "Уточним данные для расчёта" : "На эту сумму не нашли подходящих условий";
+  const text = noGap ? "Указанные расходы покрываются остатком счёта и известными поступлениями. Если есть другие предстоящие расходы, добавьте их в план." : unpaid ? "Известных поступлений не хватает на возврат долга и процентов. Дополните план или рассмотрите кредит с постепенным возвратом." : minimum ? constraint.success&&Number(constraint.data.requested_amount)>Number(constraint.data.product_maximum) ? `Запрос выше верхней границы продукта — ${formatMoney(constraint.data.product_maximum)}.` : "Доходы, расходы и действующие обязательства ограничивают доступную сумму." : filtered ? "Доступные предложения не укладываются в выбранный платёж или срок. Попробуйте расширить диапазон." : checking ? "Данные сохранены. Повторите проверку, чтобы получить актуальный результат." : needsData ? "Дополните сведения ниже. Уже заполненные данные сохранены." : "Платёж или сумма превышают доступную нагрузку бизнеса. Проверьте сумму и срок запроса.";
   const issues = minimum || unpaid ? [] : [...questions, ...(Array.isArray(result.issues) ? result.issues : [])];
-  const reasons = checking || filtered || noGap || unpaid ? [] : (result.reasons || []).filter(reason => reason.code !== "project_details_required" && !(reason.code === "reduced_amount_requires_confirmation" && reason.message === "Нужно подтвердить достаточность меньшей суммы.")).map(reason => reason.message);
+  const reasons = checking || filtered || noGap || unpaid || minimum ? [] : (result.reasons || []).filter(reason => reason.code !== "project_details_required").map(reason => reason.message);
   const messages = [...new Set([...issues.map(describeIssue), ...reasons])];
   return <section className="exploration-empty-state" aria-label="Следующий шаг подбора">
     <span className="exploration-empty-icon" aria-hidden="true"><CircleHelp size={25} /></span>
     <div><h4>{title}</h4><p>{text}</p>
+      {minimum&&constraint.success&&<dl className="exploration-limit-facts"><div><dt>Ваш запрос</dt><dd>{formatMoney(constraint.data.requested_amount)}</dd></div><div><dt>Доступно бизнесу</dt><dd>до {formatMoney(constraint.data.maximum_amount)}</dd></div><div><dt>На новый платёж</dt><dd>{formatMoney(constraint.data.available_monthly_payment)}<small>/мес.</small></dd></div></dl>}
+      {minimum&&<p className="exploration-limit-next">Если меньшей суммы достаточно, укажите её в запросе. Сумму автоматически не меняем.</p>}
       {messages.length > 0 && <ul>{messages.map(message => <li key={message}>{message}</li>)}</ul>}
       <div className="exploration-empty-actions">
         {checking ? <Button disabled={busy} onClick={onRetry}>Повторить проверку</Button> : filtered ? <><Button disabled={busy} onClick={onSettings}>Изменить ограничения</Button><Button variant="outline" disabled={busy} onClick={onRetry}>Без ограничений сравнения</Button></> : onEdit ? <Button disabled={busy} onClick={onEdit}>{minimum ? "Уточнить сумму" : "Изменить данные"}</Button> : <Button variant="outline" disabled={busy} onClick={onSettings}>Изменить параметры</Button>}

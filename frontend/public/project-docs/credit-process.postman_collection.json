@@ -11,6 +11,13 @@
   ],
   "item": [
     {
+      "name": "Предварительный лимит бизнеса",
+      "request": {
+        "method": "GET",
+        "url": "{{baseUrl}}/api/profile/financing-capacity"
+      }
+    },
+    {
       "name": "1. Создать пример кредита",
       "request": {
         "method": "POST",

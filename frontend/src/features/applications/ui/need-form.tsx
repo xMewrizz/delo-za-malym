@@ -6,6 +6,8 @@ import { originFor } from "@/shared/lib/field-source";
 import { ChoiceField, FormField } from "@/shared/ui/form-field";
 import {getProducts, type Product} from "@/features/products/api/products";
 import {formatMoney} from "@/shared/lib/format";
+import {useFinancingCapacity} from "@/features/products/model/use-financing-capacity";
+import {BusinessCapacity} from "@/features/products/ui/business-capacity";
 import { Disclosure } from "@/shared/ui/disclosure";
 import { readSaved, useSavedDraft } from "@/shared/lib/saved-draft";
 import type { ApplicationView } from "../api/applications";
@@ -75,11 +77,18 @@ export function NeedForm({
     return()=>abort.abort();
   },[]);
   const bounds=catalog.find(product=>product.product_id===(draft.preferredProduct || (draft.financingPattern==="cash_gap" ? "overdraft" : "working_capital_loan")));
-  const amountRange=bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(bounds.maximum_amount)} по правилам продукта. Доступную сумму рассчитаем по данным бизнеса.` : "Доступную сумму рассчитаем по данным бизнеса.";
+  const capacity=useFinancingCapacity(JSON.stringify(view.application.financials),investment?Number(draft.graceMonths||0):0);
+  const businessLimit=capacity.data?.products.find(item=>item.product_id===(draft.preferredProduct||(draft.financingPattern==="cash_gap"?"overdraft":"working_capital_loan")));
+  const amountRange=businessLimit?.status==="available" && bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(String(Math.floor(Number(businessLimit.maximum_amount))))} для вашего бизнеса. Сумма зависит от срока.` : bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(bounds.maximum_amount)} по правилам продукта. Доступную сумму рассчитаем по данным бизнеса.` : "Доступную сумму рассчитаем по данным бизнеса.";
+  const requestedCredit=investment ? Number((draft.projectCost||"0").replaceAll(" ","").replace(",","."))-Number((draft.ownFunds||"0").replaceAll(" ","").replace(",",".")) : Number(draft.requestedAmount.replaceAll(" ","").replace(",","."));
+  const termLimit=businessLimit?.terms.find(item=>item.term_months===Number(draft.termMonths));
+  const exceedsTerm=termLimit&&requestedCredit>Number(termLimit.maximum_amount);
+  const fittingTerms=businessLimit?.terms.filter(item=>Number(item.maximum_amount)>=requestedCredit)||[];
   function validateProductAmount() {
     if(!bounds || refinancing || nextIsPlan)return;
     const amount=investment ? Number((draft.projectCost||"0").replaceAll(" ","").replace(",","."))-Number((draft.ownFunds||"0").replaceAll(" ","").replace(",",".")) : Number(draft.requestedAmount.replaceAll(" ","").replace(",","."));
     if(Number.isFinite(amount) && amount > Number(bounds.maximum_amount)) throw new NeedValidationError(investment ? "projectCost" : "requestedAmount",`Максимальная сумма этого продукта — ${formatMoney(bounds.maximum_amount)}. Укажите сумму в пределах диапазона.`);
+    if(businessLimit?.status==="available" && Number.isFinite(amount) && amount>Number(businessLimit.maximum_amount)) throw new NeedValidationError(investment?"projectCost":"requestedAmount",`По текущим данным вашему бизнесу доступно до ${formatMoney(String(Math.floor(Number(businessLimit.maximum_amount))))} по этому продукту. Уменьшите сумму${investment?", добавьте собственные средства":""} или выберите другой продукт.`);
   }
   const [refinancingLoans, setRefinancingLoans] = useSavedDraft(`delo-refinancing:${view.application.application_id}:${view.application.application_version}`, refinancingIds(view));
   const nextIsPlan =
@@ -127,7 +136,7 @@ export function NeedForm({
   }
   const set = (key: keyof NeedDraft, value: string) => {
     setDraft((current) => ({ ...current, [key]: value }));
-    if (key === errorField) { setError(""); setErrorField(null); }
+    if (key === errorField || key==="ownFunds"&&errorField==="projectCost") { setError(""); setErrorField(null); }
   };
   const selectTask = (next: NeedTask) => {
     if (next === task) return;
@@ -145,6 +154,7 @@ export function NeedForm({
     try {
       validateTask();
       validateProductAmount();
+      if(!refinancing&&exceedsTerm) throw new NeedValidationError("termMonths",`На ${draft.termMonths} мес. доступно до ${formatMoney(String(Math.floor(Number(termLimit.maximum_amount))))}. Выберите другой срок или оставьте поле пустым для сравнения.`);
       const changes = buildNeedChanges(refinancing ? { ...draft, requestedAmount: "", minimumAmount: "", ownFunds: "" } : draft);
       if (wizard && !refinancing && !investment && !revolving && !nextIsPlan) validateAmountChoice(draft);
       if (!investment) { changes["need.project_cost"] = null; changes["need.principal_grace_months"] = null; }
@@ -175,7 +185,7 @@ export function NeedForm({
 
   return (
     <div className="need-wizard" data-step={wizard ? page : undefined}>
-      {wizard && <><nav aria-label="Уточнение задачи"><ol className="need-progress">{labels.map((label,index) => <li key={label}><button type="button" disabled={busy || index > page} aria-current={page === index ? "step" : undefined} onClick={() => go(index)}><span aria-hidden="true">{index < page ? <Check size={12} /> : <i />}</span>{label}</button></li>)}</ol></nav><div className="need-step-heading"><p>Шаг {page + 1} из 3</p><h2 ref={heading} tabIndex={-1}>{titles[page]}</h2></div></>}
+      {wizard && <><nav className="need-progress-header" aria-label="Уточнение задачи"><span className="need-progress-count">{page+1}<span> / 3</span></span><ol className="need-progress">{labels.map((label,index) => <li key={label} data-complete={index<page}><button type="button" disabled={busy || index > page} aria-current={page === index ? "step" : undefined} onClick={() => go(index)}>{label}</button></li>)}</ol></nav><div className="need-step-heading"><h2 ref={heading} tabIndex={-1}>{titles[page]}</h2></div></>}
     <form id={formId} key={page} onSubmit={submit} className="need-step-content">
       <fieldset disabled={busy} className="need-step-fields disabled:opacity-70">
         <fieldset id="need-purpose" tabIndex={-1} hidden={correction && Boolean(task) || wizard && page !== 0} className="need-task-picker" aria-invalid={errorField === "purpose" || undefined} aria-describedby={errorField === "purpose" ? "need-purpose-error" : undefined}>
@@ -184,12 +194,13 @@ export function NeedForm({
             {needTasks.map(item => { const Icon = taskIcons[item.id]; return <Button key={item.id} type="button" variant="outline" size="sm" aria-pressed={task === item.id} onClick={() => selectTask(item.id)}><Icon size={19} aria-hidden="true" /><span>{item.label}</span>{task === item.id && <Check size={16} aria-hidden="true" />}</Button>; })}
           </div>
           {fieldError("purpose") && <p id="need-purpose-error" role="alert" className="text-sm text-destructive">{error}</p>}
-          {selectedTask && <div key={task} className="need-task-followup">
+          {selectedTask && <div key={task} className={task==="product"?"need-task-followup":"need-task-hint"}>
             <p>{selectedTask.hint}</p>
             {task === "product" && <ChoiceField id="need-product" label="Какой продукт рассчитать?" emptyLabel="Выберите продукт" value={draft.preferredProduct} error={fieldError("preferredProduct")} onValueChange={value => { setDraft(current => selectNeedTask(current, "product", value)); setError(""); setErrorField(null); }} options={needProducts} />}
           </div>}
         </fieldset>
         {wizard && page > 0 && <div className="need-selected-task"><span>{task === "product" ? needProducts.find(item => item.value === draft.preferredProduct)?.label : selectedTask?.label}</span><Button type="button" variant="ghost" size="sm" onClick={() => go(0)}>Изменить задачу</Button></div>}
+        {task && (task!=="product"||draft.preferredProduct) && <BusinessCapacity capacity={businessLimit} loading={capacity.loading} failed={capacity.failed} term={page===2&&draft.termMonths?Number(draft.termMonths):undefined} compact={page>0}/>}
         <div hidden={wizard && page === 0} className="grid gap-5 sm:grid-cols-2">
           {!refinancing && !investment && (!nextIsPlan || !wizard) && (
           <div hidden={wizard && page !== 1}>
@@ -232,7 +243,7 @@ export function NeedForm({
             inputMode="numeric"
             placeholder="Например, 12"
             hint="Можно оставить пустым — сравним доступные сроки."
-          /></div>}
+          />{exceedsTerm&&<div className="need-term-guidance" role="status"><p>Для этой суммы нужен другой срок.</p><div>{fittingTerms.map(item=><Button type="button" variant="outline" size="sm" key={item.term_months} onClick={()=>set("termMonths",String(item.term_months))}>{item.term_months} мес.</Button>)}</div></div>}</div>}
           {investment && <fieldset hidden={wizard && page !== 2} className="space-y-2"><legend className="text-xs font-semibold">Отсрочка основного долга</legend><div className="flex flex-wrap gap-2">{[{value:"0",label:"Без отсрочки"},{value:"3",label:"3 месяца"},{value:"6",label:"6 месяцев"}].map(option => <Button key={option.value} type="button" size="sm" aria-pressed={(draft.graceMonths || "0") === option.value} variant={(draft.graceMonths || "0") === option.value ? "secondary" : "outline"} onClick={() => set("graceMonths", option.value)}>{option.label}</Button>)}</div><p className="text-xs text-muted-foreground">Во время отсрочки платите только проценты. Она входит в общий срок.</p></fieldset>}
         </div>
         {!refinancing && !investment && !nextIsPlan && <Disclosure hidden={wizard && page !== 2} title="Дополнительные условия" description="Дата получения денег — если она важна для вашей задачи.">

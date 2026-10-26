@@ -1,6 +1,6 @@
 import { useLayoutEffect, type RefObject } from "react";
 
-type Fact = { value: string; x: number; y: number };
+type Fact = { value: string };
 const easing = "cubic-bezier(.2,.75,.25,1)";
 
 /** Animate committed UI changes, never pending guesses or a freshly loaded conversation history. */
@@ -25,14 +25,13 @@ export function useLumaMotion(root: RefObject<HTMLElement | null>, conversationI
     }
     function snapshot(initial = false) {
       if (!scope) return;
-      // Read layout before starting any animation. Coordinates are local to the facts grid,
-      // so scrolling the page or either pane cannot create a false layout movement.
+      // Compare values only: scrolling or reflow cannot produce a false update.
       const nextFacts = new Map<string, Fact>();
-      const nodes = [...scope.querySelectorAll<HTMLElement>(".collected-facts > .collected-fact")];
+      const nodes = [...scope.querySelectorAll<HTMLElement>("[data-live-field]")];
       const changes: { node: HTMLElement; previous?: Fact; current: Fact }[] = [];
       for (const node of nodes) {
         const key = node.dataset.liveField || node.querySelector("dt")?.textContent || "";
-        const current = { value: node.querySelector("dd")?.textContent || "", x: node.offsetLeft, y: node.offsetTop };
+        const current = { value: node.dataset.liveValue || node.querySelector("dd")?.textContent || "" };
         nextFacts.set(key, current);
         if (!initial) changes.push({ node, previous: facts.get(key), current });
       }
@@ -49,16 +48,12 @@ export function useLumaMotion(root: RefObject<HTMLElement | null>, conversationI
         const changed = node.dataset.liveStatic !== "true" && (!previous || previous.value !== current.value);
         if (changed) {
           const value = node.querySelector<HTMLElement>("dd");
-          if (value) animate(value, [{ opacity: .35, transform: "translateY(9px)" }, { opacity: 1, transform: "translateY(0)" }], 520, order++ * 70);
+          if (value) animate(value, [{ opacity: .25, transform: "translateY(5px)" }, { opacity: 1, transform: "translateY(0)" }], 620, 100 + order++ * 65);
           clearTimeout(highlights.get(node));
           node.setAttribute("data-live-updated", "true");
           highlights.set(node, setTimeout(() => { node.removeAttribute("data-live-updated"); highlights.delete(node); }, 1500));
         }
-        if (previous && (previous.x !== current.x || previous.y !== current.y)) {
-          const x = Math.max(-56, Math.min(56, previous.x - current.x));
-          const y = Math.max(-56, Math.min(56, previous.y - current.y));
-          animate(node, [{ transform: `translate(${x}px,${y}px)` }, { transform: "translate(0,0)" }], 420);
-        }
+        if (!previous && !node.querySelector("dd")) animate(node,[{opacity:.3,transform:"translateY(5px)"},{opacity:1,transform:"translateY(0)"}],620);
       }
       for (const node of messages) {
         const user = node.classList.contains("assistant-message-user");

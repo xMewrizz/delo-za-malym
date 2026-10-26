@@ -1,0 +1,37 @@
+import {useState} from "react";
+import {Dialog} from "radix-ui";
+import {X} from "lucide-react";
+import {Button} from "@/shared/ui/button";
+import {ConfirmAction} from "@/shared/ui/confirm-action";
+import {PenaltyTermsNote} from "@/shared/ui/penalty-terms-note";
+import {formatMoney} from "@/shared/lib/format";
+import type {ApplicationView,Offer} from "../api/applications";
+import {productName} from "../model/presentation";
+import {InvestmentTerms} from "./investment-terms";
+import {RefinancingEffect} from "./refinancing-comparison";
+import {RevolvingTerms} from "@/features/credit-line/credit-line-panel";
+import {LoanOptionDetails} from "./loan-option-details";
+
+const id=(option:Offer)=>option.option_id||option.offer_id;
+const cost=(value:unknown)=>typeof value==="string"?formatMoney(value):"По использованию";
+
+export function FocusedOffers({view,explorationId,options,busy,comparison,onComparison,onApply,onSavePlan}:{view:ApplicationView;explorationId:string;options:Offer[];busy:boolean;comparison:string[];onComparison:(ids:string[])=>void;onApply:(explorationId:string,optionId:string)=>void;onSavePlan?:(plan:Record<string,unknown>)=>void}) {
+  const [details,setDetails]=useState<Offer|null>(null),[comparing,setComparing]=useState(false);
+  const selected=options.filter(option=>comparison.includes(id(option)));
+  const countLabel=new Intl.PluralRules("ru").select(selected.length)==="one"?"вариант":new Intl.PluralRules("ru").select(selected.length)==="few"?"варианта":"вариантов";
+  const sameAmount=options.every(option=>option.amount===options[0]?.amount);
+  const choose=(option:Offer)=><ConfirmAction label="Выбрать условия" title="Перейти к заявке с этими условиями?" description={`${formatMoney(option.amount)} · ${option.term_months} мес. Перед отправкой заявки можно проверить все данные.`} confirmLabel="Перейти к заявке" disabled={busy} onConfirm={()=>{setComparing(false);setDetails(null);onApply(explorationId,option.option_id!);}}/>;
+  const portal=typeof document==="undefined"?undefined:document.querySelector<HTMLElement>(".cabinet-shell");
+  return <div className="focused-offers">
+    <div className="focused-offers-toolbar"><div><strong>{sameAmount?formatMoney(options[0].amount):"Суммы по запросу"}</strong><span>{options.length} {new Intl.PluralRules("ru").select(options.length)==="one"?"вариант":new Intl.PluralRules("ru").select(options.length)==="few"?"варианта":"вариантов"}</span></div>{options.length>1&&<Button type="button" variant="outline" size="sm" disabled={selected.length<2} onClick={()=>setComparing(true)}>Сравнить{selected.length?` · ${selected.length}`:""}</Button>}</div>
+    <ol className="focused-offer-list" aria-label="Готовые предложения">{options.map(option=><li key={id(option)} data-selected={comparison.includes(id(option))}>
+      {options.length>1&&<label className="focused-offer-check"><input aria-label={`Сравнить ${option.term_months} мес.`} type="checkbox" checked={comparison.includes(id(option))} disabled={busy} onChange={event=>onComparison(event.target.checked?[...selected.map(id),id(option)]:selected.filter(item=>id(item)!==id(option)).map(id))}/></label>}
+      <div className="focused-offer-term"><b>{option.term_months}</b><span>мес.</span></div>
+      <div className="focused-offer-cost"><strong>{option.monthly_payment?cost(option.maximum_payment||option.monthly_payment):"Проценты на долг"}{option.monthly_payment&&<small>/мес.</small>}</strong><span>{typeof option.total_interest==="string"?`Переплата ${cost(option.total_interest)}`:`${Number(option.annual_rate_percent).toLocaleString("ru-RU")}% годовых`}</span>{!sameAmount&&<span>Сумма {cost(option.amount)}</span>}</div>
+      <div className="focused-offer-actions"><Button type="button" variant="ghost" size="sm" onClick={()=>setDetails(option)} aria-label={`Подробнее: ${option.term_months} мес.`}>Подробнее</Button>{option.option_id&&choose(option)}</div>
+    </li>)}</ol>
+    {options.length>1&&<p className="focused-offer-hint">Отметьте варианты, чтобы сравнить рядом.</p>}
+    <Dialog.Root open={comparing} onOpenChange={setComparing}><Dialog.Portal container={portal}><Dialog.Overlay className="loan-calendar-overlay"/><Dialog.Content className="loan-calendar-panel focused-comparison-dialog" data-wide={selected.length>3}><header className="loan-calendar-heading"><div><Dialog.Title>Сравнение условий</Dialog.Title><Dialog.Description>{selected.length} {countLabel} · платёж и полная стоимость</Dialog.Description></div><Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Закрыть сравнение"><X/></Button></Dialog.Close></header><div className="loan-calendar-scroll"><div className="offer-compare-scroll" tabIndex={0} role="region" aria-label="Таблица сравнения, прокрутка по горизонтали"><table><thead><tr><th scope="col">Условия</th>{selected.map(option=><th scope="col" key={id(option)}>{option.term_months} мес.</th>)}</tr></thead><tbody>{([["Сумма","amount"],["Платёж в месяц","maximum_payment"],["Всего к возврату","total_repayment"],["Переплата","total_interest"],["Комиссии","fees_total"]]as const).map(([label,key])=><tr key={key}><th scope="row">{label}</th>{selected.map(option=><td key={id(option)}>{cost(key==="maximum_payment"?option.monthly_payment?option.maximum_payment||option.monthly_payment:null:option[key])}</td>)}</tr>)}<tr><th scope="row">Ставка в год</th>{selected.map(option=><td key={id(option)}>{Number(option.annual_rate_percent).toLocaleString("ru-RU")}%</td>)}</tr><tr><th scope="row">Следующий шаг</th>{selected.map(option=><td key={id(option)}>{choose(option)}</td>)}</tr></tbody></table></div></div></Dialog.Content></Dialog.Portal></Dialog.Root>
+    <Dialog.Root open={Boolean(details)} onOpenChange={open=>{if(!open)setDetails(null);}}><Dialog.Portal container={portal}><Dialog.Overlay className="loan-calendar-overlay"/><Dialog.Content className="loan-calendar-panel focused-option-dialog"><header className="loan-calendar-heading"><div><Dialog.Title>{details?productName(details.product_id):"Условия"}</Dialog.Title><Dialog.Description>{details?`${formatMoney(details.amount)} · ${details.term_months} мес.`:""}</Dialog.Description></div><Dialog.Close asChild><Button variant="ghost" size="icon" aria-label="Закрыть условия"><X/></Button></Dialog.Close></header>{details&&<><div className="loan-calendar-scroll"><dl className="focused-option-figures"><div><dt>Платёж в месяц</dt><dd>{cost(details.monthly_payment?details.maximum_payment||details.monthly_payment:null)}</dd></div><div><dt>Ставка в год</dt><dd>{Number(details.annual_rate_percent).toLocaleString("ru-RU")}%</dd></div><div><dt>Всего к возврату</dt><dd>{cost(details.total_repayment)}</dd></div><div><dt>Переплата</dt><dd>{cost(details.total_interest)}</dd></div><div><dt>Комиссии</dt><dd>{cost(details.fees_total||"0")}</dd></div><div><dt>Обеспечение</dt><dd>{details.conditions?.length?"Поручительство":"Без залога и поручительства"}</dd></div></dl>{details.product_id==="investment_loan"&&<InvestmentTerms offer={details}/>} {details.product_id==="refinancing"&&<RefinancingEffect offer={details}/>} {details.product_id==="revolving_credit_line"&&<RevolvingTerms value={details.revolving}/>}<PenaltyTermsNote value={details.penalty_terms}/>{details.product_id==="working_capital_loan"&&details.option_id&&<LoanOptionDetails view={view} explorationId={explorationId} option={details} current onSavePlan={onSavePlan}/>}</div><footer className="focused-option-footer">{choose(details)}</footer></>}</Dialog.Content></Dialog.Portal></Dialog.Root>
+  </div>;
+}

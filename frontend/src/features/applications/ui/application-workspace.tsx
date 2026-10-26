@@ -368,7 +368,7 @@ export function ApplicationWorkspace({
               onSave={actions.save}
             />
           )}
-          {status === "draft" && <OfferResults onNewSelection={onNewSelection} view={view} busy={busy} onSelect={actions.select} onSign={actions.sign} onComplete={actions.complete} />}
+          {status === "draft" && view.result && <OfferResults onNewSelection={onNewSelection} view={view} busy={busy} onSelect={actions.select} onSign={actions.sign} onComplete={actions.complete} />}
         </>
       )}
     </div>

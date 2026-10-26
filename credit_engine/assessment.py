@@ -320,7 +320,10 @@ def _assess_application(
             message = (limits + f"С учётом доходов, расходов и действующих обязательств доступно до {money(maximum)} ₽ на допустимых сроках. "
                        f"Доступная нагрузка — {money(metrics.available_monthly_payment)} ₽ в месяц. "
                        "Остаток денег на счёте сам по себе не определяет лимит кредита.")
-            return finish("needs_information", "reduced_amount_requires_confirmation", message, fields=(
+            result = finish("needs_information", "reduced_amount_requires_confirmation", message, fields=(
                 CalculationIssue("need.minimum_acceptable_amount", "minimum_acceptable_amount_required",
                                  "Какая минимальная сумма кредита решит вашу задачу с учётом собственных средств?"),))
+            result.assessment["reasons"][0].update(requested_amount=f"{amount:.2f}",maximum_amount=f"{maximum:.2f}",
+                product_maximum=f"{policy.maximum_amount:.2f}",available_monthly_payment=f"{metrics.available_monthly_payment:.2f}")
+            return result
     return finish("declined", "no_eligible_offer", "В реализованном каталоге первого продукта нет допустимых условий для этой задачи.")

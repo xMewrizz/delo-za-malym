@@ -1,13 +1,13 @@
 {
   "schema_version": 1,
-  "captured_on": "2026-10-25",
+  "captured_on": "2026-10-26",
   "source": "curated synthetic business history through normal application services",
-  "generation_command": "python -m scripts.build_submission_snapshot --date 2026-10-25",
-  "sha256": "32c4cb2a8fd69b21cb42690e9bfdb395ca3c85f046c03c9420cbb8ec3ece0dd1",
-  "size_bytes": 991232,
+  "generation_command": "python -m scripts.build_submission_snapshot --date 2026-10-26",
+  "sha256": "073157acc5f2626eeeaae87fdea80dffcb1bdc8f77e3d602253b994d39e64d0f",
+  "size_bytes": 823296,
   "counts": {
-    "applications": 13,
-    "chats": 1,
+    "applications": 11,
+    "chats": 0,
     "documents": 1,
     "account_payments": 4
   }

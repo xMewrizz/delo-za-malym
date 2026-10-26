@@ -362,7 +362,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await until(
       () =>
         !document.querySelector(".clarification-card") &&
-        !button("Подтвердить данные и подобрать")?.disabled,
+        !button("Подтвердить запрос и подобрать")?.disabled,
       "complete pending plan",
     );
     expect(document.querySelectorAll(".collected-operation")).toHaveLength(2);
@@ -386,7 +386,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     const pageScroll = vi.spyOn(HTMLElement.prototype, "scrollIntoView");
     const comparisonScroll = document.querySelector<HTMLElement>('.assistant-workspace-scroll[aria-label="Сравнение предложений"]')!;
     comparisonScroll.scrollTop = 240;
-    await click("Подтвердить данные и подобрать");
+    await click("Подтвердить запрос и подобрать");
     await until(() => button("Выбрать условия"), "confirmed overdraft option");
     expect(document.querySelector('.assistant-workspace-navigation [data-state="active"]')?.textContent).toBe("Предложения");
     expect(document.querySelector(".assistant-layout")?.getAttribute("data-mobile-panel")).toBe("workspace");
@@ -699,6 +699,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       () => document.querySelector("#need-amount"),
       "legacy manual draft",
     );
+    // The fresh form is visible before async legacy migration completes.
+    await until(() => {
+      const saved = JSON.parse(localStorage.getItem("delo-react-contexts") || "{}");
+      return saved.manual === manual.application.application_id
+        && saved.assistant === assistant.application.application_id;
+    }, "both legacy workspaces restored");
     const contexts = JSON.parse(localStorage.getItem("delo-react-contexts")!);
     expect(contexts.manual).toBe(manual.application.application_id);
     expect(contexts.assistant).toBe(assistant.application.application_id);

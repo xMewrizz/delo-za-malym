@@ -9,6 +9,7 @@ from pathlib import Path
 import sqlite3
 import csv
 import json
+from typing import Literal
 from io import StringIO
 
 from fastapi import FastAPI, Query, Request
@@ -130,6 +131,13 @@ def create_app(database_path: str | Path | None = None, *, clock=None, assistant
     @app.get("/api/profile", tags=["Данные клиента"])
     def get_profile():
         return process.profile()
+
+    @app.get("/api/profile/financing-capacity", tags=["Данные клиента"])
+    def profile_financing_capacity(principal_grace_months: Literal["0","3","6"] = "0"):
+        from .financing_capacity import financing_capacity
+        now = process.clock()
+        _, simulator = demo.profile(now)
+        return financing_capacity(process.profile(), simulator, now, principal_grace_months=int(principal_grace_months))
 
     @app.post("/api/profile/sync", tags=["Данные клиента"])
     async def sync_demo_profile():

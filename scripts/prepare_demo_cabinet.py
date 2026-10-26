@@ -202,25 +202,29 @@ class Showcase:
             base_application_version=manual["application"]["application_version"], document_revision=doc["revision"], target="planned_expense",
             amount="450000.00", due_date=doc["extracted"]["due_date"][0]["value"], confirmed=True))
         self.workspace.explore(manual["application"]["application_id"], manual["application"]["application_version"], "working_capital_loan")
-        assistant = self.process.create()
-        self.ids["assistant"] = assistant["application"]["application_id"]
-        chat = self.chats.create(self.ids["assistant"])
-        for text in ("Нужны деньги на сезонную закупку товара.", "180 тысяч на 18 месяцев. Нужна вся сумма.", "Да, покажи варианты."):
-            chat = self.chats.send(chat["chat"]["chat_id"], chat["chat"]["chat_version"], text, str(uuid4()))
-            proposal = chat["chat"]["messages"][-1].get("proposal")
-            if proposal:
-                chat = self.chats.resolve(chat["chat"]["chat_id"], proposal["proposal_id"], chat["chat"]["chat_version"], apply=True)
         if self.rich:
-            offers = self.create("offers_ready", "working_capital_loan", "400000.00", 24)
-            offers = self.process.submit(offers["application"]["application_id"], offers["application"]["application_version"])
-            assert (offers.get("result") or {}).get("assessment", {}).get("offers"), offers["state"]
+            # Keep one real PDF-backed offer instead of two duplicate requests.
+            manual = self.process.submit(manual["application"]["application_id"], manual["application"]["application_version"])
+            assert manual["result"]["assessment"]["offers"], manual["state"]
+            self.ids["offers_ready"] = self.ids["manual"]
+            chat = None
+        else:
+            assistant = self.process.create()
+            self.ids["assistant"] = assistant["application"]["application_id"]
+            chat = self.chats.create(self.ids["assistant"])
+            for text in ("Нужны деньги на сезонную закупку товара.", "180 тысяч на 18 месяцев. Нужна вся сумма.", "Да, покажи варианты."):
+                chat = self.chats.send(chat["chat"]["chat_id"], chat["chat"]["chat_version"], text, str(uuid4()))
+                proposal = chat["chat"]["messages"][-1].get("proposal")
+                if proposal:
+                    chat = self.chats.resolve(chat["chat"]["chat_id"], proposal["proposal_id"], chat["chat"]["chat_version"], apply=True)
+        if self.rich:
             cancelled = self.create("cancelled_project", "investment_loan", None, 36,
                 need={"purpose": "investment", "project_cost": "1000000.00", "own_funds": "200000.00"})
             self.process.cancel(cancelled["application"]["application_id"], cancelled["application"]["application_version"])
         self.validate()
         return {"schema_version": 1, "prepared_at": self.now.isoformat(), "company": "ООО «Север»",
-                "contexts": {key: self.ids[key] for key in ("manual", "assistant")}, "applications": self.ids,
-                "chat_id": chat["chat"]["chat_id"], "summary": self.summary()}
+                "contexts": {} if self.rich else {key: self.ids[key] for key in ("manual", "assistant")}, "applications": self.ids,
+                "chat_id": chat["chat"]["chat_id"] if chat else None, "summary": self.summary()}
 
     def summary(self):
         calendar = self.process.calendar()

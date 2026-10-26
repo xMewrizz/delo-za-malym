@@ -7,11 +7,50 @@ import type { ApplicationView } from "../api/applications";
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const view={application:{application_id:"step-test",application_version:1,need:{},financials:{cash_balance:"300000.00",existing_loans:[]}},client_data:{bank_financials:{cash_balance:"300000.00"}},field_sources:{}} as unknown as ApplicationView;
 describe("guided financing form",()=>{
+  it("shows a lower bound at a short term and offers fitting terms without changing the requested amount",async()=>{
+    localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
+    const product={product_id:"working_capital_loan",name:"Кредит",policy_version:"demo-v1",minimum_amount:"100000.00",maximum_amount:"100000000.00",annual_rate_percent:"24.00",terms:[12,36]};
+    const capacity={calculated_at:"2026-10-26",preliminary:true,products:[{product_id:"working_capital_loan",status:"available",maximum_amount:"2000000.00",available_monthly_payment:"100000.00",terms:[{term_months:12,maximum_amount:"500000.00"},{term_months:36,maximum_amount:"2000000.00"}],reasons:[],rules_fingerprint:"test"}]};
+    vi.stubGlobal("fetch",vi.fn(async(url:unknown)=>new Response(JSON.stringify(String(url).includes("financing-capacity")?capacity:[product]),{status:200,headers:{"Content-Type":"application/json"}})));
+    const host=document.createElement("div");document.body.append(host);const root=createRoot(host),save=vi.fn();
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>('button')].find(item=>!item.closest('[hidden]')&&(item.textContent===text||item.getAttribute('aria-label')===text))!.click());
+    const fill=async(id:string,value:string)=>act(async()=>{const input=host.querySelector<HTMLInputElement>(id)!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,value);input.dispatchEvent(new Event('input',{bubbles:true}));});
+    try{
+      await act(async()=>root.render(<NeedForm view={view} busy={false} onSave={save} continueToNextStep/>));
+      await click("Закупить товар");await click("Продолжить");await fill('#need-amount','1000000');await click("Нужна вся сумма");await click("Продолжить");await fill('#need-term','12');
+      expect(host.querySelector('.business-capacity')?.textContent?.replace(/\s/g,"")).toContain("до500000₽");
+      await click("Посмотреть подходящие предложения");
+      expect(host.querySelector('#need-term')?.getAttribute('aria-invalid')).toBe('true');expect(save).not.toHaveBeenCalled();
+      await click("36 мес.");await click("Посмотреть подходящие предложения");
+      expect(save).toHaveBeenCalledExactlyOnceWith(expect.objectContaining({"need.requested_amount":"1000000.00","need.term_months":36}));
+    }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();vi.unstubAllGlobals();}
+  });
+  it("shows the business-specific limit immediately after selection and catches an unaffordable amount before leaving the amount step",async()=>{
+    localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
+    const product={product_id:"working_capital_loan",name:"Кредит",policy_version:"demo-v1",minimum_amount:"100000.00",maximum_amount:"100000000.00",annual_rate_percent:"24.00",terms:[6,12,18,24,36]};
+    const capacity={calculated_at:"2026-10-26",preliminary:true,products:[{product_id:"working_capital_loan",status:"available",maximum_amount:"2000000.00",available_monthly_payment:"100000.00",terms:[{term_months:36,maximum_amount:"2000000.00"}],reasons:[],rules_fingerprint:"test"}]};
+    vi.stubGlobal("fetch",vi.fn(async(url:unknown)=>new Response(JSON.stringify(String(url).includes("financing-capacity")?capacity:[product]),{status:200,headers:{"Content-Type":"application/json"}})));
+    const host=document.createElement("div");document.body.append(host);const root=createRoot(host);const save=vi.fn();
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>('button')].find(item=>!item.closest('[hidden]')&&(item.textContent===text||item.getAttribute('aria-label')===text))!.click());
+    try{
+      await act(async()=>root.render(<NeedForm view={view} busy={false} onSave={save} continueToNextStep/>));
+      await click("Закупить товар");
+      expect(host.querySelector('.business-capacity')?.textContent?.replace(/\s/g,"")).toContain("до2000000₽");
+      expect(host.querySelector('#need-amount')?.closest('[hidden]')).not.toBeNull();
+      await click("Продолжить");
+      await act(async()=>{const input=host.querySelector<HTMLInputElement>('#need-amount')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,'value')!.set!.call(input,'10000000');input.dispatchEvent(new Event('input',{bubbles:true}));});
+      await click("Продолжить");
+      expect(host.querySelector('#need-amount')?.getAttribute('aria-invalid')).toBe('true');
+      expect(host.textContent).toContain("По текущим данным вашему бизнесу доступно");
+      expect(host.querySelector<HTMLInputElement>('#need-amount')?.value).toBe('10000000');
+      expect(save).not.toHaveBeenCalled();
+    }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();vi.unstubAllGlobals();}
+  });
   it("shows the server catalogue range before entry and keeps an oversized request on the amount step",async()=>{
     localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
     vi.stubGlobal("fetch",vi.fn(async()=>new Response(JSON.stringify([{product_id:"working_capital_loan",name:"Кредит",policy_version:"demo-v1",minimum_amount:"100000.00",maximum_amount:"100000000.00",annual_rate_percent:"24.00",terms:[6,12,18,24,36]}]),{status:200,headers:{"Content-Type":"application/json"}})));
     const host=document.createElement("div");document.body.append(host);const root=createRoot(host);const save=vi.fn();
-    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>('button')].find(item=>!item.closest('[hidden]')&&item.textContent===text)!.click());
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>('button')].find(item=>!item.closest('[hidden]')&&(item.textContent===text||item.getAttribute('aria-label')===text))!.click());
     try{
       await act(async()=>root.render(<NeedForm view={view} busy={false} onSave={save} continueToNextStep/>));
       await click("Закупить товар");await click("Продолжить");

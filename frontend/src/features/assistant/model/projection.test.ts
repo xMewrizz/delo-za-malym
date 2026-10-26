@@ -26,6 +26,13 @@ const record = () =>
     events: [],
   });
 describe("conversation projection", () => {
+  it("shows full project financing when no own funds were promised",()=>{
+    const source=record();
+    const projected=projectApplication(source,{proposal_id:"project",status:"pending",changes:{"need.preferred_product":"investment_loan","need.purpose":"investment","need.project_cost":"2000000.00"}});
+    expect(projected.application.need.requested_amount).toBe("2000000.00");
+    expect(projected.application.need.own_funds).toBeUndefined();
+    expect(source.application.need.requested_amount).toBeNull();
+  });
   it("updates the live view without mutating the stored application or bank facts", () => {
     const source = record();
     const proposal = {
