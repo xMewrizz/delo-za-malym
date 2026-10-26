@@ -2,6 +2,7 @@ import {useEffect, type RefObject} from "react";
 
 /** Limit both wheel travel and actual velocity, including across scene boundaries. */
 export function installLandingWheel(root: HTMLElement) {
+  const pace = 1.1;
   let frame = 0, target = window.scrollY, lastWritten = window.scrollY, lastFrame = 0, writing = false;
   const cancel = () => {cancelAnimationFrame(frame); frame = 0; lastFrame = 0; target = lastWritten = window.scrollY;};
   const maxScroll = () => Math.max(0, document.documentElement.scrollHeight - window.innerHeight);
@@ -14,7 +15,7 @@ export function installLandingWheel(root: HTMLElement) {
     const eased = remaining*(1-Math.exp(-elapsed/75));
     // A burst can keep refreshing the destination. A per-event clamp alone therefore
     // cannot stop an accelerating wheel/trackpad from skipping the next section.
-    const step = Math.max(-.95*elapsed, Math.min(.95*elapsed, eased));
+    const step = Math.max(-.95*pace*elapsed, Math.min(.95*pace*elapsed, eased));
     const next = Math.abs(remaining) < .6 ? target : current+step;
     lastWritten = next;
     writing = true; window.scrollTo({top: next, behavior: "instant"}); writing = false;
@@ -32,10 +33,10 @@ export function installLandingWheel(root: HTMLElement) {
     event.preventDefault();
     const current=window.scrollY;
     const pixels=event.deltaY*(event.deltaMode===1 ? 18 : event.deltaMode===2 ? window.innerHeight : 1);
-    const delta=Math.max(-140, Math.min(140, pixels*.9));
+    const delta=Math.max(-140*pace, Math.min(140*pace, pixels*.9*pace));
     // Reversing the wheel discards the previous direction's remaining travel.
     if (!frame || Math.sign(delta)!==Math.sign(target-current)) target=current;
-    target=Math.max(0,Math.min(maxScroll(),current+220,Math.max(current-220,target+delta)));
+    target=Math.max(0,Math.min(maxScroll(),current+220*pace,Math.max(current-220*pace,target+delta)));
     if (!frame) frame=requestAnimationFrame(tick);
   }
   // Browser scroll events arrive after scrollTo returns. Compare against our

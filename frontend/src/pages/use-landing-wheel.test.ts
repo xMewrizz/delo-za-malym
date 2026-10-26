@@ -18,40 +18,40 @@ describe("landing wheel travel",()=>{
  function wheel(deltaY:number,extra:WheelEventInit={}){const event=new WheelEvent("wheel",{deltaY,bubbles:true,cancelable:true,...extra});root.dispatchEvent(event);return event;}
  function settle(){for(let i=0;i<140&&frames.size;i++){const pending=[...frames.values()];frames.clear();time+=16.67;pending.forEach(fn=>fn(time));}expect(frames.size).toBe(0);}
  it("keeps an ordinary wheel notch close to native travel",()=>{
-  wheel(120);settle();expect(window.scrollY).toBeCloseTo(108,0);
+  wheel(120);settle();expect(window.scrollY).toBeCloseTo(118.8,0);
  });
  it("does not cancel its own asynchronous scroll events, but yields to external navigation",()=>{
   wheel(6000);wheel(6000);
   const pending=[...frames.values()];frames.clear();time+=16.67;pending.forEach(fn=>fn(time));
   window.dispatchEvent(new Event("scroll"));expect(frames.size).toBe(1);
-  settle();expect(window.scrollY).toBeCloseTo(220,0);
+  settle();expect(window.scrollY).toBeCloseTo(242,0);
   wheel(120);vi.stubGlobal("scrollY",1000);window.dispatchEvent(new Event("scroll"));expect(frames.size).toBe(0);
  });
  it("a large wheel event cannot skip a scene or jump when leaving it",()=>{
   vi.stubGlobal("scrollY",12000);
   expect(wheel(10000).defaultPrevented).toBe(true);
-  settle();expect(window.scrollY).toBeCloseTo(12140,0);
+  settle();expect(window.scrollY).toBeCloseTo(12154,0);
   const values=vi.mocked(window.scrollTo).mock.calls.map(([options])=>(options as ScrollToOptions).top!);
-  expect(values[0]-12000).toBeLessThan(16);
+  expect(values[0]-12000).toBeLessThan(17.43);
  });
  it("does not accumulate a long inertial queue, and reversing responds immediately",()=>{
   for(let i=0;i<30;i++)wheel(3000);
-  settle();expect(window.scrollY).toBeCloseTo(220,0);
-  wheel(1000);wheel(-1000);settle();expect(window.scrollY).toBeCloseTo(80,0);
+  settle();expect(window.scrollY).toBeCloseTo(242,0);
+  wheel(1000);wheel(-1000);settle();expect(window.scrollY).toBeCloseTo(88,0);
  });
  it("bounds sustained input by time, rather than accelerating with the event rate",()=>{
   for(let i=0;i<60;i++){
    wheel(6000);
    const before=window.scrollY,pending=[...frames.values()];frames.clear();time+=16.67;pending.forEach(fn=>fn(time));
-   expect(window.scrollY-before).toBeLessThanOrEqual(15.84);
+   expect(window.scrollY-before).toBeLessThanOrEqual(17.43);
   }
-  expect(window.scrollY).toBeLessThanOrEqual(951);
-  const beforeTail=window.scrollY;settle();expect(window.scrollY-beforeTail).toBeLessThanOrEqual(220);
+  expect(window.scrollY).toBeLessThanOrEqual(1046);
+  const beforeTail=window.scrollY;settle();expect(window.scrollY-beforeTail).toBeLessThanOrEqual(242);
  });
  it("keeps the same pace over page gaps and the footer outside the landing root",()=>{
   const footer=document.createElement("footer");document.body.append(footer);
   const event=new WheelEvent("wheel",{deltaY:5000,bubbles:true,cancelable:true});footer.dispatchEvent(event);
-  expect(event.defaultPrevented).toBe(true);settle();expect(window.scrollY).toBeCloseTo(140,0);footer.remove();
+  expect(event.defaultPrevented).toBe(true);settle();expect(window.scrollY).toBeCloseTo(154,0);footer.remove();
  });
  it("preserves zoom and horizontal gestures, nested panels, keyboard cancellation and cleanup",()=>{
   expect(wheel(100,{ctrlKey:true}).defaultPrevented).toBe(false);

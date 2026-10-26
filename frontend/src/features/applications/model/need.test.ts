@@ -26,6 +26,7 @@ describe("need payload", () => {
   });
   it("keeps monetary amounts as decimal strings", () => {
     expect(normalizeMoneyInput(" 500 000,5 ")).toBe("500000.50");
+    expect(normalizeMoneyInput("1\u00a0000\u202f000,50")).toBe("1000000.50");
     expect(normalizeMoneyInput("")).toBeNull();
     expect(() => normalizeMoneyInput("1.999")).toThrow();
   });

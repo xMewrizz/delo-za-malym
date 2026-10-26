@@ -65,6 +65,14 @@ describe("overdraft plan payload", () => {
         { ...sample, rows: [{ ...sample.rows[0], date: "2026-11-12" }] },
         [],
       ),
-    ).toThrow("Дата каждой операции");
+    ).toThrow("Дата операции должна входить");
+  });
+  it("identifies the exact invalid operation without discarding other entered rows", () => {
+    try { buildOverdraftPlan({...sample,rows:[sample.rows[0],{...sample.rows[1],amount:""}]},[]); }
+    catch(error) { expect(error).toMatchObject({fieldId:"operation-amount-customer-001"}); return; }
+    throw new Error("Empty receipt must be rejected");
+  });
+  it("rejects impossible calendar dates before sending the plan", () => {
+    expect(()=>buildOverdraftPlan({...sample,rows:[{...sample.rows[0],date:"2026-02-30"}]},[])).toThrow("корректную дату операции");
   });
 });

@@ -66,7 +66,7 @@ export function normalizeMoneyInput(
   value: string,
   allowZero = false,
 ): string | null {
-  const cleaned = value.trim().replaceAll(" ", "").replace(",", ".");
+  const cleaned = value.trim().replace(/\s/g, "").replace(",", ".");
   if (!cleaned) return null;
   if (
     !/^\d{1,12}(\.\d{1,2})?$/.test(cleaned) ||

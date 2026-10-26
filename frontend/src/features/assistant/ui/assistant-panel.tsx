@@ -602,7 +602,7 @@ export function AssistantPanel({
             compact
             focused
             view={record}
-            onEditNeed={() => { setWorkspaceSection("data"); setMobilePanel("workspace"); workspaceHeading.current?.focus({preventScroll:true}); }}
+            onEditNeed={() => { setWorkspaceSection("data"); setMobilePanel("conversation"); requestAnimationFrame(() => messageBox.current?.focus({preventScroll:true})); }}
             busy={busy || !editable}
             onExplore={actions.explore}
             onSavePlan={(plan) =>

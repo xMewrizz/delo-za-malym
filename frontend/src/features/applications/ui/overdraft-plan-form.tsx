@@ -14,18 +14,21 @@ import {
   planPeriod,
   type PlanDraft,
   type PlanRow,
+  PlanValidationError,
 } from "../model/overdraft-plan";
 
-export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
+export function CashFlowFields({ view, draft, setDraft, bankCash, direction, error }: {
   view: ApplicationView;
   draft: PlanDraft;
   setDraft: Dispatch<SetStateAction<PlanDraft>>;
   bankCash?: string | null;
   direction?: "inflow" | "outflow";
+  error?: {fieldId: string; message: string} | null;
 }) {
   const allLoans = view.application.financials.existing_loans || [];
   const loans = allLoans.filter(loan => !loan.schedule);
   const period = planPeriod(draft);
+  const fieldError = (id: string) => error?.fieldId === id ? error.message : undefined;
   function add(direction: "inflow" | "outflow") {
     setDraft((current) => ({
       ...current,
@@ -121,6 +124,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
                     <div>
                     <FormField
                       id={`operation-date-${row.id}`}
+                      error={fieldError(`operation-date-${row.id}`)}
                       label={row.direction === "inflow" ? "Когда поступят деньги" : "Когда нужно заплатить"}
                       readOnly={row.id.startsWith("bank-payment:")}
                       type="date"
@@ -134,6 +138,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
                     <div>
                     <FormField
                       id={`operation-amount-${row.id}`}
+                      error={fieldError(`operation-amount-${row.id}`)}
                       label={row.direction === "inflow" ? "Сколько поступит, ₽" : "Сколько нужно заплатить, ₽"}
                       readOnly={row.id.startsWith("bank-payment:")}
                       inputMode="decimal"
@@ -166,6 +171,9 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               <label className="flex items-start gap-3 rounded-xl bg-background p-4 text-xs leading-relaxed">
                 <input
                   type="checkbox"
+                  id="plan-debt-confirmed"
+                  aria-invalid={error?.fieldId === "plan-debt-confirmed" || undefined}
+                  aria-describedby={error?.fieldId === "plan-debt-confirmed" ? "plan-debt-confirmed-error" : undefined}
                   className="mt-0.5 size-4 accent-primary"
                   checked={draft.debtConfirmed}
                   onChange={(event) =>
@@ -179,11 +187,13 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
                 или подтверждаю, что их в нём нет.
               </label>
             )}
+            {fieldError("plan-debt-confirmed") && <p id="plan-debt-confirmed-error" role="alert" className="text-xs text-destructive">{error!.message}</p>}
     {direction !== "outflow" && <Disclosure title="Настройки прогноза" description="Необязательно · даты расчёта и запас денег на текущие расходы">
       <p className="my-3 text-sm leading-relaxed text-muted-foreground">По умолчанию считаем до последней известной операции. Продлите период, если хотите увидеть остаток позже. Резерв — сумма, которую в прогнозе не тратим: например, 50 000 ₽ на ежедневные расходы. Деньги на счёте не блокируются.</p>
             <div className="grid gap-4 sm:grid-cols-2">
               <FormField
                 id="plan-start"
+                error={fieldError("plan-start")}
                 label="Считать с даты"
                 type="date"
                 value={period.start}
@@ -198,6 +208,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               />
               <FormField
                 id="plan-end"
+                error={fieldError("plan-end")}
                 label="Показать прогноз до"
                 type="date"
                 value={period.end}
@@ -212,6 +223,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction }: {
               />
               <FormField
                 id="plan-reserve"
+                error={fieldError("plan-reserve")}
                 label="Оставить на текущие расходы, ₽"
                 hint="0 ₽ — используем в прогнозе весь доступный остаток."
                 inputMode="decimal"
@@ -244,6 +256,7 @@ export function OverdraftPlanForm({
 }) {
   const { draft, setDraft, bankCash } = useCashFlowDraft(view);
   const [error, setError] = useState("");
+  const [fieldError, setFieldError] = useState<PlanValidationError | null>(null);
   const loans = view.application.financials.existing_loans || [];
   const show =
     view.application.need.preferred_product === "overdraft" ||
@@ -275,10 +288,18 @@ export function OverdraftPlanForm({
           : {}),
       });
       setError("");
+      setFieldError(null);
     } catch (cause) {
+      setFieldError(cause instanceof PlanValidationError ? cause : null);
       setError(
         cause instanceof Error ? cause.message : "Проверьте денежный план.",
       );
+      if (cause instanceof PlanValidationError) requestAnimationFrame(() => {
+        const input = document.getElementById(cause.fieldId);
+        let disclosure = input?.closest("details");
+        while (disclosure) { disclosure.open = true; disclosure = disclosure.parentElement?.closest("details") || null; }
+        input?.focus();
+      });
     }
   }
 
@@ -300,8 +321,8 @@ export function OverdraftPlanForm({
       <CardContent>
         <form onSubmit={submit} className="space-y-5">
           <fieldset disabled={busy} className="space-y-5 disabled:opacity-70">
-            <CashFlowFields view={view} draft={draft} setDraft={setDraft} bankCash={bankCash} />
-            {error && (
+            <CashFlowFields view={view} draft={draft} setDraft={update => {setDraft(update);if(fieldError){setFieldError(null);setError("");}}} bankCash={bankCash} error={fieldError}/>
+            {error && !fieldError && (
               <p role="alert" className="text-sm text-destructive">
                 {error}
               </p>

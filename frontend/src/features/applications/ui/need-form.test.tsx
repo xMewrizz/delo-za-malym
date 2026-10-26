@@ -7,6 +7,24 @@ import type { ApplicationView } from "../api/applications";
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const view={application:{application_id:"step-test",application_version:1,need:{},financials:{cash_balance:"300000.00",existing_loans:[]}},client_data:{bank_financials:{cash_balance:"300000.00"}},field_sources:{}} as unknown as ApplicationView;
 describe("guided financing form",()=>{
+  it("points to each missing operation amount, preserves the payment and accepts an optional receipt after correction",async()=>{
+    localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
+    const host=document.createElement("div");document.body.append(host);const root=createRoot(host),save=vi.fn();
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>("button")].find(item=>!item.closest("[hidden]")&&item.textContent===text)!.click());
+    const fill=async(value:string)=>act(async()=>{const input=host.querySelector<HTMLInputElement>('[id^="operation-amount-"]')!;Object.getOwnPropertyDescriptor(HTMLInputElement.prototype,"value")!.set!.call(input,value);input.dispatchEvent(new Event("input",{bubbles:true}));});
+    try{
+      await act(async()=>root.render(<NeedForm view={view} busy={false} onSave={save} continueToNextStep/>));
+      await click("Дождаться выручки");await click("Продолжить");await click("Продолжить");
+      expect(host.querySelector('[id^="operation-amount-"]')?.getAttribute("aria-invalid")).toBe("true");
+      expect(host.querySelector(".form-field [role=alert]")?.textContent).toContain("больше 0 ₽");
+      await fill("450\u00a0000");await click("Продолжить");await click("Поступление");await click("Посмотреть подходящие предложения");
+      expect(host.querySelector('[id^="operation-amount-"]')?.getAttribute("aria-invalid")).toBe("true");
+      expect(save).not.toHaveBeenCalled();
+      await fill("200000");await click("Посмотреть подходящие предложения");
+      expect(save).toHaveBeenCalledOnce();
+      expect(save.mock.calls[0][0]["product_details.overdraft"].transactions.map((row:{amount:string})=>row.amount)).toEqual(["450000.00","200000.00"]);
+    }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
+  });
   it("shows a lower bound at a short term and offers fitting terms without changing the requested amount",async()=>{
     localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
     const product={product_id:"working_capital_loan",name:"Кредит",policy_version:"demo-v1",minimum_amount:"100000.00",maximum_amount:"100000000.00",annual_rate_percent:"24.00",terms:[12,36]};

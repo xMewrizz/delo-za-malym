@@ -37,6 +37,27 @@ export type PlanDraft = {
   automaticPeriod?: boolean;
 };
 
+export class PlanValidationError extends Error {
+  fieldId: string;
+  constructor(fieldId: string, message: string) { super(message); this.fieldId = fieldId; }
+}
+
+function isDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
+  const date = new Date(`${value}T12:00:00Z`);
+  return Number.isFinite(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function validateCashFlowRow(row: PlanRow, period: {start: string; end: string}) {
+  if (!isDate(row.date)) throw new PlanValidationError(`operation-date-${row.id}`, "Укажите корректную дату операции.");
+  if (row.date < period.start || row.date > period.end) throw new PlanValidationError(`operation-date-${row.id}`, "Дата операции должна входить в период прогноза. Измените дату или расширьте период в настройках.");
+  try {
+    if (!normalizeMoneyInput(row.amount)) throw new Error("Укажите сумму операции больше 0 ₽.");
+  } catch (cause) {
+    throw new PlanValidationError(`operation-amount-${row.id}`, (cause as Error).message);
+  }
+}
+
 export function planPeriod(draft: PlanDraft) {
   if (!draft.automaticPeriod) return { start: draft.start, end: draft.end };
   const dates = [draft.start, ...draft.rows.map((row) => row.date)]
@@ -76,23 +97,24 @@ export function draftFromPlan(
 
 export function buildOverdraftPlan(draft: PlanDraft, loanIds: string[]) {
   draft = { ...draft, ...planPeriod(draft) };
-  if (!draft.start || !draft.end || draft.start > draft.end)
-    throw new Error("Укажите корректный период плана.");
+  if (!isDate(draft.start)) throw new PlanValidationError("plan-start", "Укажите корректную дату начала прогноза.");
+  if (!isDate(draft.end) || draft.start > draft.end) throw new PlanValidationError("plan-end", "Конец прогноза должен быть не раньше его начала.");
   if (draft.rows.length === 0)
     throw new Error("Добавьте хотя бы одно поступление или расход.");
   if (new Set(draft.rows.map((row) => row.id)).size !== draft.rows.length)
     throw new Error("Операции должны иметь разные идентификаторы.");
   const opening = normalizeMoneyInput(draft.openingCash, true);
-  const reserve = normalizeMoneyInput(draft.reserve, true);
-  if (!opening || !reserve)
-    throw new Error("Укажите начальный остаток и резерв, можно 0.");
+  let reserve: string | null;
+  try { reserve = normalizeMoneyInput(draft.reserve, true); }
+  catch (cause) { throw new PlanValidationError("plan-reserve", (cause as Error).message); }
+  if (!reserve) throw new PlanValidationError("plan-reserve", "Укажите запас денег на расходы, можно 0 ₽.");
+  if (!opening) throw new Error("Не удалось получить остаток счёта. Обновите данные банка.");
   if (loanIds.length && !draft.debtConfirmed)
-    throw new Error(
+    throw new PlanValidationError("plan-debt-confirmed",
       "Подтвердите, что платежи по действующим кредитам учтены в плане.",
     );
   const transactions = draft.rows.map((row) => {
-    if (!row.date || row.date < draft.start || row.date > draft.end)
-      throw new Error("Дата каждой операции должна входить в период плана.");
+    validateCashFlowRow(row, draft);
     if (
       row.loanId &&
       (row.direction !== "outflow" || !loanIds.includes(row.loanId))
@@ -101,8 +123,6 @@ export function buildOverdraftPlan(draft: PlanDraft, loanIds: string[]) {
         "Платёж по кредиту должен быть расходом по действующему кредиту.",
       );
     const amount = normalizeMoneyInput(row.amount);
-    if (!amount)
-      throw new Error("Укажите положительную сумму каждой операции.");
     return {
       transaction_id: row.id,
       date: row.date,

@@ -10,6 +10,17 @@ Object.assign(globalThis, { IS_REACT_ACT_ENVIRONMENT: true });
 const options = [12,18,24,36].map(term=>({option_id:`option-${term}`,offer_id:`offer-${term}`,product_id:"working_capital_loan",term_months:term,amount:"500000.00",monthly_payment:String(500000/term),total_repayment:"600000.00",total_interest:"100000.00"}));
 const fixture = {application:{application_id:"one",application_version:1,need:{purpose:"working_capital",preferred_product:"working_capital_loan",requested_amount:"500000.00"},financials:{existing_loans:[]}},explorations:[{exploration_id:"explore-one",application_version:1,product_id:"working_capital_loan",result:{status:"options_ready",options}}]} as unknown as ApplicationView;
 describe("offer comparison",()=>{
+  it("explains the unpaid overdraft in amounts and returns directly to receipts",async()=>{
+    const host=document.createElement("div"),root=createRoot(host),client=new QueryClient(),edit=vi.fn();
+    const view={...fixture,application:{...fixture.application,need:{preferred_product:"overdraft",financing_pattern:"cash_gap"}},explorations:[{...fixture.explorations[0],product_id:"overdraft",result:{status:"not_eligible",options:[],reasons:[{code:"repayment_not_demonstrated",message:"Technical reason"}],calculation:{required_limit:"200000.00",total_drawn:"200000.00",total_interest:"1000.00",fully_repaid:false,feasible:false,outstanding_principal:"200000.00",unpaid_interest:"1000.00",daily:[]}}}]} as unknown as ApplicationView;
+    try{
+      await act(async()=>root.render(<MemoryRouter><QueryClientProvider client={client}><ExplorationPanel view={view} busy={false} onExplore={vi.fn()} onApply={vi.fn()} onEditNeed={edit} compact/></QueryClientProvider></MemoryRouter>));
+      expect(host.querySelector(".exploration-limit-facts")?.textContent).toContain("Долг к концу плана");
+      expect(host.querySelectorAll(".exploration-limit-facts dd")).toHaveLength(3);
+      await act(async()=>[...host.querySelectorAll<HTMLButtonElement>("button")].find(button=>button.textContent==="Уточнить поступления")!.click());
+      expect(edit).toHaveBeenCalledExactlyOnceWith(2);
+    }finally{await act(async()=>root.unmount());client.clear();}
+  });
   it("separates requested amount, business capacity and payment capacity instead of repeating a paragraph",async()=>{
     const host=document.createElement("div"),root=createRoot(host),client=new QueryClient();
     const view={...fixture,explorations:[{...fixture.explorations[0],result:{status:"needs_information",options:[],required_information:[{code:"minimum_acceptable_amount_required"}],reasons:[{code:"reduced_amount_requires_confirmation",message:"Long technical explanation",requested_amount:"10000000.00",maximum_amount:"5800000.00",product_maximum:"100000000.00",available_monthly_payment:"555268.37"}]}}]};
@@ -47,18 +58,18 @@ describe("offer comparison",()=>{
       expect(explore).toHaveBeenCalledWith("working_capital_loan", {preserve_amount:false});
     } finally { await act(async () => root.unmount()); client.clear(); }
   });
-  it("limits side-by-side comparison to three, resets selectable choices on new conditions, and collapses stale options",async()=>{
+  it("keeps comparison choices available, resets them on new conditions, and collapses stale options",async()=>{
     const host=document.createElement("div"); document.body.append(host); const root=createRoot(host);const client=new QueryClient();const refresh=vi.fn();
     const render=(view:ApplicationView)=>act(async()=>root.render(<MemoryRouter><QueryClientProvider client={client}><ExplorationPanel view={view} busy={false} onExplore={refresh} onApply={vi.fn()} compact/></QueryClientProvider></MemoryRouter>));
     try {
       await render(fixture);
-      const checks=[...host.querySelectorAll<HTMLInputElement>(".offer-compare-choice input")];
+      const checks=[...host.querySelectorAll<HTMLInputElement>(".focused-offer-check input")];
       for(const check of checks.slice(0,3)) await act(async()=>check.click());
-      expect(checks[3].disabled).toBe(true);
-      expect(host.querySelectorAll(".offer-compare-tray thead th")).toHaveLength(4);
+      expect(checks[3].disabled).toBe(false);
+      expect([...host.querySelectorAll<HTMLButtonElement>("button")].find(item=>item.textContent==="Сравнить · 3")?.disabled).toBe(false);
       const updated={...fixture,explorations:[{...fixture.explorations[0],result:{status:"options_ready",options:options.map(option=>({...option,option_id:option.option_id+"-new"}))}}]};
       await render(updated);
-      expect([...host.querySelectorAll<HTMLInputElement>(".offer-compare-choice input")].every(item=>!item.disabled)).toBe(true);
+      expect([...host.querySelectorAll<HTMLInputElement>(".focused-offer-check input")].every(item=>!item.disabled)).toBe(true);
       expect(host.querySelector(".offer-compare-tray")).toBeNull();
       await render({...fixture,application:{...fixture.application,application_version:2}});
       const old=host.querySelector<HTMLDetailsElement>(".exploration-context")!;

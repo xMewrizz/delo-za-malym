@@ -15,7 +15,7 @@ import { RefinancingLoans } from "./refinancing-loans";
 import { refinancingIds } from "../model/refinancing";
 import { CashFlowFields } from "./overdraft-plan-form";
 import { useCashFlowDraft } from "../model/use-cash-flow-draft";
-import { buildOverdraftPlan } from "../model/overdraft-plan";
+import { buildOverdraftPlan, planPeriod, PlanValidationError, validateCashFlowRow } from "../model/overdraft-plan";
 import "./need-form.css";
 import { inferNeedTask, needTasks, needProducts, scenarioDraft, selectNeedTask, type NeedTask } from "../model/need-scenario";
 import {
@@ -63,6 +63,7 @@ export function NeedForm({
     }
   }, [snapshotKey, base, draft]);
   const [error, setError] = useState("");
+  const [planError, setPlanError] = useState<PlanValidationError | null>(null);
   const [errorField, setErrorField] = useState<keyof NeedDraft | null>(null);
   const fieldIds = { projectCost: "need-project-cost", purpose: "need-purpose", preferredProduct: "need-product", requestedAmount: "need-amount", amountFlexibility: "need-amount-choice", termMonths: "need-term", minimumAmount: "need-minimum", ownFunds: "need-own" };
   const fieldError = (key: keyof NeedDraft) => errorField === key ? error : undefined;
@@ -80,13 +81,14 @@ export function NeedForm({
   const capacity=useFinancingCapacity(JSON.stringify(view.application.financials),investment?Number(draft.graceMonths||0):0);
   const businessLimit=capacity.data?.products.find(item=>item.product_id===(draft.preferredProduct||(draft.financingPattern==="cash_gap"?"overdraft":"working_capital_loan")));
   const amountRange=businessLimit?.status==="available" && bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(String(Math.floor(Number(businessLimit.maximum_amount))))} для вашего бизнеса. Сумма зависит от срока.` : bounds ? `От ${formatMoney(bounds.minimum_amount)} до ${formatMoney(bounds.maximum_amount)} по правилам продукта. Доступную сумму рассчитаем по данным бизнеса.` : "Доступную сумму рассчитаем по данным бизнеса.";
-  const requestedCredit=investment ? Number((draft.projectCost||"0").replaceAll(" ","").replace(",","."))-Number((draft.ownFunds||"0").replaceAll(" ","").replace(",",".")) : Number(draft.requestedAmount.replaceAll(" ","").replace(",","."));
+  const requestedCredit=investment ? Number((draft.projectCost||"0").replace(/\s/g, "").replace(",","."))-Number((draft.ownFunds||"0").replace(/\s/g, "").replace(",",".")) : Number(draft.requestedAmount.replace(/\s/g, "").replace(",","."));
   const termLimit=businessLimit?.terms.find(item=>item.term_months===Number(draft.termMonths));
   const exceedsTerm=termLimit&&requestedCredit>Number(termLimit.maximum_amount);
   const fittingTerms=businessLimit?.terms.filter(item=>Number(item.maximum_amount)>=requestedCredit)||[];
   function validateProductAmount() {
     if(!bounds || refinancing || nextIsPlan)return;
-    const amount=investment ? Number((draft.projectCost||"0").replaceAll(" ","").replace(",","."))-Number((draft.ownFunds||"0").replaceAll(" ","").replace(",",".")) : Number(draft.requestedAmount.replaceAll(" ","").replace(",","."));
+    const amount=investment ? Number((draft.projectCost||"0").replace(/\s/g, "").replace(",","."))-Number((draft.ownFunds||"0").replace(/\s/g, "").replace(",",".")) : Number(draft.requestedAmount.replace(/\s/g, "").replace(",","."));
+    if(Number.isFinite(amount) && amount>0 && amount<Number(bounds.minimum_amount)) throw new NeedValidationError(investment?"projectCost":"requestedAmount",`Минимальная сумма кредита по этому продукту — ${formatMoney(bounds.minimum_amount)}.${investment?" Проверьте стоимость проекта и свой взнос.":" Укажите сумму не меньше минимальной."}`);
     if(Number.isFinite(amount) && amount > Number(bounds.maximum_amount)) throw new NeedValidationError(investment ? "projectCost" : "requestedAmount",`Максимальная сумма этого продукта — ${formatMoney(bounds.maximum_amount)}. Укажите сумму в пределах диапазона.`);
     if(businessLimit?.status==="available" && Number.isFinite(amount) && amount>Number(businessLimit.maximum_amount)) throw new NeedValidationError(investment?"projectCost":"requestedAmount",`По текущим данным вашему бизнесу доступно до ${formatMoney(String(Math.floor(Number(businessLimit.maximum_amount))))} по этому продукту. Уменьшите сумму${investment?", добавьте собственные средства":""} или выберите другой продукт.`);
   }
@@ -100,15 +102,18 @@ export function NeedForm({
   const formId = useId();
   const labels = ["Задача", refinancing ? "Кредиты" : nextIsPlan ? "Предстоящий платёж" : investment ? "Стоимость проекта" : revolving ? "Лимит" : "Сумма", nextIsPlan ? "Поступление денег" : "Условия возврата"];
   const titles = ["На что нужны деньги?", refinancing ? "Какие кредиты объединим?" : nextIsPlan ? "Сколько и когда нужно заплатить?" : investment ? "Сколько стоит ваш проект?" : revolving ? "Какой лимит нужен?" : "Сколько нужно на задачу?", nextIsPlan ? "Когда поступят деньги?" : "Как удобно возвращать?"];
-  function go(next: number) { setPage(next); setError(""); setErrorField(null); }
+  function go(next: number) { setPage(next); setError(""); setErrorField(null); setPlanError(null); }
   const priorPage = useRef(page);
   useEffect(() => { if (priorPage.current !== page) { heading.current?.focus({preventScroll: true}); heading.current?.scrollIntoView({block:"nearest"}); } priorPage.current = page; }, [page]);
   function showError(cause: unknown) {
     const field = cause instanceof NeedValidationError ? cause.field : null;
+    const planIssue = cause instanceof PlanValidationError ? cause : null;
+    setPlanError(planIssue);
     setErrorField(field); setError(cause instanceof Error ? cause.message : "Проверьте поля формы.");
     if (wizard && field) setPage(["purpose", "preferredProduct"].includes(field) ? 0 : field === "termMonths" || field === "ownFunds" && !investment ? 2 : 1);
+    if (wizard && planIssue) setPage(cashFlow.draft.rows.some(row => row.direction === "outflow" && [`operation-date-${row.id}`, `operation-amount-${row.id}`].includes(planIssue.fieldId)) ? 1 : 2);
     requestAnimationFrame(() => {
-      const target = document.getElementById(field && field in fieldIds ? fieldIds[field as keyof typeof fieldIds] : "need-form-error");
+      const target = document.getElementById(planIssue?.fieldId || (field && field in fieldIds ? fieldIds[field as keyof typeof fieldIds] : "need-form-error"));
       let details = target?.closest("details");
       while (details) { details.open = true; details = details.parentElement?.closest("details") || null; }
       target?.focus();
@@ -128,7 +133,8 @@ export function NeedForm({
         }
         if (nextIsPlan) {
           const expenses = cashFlow.draft.rows.filter(row => row.direction === "outflow");
-          if (!expenses.length || expenses.some(row => !row.date || !/^\d+(\.\d{1,2})?$/.test(row.amount.replaceAll(" ", "").replace(",", ".")) || Number(row.amount.replaceAll(" ", "").replace(",", ".")) <= 0)) throw new Error("Укажите сумму и дату предстоящего платежа.");
+          if (!expenses.length) throw new Error("Добавьте платёж: укажите, сколько и когда нужно заплатить.");
+          expenses.forEach(row => validateCashFlowRow(row, planPeriod(cashFlow.draft)));
         }
       }
       go(page + 1);
@@ -232,7 +238,7 @@ export function NeedForm({
           {investment && <div hidden={wizard && page !== 1} className="need-project-fields">
             <FormField id="need-project-cost" label="Стоимость проекта, ₽" value={draft.projectCost || ""} inputMode="decimal" error={fieldError("projectCost")} onChange={event => set("projectCost", event.target.value)} hint={`Полная стоимость покупки. ${amountRange}`} />
             <FormField id="need-own" label="Собственный взнос, ₽" value={draft.ownFunds} inputMode="decimal" error={fieldError("ownFunds")} onChange={event => set("ownFunds", event.target.value)} hint="Необязательно. Можно оставить пустым — проверим финансирование всей стоимости." />
-            <p className="rounded-xl bg-secondary p-4 text-sm self-end">Кредит на проект: {Math.max(0, Number((draft.projectCost || "0").replaceAll(" ", "").replace(",", ".")) - Number((draft.ownFunds || "0").replaceAll(" ", "").replace(",", "."))).toLocaleString("ru-RU")} ₽</p>
+            <p className="rounded-xl bg-secondary p-4 text-sm self-end">Кредит на проект: {Math.max(0, Number((draft.projectCost || "0").replace(/\s/g, "").replace(",", ".")) - Number((draft.ownFunds || "0").replace(/\s/g, "").replace(",", "."))).toLocaleString("ru-RU")} ₽</p>
           </div>}
           {!nextIsPlan && <div hidden={wizard && page !== 2}><FormField
             id="need-term"
@@ -253,10 +259,10 @@ export function NeedForm({
         {revolving && <p hidden={wizard && page !== 1} className="rounded-xl bg-secondary p-4 text-sm">Лимит — максимальная сумма, которую можно использовать одновременно. Проценты начисляются только на долг.</p>}
         {continueToNextStep && page > 0 && nextIsPlan && (
           <section className="space-y-4" aria-label="Предстоящие платежи и поступления">
-            <CashFlowFields view={view} {...cashFlow} direction={page === 1 ? "outflow" : "inflow"} />
+            <CashFlowFields view={view} {...cashFlow} error={planError} setDraft={update => {cashFlow.setDraft(update);if(planError){setPlanError(null);setError("");}}} direction={page === 1 ? "outflow" : "inflow"} />
           </section>
         )}
-        {error && !errorField && (
+        {error && !errorField && !planError && (
           <p
             id="need-form-error"
             tabIndex={-1}

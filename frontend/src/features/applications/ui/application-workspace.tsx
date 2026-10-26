@@ -205,7 +205,7 @@ export function ApplicationWorkspace({
                 key={id}
                 compact
                 view={view}
-                onEditNeed={() => { localStorage.setItem(`delo-need-page:${id}`, "1"); setStep("need"); }}
+                onEditNeed={(page = 1) => { localStorage.setItem(`delo-need-page:${id}`, String(page)); setStep("need"); }}
                 busy={busy || !editable}
                 onExplore={actions.explore}
                 onSavePlan={(plan) =>

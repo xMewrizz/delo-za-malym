@@ -215,17 +215,17 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-term", "12");
     await click("Посмотреть подходящие предложения");
     await until(() => button("Выбрать условия"), "real loan options");
-    expect(document.querySelectorAll(".exploration-option").length).toBeGreaterThan(1);
+    expect(document.querySelectorAll(".exploration-option, .focused-offer-list>li").length).toBeGreaterThan(1);
     const settings = document.querySelector<HTMLDetailsElement>(".exploration-settings")!;
     expect(settings.open).toBe(false);
-    expect(document.querySelector('.exploration-option')!.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('.exploration-option, .focused-offer-list>li')!.compareDocumentPosition(settings) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(document.activeElement?.textContent).toBe("Ваш запрос");
     await click("Изменить задачу");
     expect(document.querySelector(".need-step-heading h2")?.textContent).toBe("Как удобно возвращать?");
     await click("Посмотреть подходящие предложения");
     await until(() => button("Выбрать условия"), "reopened loan options");
     await until(() => requests.filter(path => path.endsWith(`/applications/${manualId}/explorations`)).length === 2, "second options calculation");
-    const twelveMonthOption = [...document.querySelectorAll(".exploration-option")].find(item => item.textContent?.includes("12 мес."))!;
+    const twelveMonthOption = [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("12 мес."))!;
     expect(twelveMonthOption).toBeTruthy();
     await chooseOption(twelveMonthOption);
     await until(() => button("Перейти к заявке"), "apply confirmation");
@@ -610,7 +610,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       .find((item) => item.parentElement?.textContent?.includes("Я учёл в расходах"));
     if (debtConfirmation) await act(async () => debtConfirmation.click());
     await click("Посмотреть подходящие предложения");
-    await until(() => document.querySelector(".exploration-option"), "cash gap options step");
+    await until(() => document.querySelector(".exploration-option, .focused-offer-list>li"), "cash gap options step");
     await until(() => button("Предложения")?.getAttribute("aria-current") === "step", "cash gap calculation completed");
     expect(document.body.textContent).toContain("Овердрафт");
     expect(document.querySelector("#compare-amount")).toBeNull();
@@ -666,7 +666,10 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await until(() => document.body.textContent?.includes("Рассчитаем: Кредит на оборотные цели"), "working capital settings after saved selection");
     await act(async () => (document.querySelector(".exploration-settings summary") as HTMLElement).click());
     await click("Показать варианты");
-    await until(() => document.querySelector(".loan-calendar-trigger"), "updated loan options");
+    await until(() => button("Подробнее: 12 мес."), "updated loan options");
+    await click("Подробнее: 12 мес.");
+    await until(() => document.querySelector(".loan-calendar-trigger"), "loan calendar action in details");
+    await click("Закрыть условия");
     expect((await read()).explorations.at(-1).product_id).toBe("working_capital_loan");
   }, 20_000);
 
@@ -911,10 +914,9 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     );
     localStorage.setItem(`delo-step:${id}`, JSON.stringify("options"));
     await render();
-    await until(
-      () => document.querySelector(".loan-calendar-trigger"),
-      "loan options",
-    );
+    await until(() => button("Подробнее: 12 мес."), "loan options");
+    await click("Подробнее: 12 мес.");
+    await until(() => document.querySelector(".loan-calendar-trigger"), "calendar action in option details");
     await act(async () =>
       (document.querySelector(".loan-calendar-trigger") as HTMLElement).click(),
     );
@@ -926,18 +928,18 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
       "dated calendar",
     );
     expect(document.body.textContent).toContain("Минимальный остаток:");
-    const calendarDialog = document.querySelector('[role="dialog"]')!;
+    const calendarDialog = document.querySelector(".loan-calendar-panel:not(.focused-option-dialog)")!;
     expect(calendarDialog.getAttribute("aria-modal")).toBe("true");
-    expect(calendarDialog.closest(".exploration-option")).toBeNull();
+    expect(calendarDialog.closest(".exploration-option, .focused-offer-list>li")).toBeNull();
     expect(calendarDialog.querySelector('[role="region"][tabindex="0"]')).toBeTruthy();
     const calendarTrigger = document.querySelector(".loan-calendar-trigger");
     await act(async () => (document.querySelector('[aria-label="Закрыть график платежей"]') as HTMLButtonElement).click());
-    await until(() => !document.querySelector('[role="dialog"]'), "calendar closed");
+    await until(() => !document.querySelector(".loan-calendar-panel:not(.focused-option-dialog)"), "calendar closed");
     await until(() => document.activeElement === calendarTrigger, "calendar returns focus to its offer");
     await act(async () => (calendarTrigger as HTMLButtonElement).click());
     await until(() => document.querySelector('[aria-label="Календарь платежей по кредиту"] time'), "calendar reopened");
     await act(async () => document.dispatchEvent(new KeyboardEvent("keydown", { key: "Escape", bubbles: true })));
-    await until(() => !document.querySelector('[role="dialog"]'), "calendar dismissed with Escape");
+    await until(() => !document.querySelector(".loan-calendar-panel:not(.focused-option-dialog)"), "calendar dismissed with Escape");
     await act(async () => (calendarTrigger as HTMLButtonElement).click());
     await until(() => document.querySelector('[aria-label="Календарь платежей по кредиту"] time'), "calendar ready for scenario");
     const select = document.querySelector(
@@ -999,11 +1001,14 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     for (const checkbox of checkboxes) await act(async () => checkbox.click());
     await click("Посмотреть подходящие предложения");
     await until(() => document.querySelector('[aria-label="Текущие кредиты для сравнения"]'), "current schedules compared");
-    await until(() => document.querySelectorAll('.exploration-option').length > 1, "multiple refinancing terms");
-    expect(document.body.textContent).toContain("Пиковая нагрузка меньше, но общая стоимость выше");
+    await until(() => document.querySelectorAll('.exploration-option, .focused-offer-list>li').length > 1, "multiple refinancing terms");
+
     expect(document.querySelector('#compare-amount')).toBeNull();
-    const option = [...document.querySelectorAll('.exploration-option')].find(item => item.textContent?.includes("24 мес."))!;
+    const option = [...document.querySelectorAll('.exploration-option, .focused-offer-list>li')].find(item => item.textContent?.includes("24 мес."))!;
     expect(option).toBeTruthy();
+    await click("Подробнее: 24 мес.");
+    expect(document.querySelector(".focused-option-dialog")?.textContent).toContain("Пиковая нагрузка меньше, но общая стоимость выше");
+    await click("Закрыть условия");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     const original = await nativeFetch(`${base}/api/applications/${id}`).then(response => response.json());
     expect(original.application.financials).toEqual(before.financials);
@@ -1044,9 +1049,11 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await click("Регулярные закупки");
     await input("#need-amount", "200000");
     await click("Посмотреть подходящие предложения");
-    await until(() => [...document.querySelectorAll<HTMLElement>(".exploration-option")].some(item => item.textContent?.includes("12 мес.")), "line offers");
+    await until(() => [...document.querySelectorAll<HTMLElement>(".exploration-option, .focused-offer-list>li")].some(item => item.textContent?.includes("12 мес.")), "line offers");
+    await click("Подробнее: 12 мес.");
     expect(document.body.textContent).toContain("Погашение основного долга восстанавливает доступный лимит");
-    const offer = [...document.querySelectorAll<HTMLElement>(".exploration-option")].find(item => item.textContent?.includes("12 мес."))!;
+    await click("Закрыть условия");
+    const offer = [...document.querySelectorAll<HTMLElement>(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("12 мес."))!;
     await chooseOption(offer);
     await click("Перейти к заявке");
     await click("Проверить и отправить");
@@ -1103,10 +1110,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     await input("#need-own", "100000");
     await click("3 месяца");
     await click("Посмотреть подходящие предложения");
-    await until(() => [...document.querySelectorAll(".exploration-option")].some(item => item.textContent?.includes("36 мес.")), "investment offers");
-    const option = [...document.querySelectorAll(".exploration-option")].find(item => item.textContent?.includes("36 мес."))!;
-    expect(option.textContent).toContain("Первые 3 мес.");
-    expect(option.textContent).toContain("только проценты");
+    await until(() => [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].some(item => item.textContent?.includes("36 мес.")), "investment offers");
+    const option = [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("36 мес."))!;
+    await click("Подробнее: 36 мес.");
+    expect(document.querySelector(".focused-option-dialog")?.textContent).toContain("Первые 3 мес.");
+    expect(document.querySelector(".focused-option-dialog")?.textContent).toContain("только проценты");
+    await click("Закрыть условия");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     await chooseOption(option);
     await click("Перейти к заявке");
@@ -1145,7 +1154,7 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     expect(previousInvestment?.textContent).toContain("только проценты");
     const secondId = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     expect(secondId).not.toBe(id);
-    const secondOption = [...document.querySelectorAll(".exploration-option")].find(item => item.textContent?.includes("12 мес."))!;
+    const secondOption = [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("12 мес."))!;
     expect(secondOption).toBeTruthy();
     await chooseOption(secondOption);
     await click("Перейти к заявке");
@@ -1180,10 +1189,12 @@ describe.skipIf(!base)("React cabinet with real FastAPI", () => {
     const oldCredit = [...document.querySelectorAll("[aria-label='Кредиты для рефинансирования'] label")].find(label => label.textContent?.includes("Инвестиционный кредит"))!;
     await act(async () => { oldCredit.querySelector<HTMLInputElement>("input[type=checkbox]")!.click(); });
     await click("Посмотреть подходящие предложения");
-    await until(() => [...document.querySelectorAll(".exploration-option")].some(item => item.textContent?.includes("36 мес.")), "replacement offers");
-    const option = [...document.querySelectorAll(".exploration-option")].find(item => item.textContent?.includes("36 мес."))!;
-    expect(option.textContent).toContain("В первом месяце выплаты вырастут");
-    expect(option.textContent).toContain("хотя максимальная нагрузка снизится");
+    await until(() => [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].some(item => item.textContent?.includes("36 мес.")), "replacement offers");
+    const option = [...document.querySelectorAll(".exploration-option, .focused-offer-list>li")].find(item => item.textContent?.includes("36 мес."))!;
+    await click("Подробнее: 36 мес.");
+    expect(document.querySelector(".focused-option-dialog")?.textContent).toContain("В первом месяце выплаты вырастут");
+    expect(document.querySelector(".focused-option-dialog")?.textContent).toContain("хотя максимальная нагрузка снизится");
+    await click("Закрыть условия");
     const id = JSON.parse(localStorage.getItem("delo-react-contexts")!).manual;
     await chooseOption(option);
     await click("Перейти к заявке");

@@ -47,22 +47,11 @@ export function ExplorationPanel({
   compact?: boolean;
   focused?: boolean;
   onSavePlan?: (plan: Record<string, unknown>) => void;
-  onEditNeed?: () => void;
+  onEditNeed?: (page?: number) => void;
 }) {
   const need = view.application.need;
-  const productContext = JSON.stringify([
-    view.application.application_id,
-    need.preferred_product,
-    need.financing_pattern,
-  ]);
-  const [productOverride, setProductOverride] = useState<{
-    context: string;
-    product: ProductId;
-  } | null>(null);
   const product: ProductId =
-    productOverride?.context === productContext
-      ? productOverride.product
-      : need.preferred_product === "investment_loan" ? "investment_loan" : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
+    need.preferred_product === "investment_loan" ? "investment_loan" : need.preferred_product === "revolving_credit_line" ? "revolving_credit_line" : need.preferred_product === "refinancing" ? "refinancing" : need.preferred_product === "overdraft" ||
           (!need.preferred_product && need.financing_pattern === "cash_gap")
         ? "overdraft"
         : "working_capital_loan";
@@ -287,7 +276,7 @@ export function ExplorationPanel({
   }
 
   return (
-    <Card className={`comparison-panel ${focused?"comparison-panel-focused":""} gap-0 border border-border bg-card/70`}>
+    <Card className={`comparison-panel ${focused?"comparison-panel-focused":""} ${compact?"comparison-panel-compact":""} gap-0 border border-border bg-card/70`}>
       <CardHeader className="comparison-header pb-5">
         <div className="flex items-center gap-3">
           <span className="grid size-10 place-items-center rounded-xl bg-primary/10 text-primary">
@@ -303,8 +292,8 @@ export function ExplorationPanel({
           </div>
         </div>
         <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
-          {latest && current && !options.length ? "" : focused ? "Сравните платёж и полную стоимость. Подробности — в условиях варианта." : product === "revolving_credit_line" ? "Сравните лимит и срок. Проценты зависят от того, сколько денег вы используете." : options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
-          {!focused&&(!latest || options.length > 0) && " Выберите предложение и проверьте заявку перед отправкой."}
+          {latest && current && !options.length ? "" : focused || compact ? product === "revolving_credit_line" ? "Сравните лимит и срок. Проценты начисляются на использованную сумму." : "Сравните платёж и полную стоимость. Подробности — в условиях варианта." : product === "revolving_credit_line" ? "Сравните лимит и срок. Проценты зависят от того, сколько денег вы используете." : options.length > 1 ? "Подобрали несколько вариантов по вашей задаче и данным бизнеса. Сравните платёж и полную стоимость." : "Покажем доступные условия по вашей задаче и данным бизнеса."}
+          {!focused&&!compact&&(!latest || options.length > 0) && " Выберите предложение и проверьте заявку перед отправкой."}
         </p>
       </CardHeader>
       <CardContent className="comparison-body">
@@ -328,7 +317,7 @@ export function ExplorationPanel({
             {!options.length ? <ExplorationEmpty result={latest.result} busy={busy} onEdit={onEditNeed} onRetry={() => onExplore(product, preserveAmount ? {} : {preserve_amount:false})} onSettings={() => { if (settings.current) { settings.current.open = true; settings.current.scrollIntoView?.({block:"nearest"}); settings.current.querySelector("summary")?.focus(); } }} /> : <>
               {latest.result.reasons?.length ? <p className="exploration-explanation">{latest.result.reasons.map(reason => reason.message).join(" ")}</p> : null}
             </>}
-            {focused&&current&&options.length>0&&product!=="overdraft" ? <FocusedOffers key={latest.exploration_id} view={view} explorationId={latest.exploration_id} options={options} busy={busy} comparison={comparison} onComparison={setComparison} onApply={onApply} onSavePlan={onSavePlan}/> : <>
+            {(focused||compact)&&current&&options.length>0&&product!=="overdraft" ? <FocusedOffers key={latest.exploration_id} view={view} explorationId={latest.exploration_id} options={options} busy={busy} comparison={comparison} onComparison={setComparison} onApply={onApply} onSavePlan={onSavePlan}/> : <>
             {current && options.length > 1 && <div className="offer-compare-guide"><p>Отметьте до трёх вариантов для сравнения рядом.</p></div>}
             {current && options.filter(option => comparison.includes(option.option_id || option.offer_id)).length > 0 && <section className="offer-compare-tray" aria-label="Выбранные варианты для сравнения"><header><strong>Сравнение вариантов</strong><Button variant="ghost" size="sm" onClick={() => setComparison([])}>Очистить сравнение</Button></header><div className="offer-compare-scroll"><table><caption className="sr-only">Сумма, платёж и стоимость отмеченных вариантов</caption><thead><tr><th scope="col">Параметр</th>{options.filter(option => comparison.includes(option.option_id || option.offer_id)).map(option => <th scope="col" key={option.option_id || option.offer_id}>{option.term_months ? `${option.term_months} мес.` : productName(option.product_id)}</th>)}</tr></thead><tbody>{([ ["Сумма", "amount"], ["В месяц", "monthly_payment"], ["Всего к возврату", "total_repayment"], ["Переплата", "total_interest"] ] as const).map(([label, key]) => <tr key={key}><th scope="row">{label}</th>{options.filter(option => comparison.includes(option.option_id || option.offer_id)).map(option => <td key={option.option_id || option.offer_id}>{typeof option[key] === "string" ? formatMoney(option[key] as string) : "По использованию"}</td>)}</tr>)}</tbody></table></div></section>}
             <div className="offer-comparison-grid" aria-label="Готовые предложения">
@@ -418,23 +407,6 @@ export function ExplorationPanel({
           )}
           <div>
             <fieldset disabled={busy} className="mt-4 space-y-5">
-              {need.purpose !== "refinancing" && need.preferred_product !== "refinancing" && product !== "investment_loan" && <ChoiceField
-                id="compare-product"
-                label="Продукт"
-                value={product}
-                onValueChange={(value) => {
-                  if (value === "overdraft" || value === "working_capital_loan" || value === "refinancing" || value === "revolving_credit_line")
-                    setProductOverride({ context: productContext, product: value });
-                }}
-                options={[
-                  {
-                    value: "working_capital_loan",
-                    label: "Кредит на оборотные цели",
-                  },
-                  { value: "overdraft", label: "Овердрафт до поступления денег" },
-                  { value: "revolving_credit_line", label: "Возобновляемая кредитная линия" },
-                ]}
-              />}
               {product !== "overdraft" ? (
                 <>
                   <div className="grid gap-4 sm:grid-cols-2">
@@ -558,7 +530,7 @@ function ExplorationResult({ current, busy, refresh, children, selectionRequired
 function ExplorationEmpty({ result, busy, onEdit, onRetry, onSettings }: {
   result: ApplicationView["explorations"][number]["result"];
   busy: boolean;
-  onEdit?: () => void;
+  onEdit?: (page?: number) => void;
   onRetry: () => void;
   onSettings: () => void;
 }) {
@@ -575,14 +547,16 @@ function ExplorationEmpty({ result, busy, onEdit, onRetry, onSettings }: {
   const issues = minimum || unpaid ? [] : [...questions, ...(Array.isArray(result.issues) ? result.issues : [])];
   const reasons = checking || filtered || noGap || unpaid || minimum ? [] : (result.reasons || []).filter(reason => reason.code !== "project_details_required").map(reason => reason.message);
   const messages = [...new Set([...issues.map(describeIssue), ...reasons])];
+  const closing = z.object({outstanding_principal:z.string(),unpaid_interest:z.string()}).safeParse(result.calculation);
   return <section className="exploration-empty-state" aria-label="Следующий шаг подбора">
     <span className="exploration-empty-icon" aria-hidden="true"><CircleHelp size={25} /></span>
     <div><h4>{title}</h4><p>{text}</p>
       {minimum&&constraint.success&&<dl className="exploration-limit-facts"><div><dt>Ваш запрос</dt><dd>{formatMoney(constraint.data.requested_amount)}</dd></div><div><dt>Доступно бизнесу</dt><dd>до {formatMoney(constraint.data.maximum_amount)}</dd></div><div><dt>На новый платёж</dt><dd>{formatMoney(constraint.data.available_monthly_payment)}<small>/мес.</small></dd></div></dl>}
       {minimum&&<p className="exploration-limit-next">Если меньшей суммы достаточно, укажите её в запросе. Сумму автоматически не меняем.</p>}
+      {unpaid&&closing.success&&<dl className="exploration-limit-facts"><div><dt>Нехватка по плану</dt><dd>{formatMoney(result.calculation!.required_limit)}</dd></div><div><dt>Долг к концу плана</dt><dd>{formatMoney(closing.data.outstanding_principal)}</dd></div><div><dt>Неоплаченные проценты</dt><dd>{formatMoneyPrecise(closing.data.unpaid_interest)}</dd></div></dl>}
       {messages.length > 0 && <ul>{messages.map(message => <li key={message}>{message}</li>)}</ul>}
       <div className="exploration-empty-actions">
-        {checking ? <Button disabled={busy} onClick={onRetry}>Повторить проверку</Button> : filtered ? <><Button disabled={busy} onClick={onSettings}>Изменить ограничения</Button><Button variant="outline" disabled={busy} onClick={onRetry}>Без ограничений сравнения</Button></> : onEdit ? <Button disabled={busy} onClick={onEdit}>{minimum ? "Уточнить сумму" : "Изменить данные"}</Button> : <Button variant="outline" disabled={busy} onClick={onSettings}>Изменить параметры</Button>}
+        {checking ? <Button disabled={busy} onClick={onRetry}>Повторить проверку</Button> : filtered ? <><Button disabled={busy} onClick={onSettings}>Изменить ограничения</Button><Button variant="outline" disabled={busy} onClick={onRetry}>Без ограничений сравнения</Button></> : onEdit ? <Button disabled={busy} onClick={() => onEdit(unpaid ? 2 : 1)}>{minimum ? "Уточнить сумму" : unpaid ? "Уточнить поступления" : noGap ? "Изменить расходы" : "Изменить данные"}</Button> : <Button variant="outline" disabled={busy} onClick={onSettings}>Изменить параметры</Button>}
       </div>
     </div>
   </section>;
