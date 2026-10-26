@@ -1,7 +1,7 @@
 export type GuideSection = {id:string;title:string;body:string};
 export const documentationGroups = [
-  {title:"Главное для организаторов",ids:["case-alignment","scoring","affordability","decision","quality"]},
-  {title:"Проверка проекта",ids:["start","jury-checks","process-model","data-sources"]},
+  {title:"Банковская логика",ids:["case-alignment","scoring","affordability","decision","quality"]},
+  {title:"Работа кабинета",ids:["start","jury-checks","process-model","data-sources"]},
   {title:"Кабинет и подбор",ids:["workspace","business-data","selection","luma"]},
   {title:"Продукты",ids:["working-capital","overdraft","credit-line","refinancing","investment"]},
   {title:"Оформление и обслуживание",ids:["comparison","application","servicing","supplier-payments","calendar"]},

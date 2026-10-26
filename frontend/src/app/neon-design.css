@@ -136,7 +136,12 @@ html[data-theme=light] .pulse-application-icon { color:var(--primary); }
 .cashflow-month { position:absolute; bottom:-24px; left:-10px; right:-12px; font-size:9px; color:var(--muted-foreground); text-align:center; }
 .cashflow-column[aria-pressed=true] .cashflow-month { color:var(--foreground); font-weight:700; text-decoration:underline; text-underline-offset:4px; }
 .cashflow-column[data-missing=true] .cashflow-bar { display:none; }.cashflow-missing { position:absolute; bottom:12px; left:0; right:0; font-size:12px; color:var(--muted-foreground); }
-.cashflow-plot[data-negative=true]::after { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--input); pointer-events:none; }.cashflow-plot[data-negative=true] .cashflow-bar { bottom:50%; }.cashflow-plot[data-negative=true] .cashflow-column[data-below-zero=true] .cashflow-bar { top:50%; bottom:auto; background:var(--destructive); }.cashflow-column[data-below-zero=true] .cashflow-bar::before,.cashflow-column[data-below-zero=true] .cashflow-bar::after { display:none; }
+.cashflow-plot[data-negative=true]::after { content:''; position:absolute; top:50%; left:0; right:0; height:1px; background:var(--input); pointer-events:none; }
+.cashflow-plot[data-negative=true] .cashflow-bar { bottom:50%; }
+.cashflow-column[data-below-zero=true] { --bar-color:var(--destructive); }
+.cashflow-plot[data-negative=true] .cashflow-column[data-below-zero=true] .cashflow-bar { top:50%; bottom:auto; }
+.cashflow-column[data-below-zero=true] .cashflow-bar::before { top:100%; background:color-mix(in srgb,var(--bar-color) 72%,var(--background)); clip-path:polygon(0 0,calc(100% - var(--bar-depth)) 0,100% 100%,var(--bar-depth) 100%); }
+.cashflow-column[data-below-zero=true] .cashflow-bar::after { top:0; bottom:calc(-1 * var(--bar-depth)); background:color-mix(in srgb,var(--bar-color) 64%,var(--background)); clip-path:polygon(0 0,100% var(--bar-depth),100% 100%,0 calc(100% - var(--bar-depth))); }
 .chart-footnote { display:flex; justify-content:space-between; align-items:center; gap:10px; margin-top:28px; color:var(--muted-foreground); font-size:10px; }
 .chart-footnote>span { display:flex; align-items:center; gap:6px; }.chart-footnote i { width:5px; height:5px; border-radius:50%; background:var(--chart-1); }.chart-footnote a { display:flex; gap:4px; align-items:center; text-decoration:none; white-space:nowrap; }
 .chart-empty { min-height:265px; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; color:var(--muted-foreground); font-size:12px; }.chart-empty a { display:flex; gap:6px; color:var(--primary); }
