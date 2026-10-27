@@ -16,4 +16,6 @@ def product_fingerprint(product):
     values=asdict(policy)
     if product=="investment_loan":
         values["minimum_own_share"]=MINIMUM_OWN_SHARE
+    if product=="overdraft":
+        values["existing_loan_funding"]="own-funds-only-v1"
     return sha256(json.dumps(values,sort_keys=True,default=str).encode()).hexdigest()[:20]

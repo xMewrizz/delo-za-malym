@@ -3,10 +3,28 @@ import { act } from "react";
 import { createRoot } from "react-dom/client";
 import { describe,it,expect,vi } from "vitest";
 import { NeedForm } from "./need-form";
+import { OverdraftPlanForm } from "./overdraft-plan-form";
 import type { ApplicationView } from "../api/applications";
 Object.assign(globalThis,{IS_REACT_ACT_ENVIRONMENT:true});
 const view={application:{application_id:"step-test",application_version:1,need:{},financials:{cash_balance:"300000.00",existing_loans:[]}},client_data:{bank_financials:{cash_balance:"300000.00"}},field_sources:{}} as unknown as ApplicationView;
 describe("guided financing form",()=>{
+  it.each(["guided","standalone"])("resaves %s plans after bank schedule injection without treating debt as the requested expense",async(mode)=>{
+    localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
+    const source={...view,application:{...view.application,need:{purpose:"working_capital",preferred_product:"overdraft",financing_pattern:"cash_gap"},financials:{cash_balance:"300000.00",existing_loans:[{loan_id:"issued",outstanding_principal:"500000.00",monthly_payment:"30000.00",schedule:[{date:"2026-11-10",total_payment:"30000.00"}]}]},product_details:{overdraft:{start_date:"2026-11-01",end_date:"2026-11-30",opening_cash_balance:"300000.00",cash_reserve:"0.00",transactions:[{transaction_id:"supplier",date:"2026-11-01",direction:"outflow",amount:"450000.00"},{transaction_id:"customer",date:"2026-11-30",direction:"inflow",amount:"1000000.00"},{transaction_id:"bank-payment:issued:2026-11-10",date:"2026-11-10",direction:"outflow",amount:"30000.00"}],existing_debt_payments:[{loan_id:"issued",transaction_id:"bank-payment:issued:2026-11-10"}]}}}} as unknown as ApplicationView;
+    const host=document.createElement("div");document.body.append(host);const root=createRoot(host),save=vi.fn();
+    const click=async(text:string)=>act(async()=>[...host.querySelectorAll<HTMLButtonElement>("button")].find(item=>!item.closest("[hidden]")&&item.textContent===text)!.click());
+    try{
+      await act(async()=>root.render(mode==="guided"?<NeedForm view={source} busy={false} onSave={save} continueToNextStep/>:<OverdraftPlanForm view={source} busy={false} onSave={save} submitLabel="Сохранить план"/>));
+      expect(host.querySelector('[id^="operation-amount-bank-payment:"]')).toBeNull();
+      if(mode==="guided"){await click("Продолжить");await click("Продолжить");await click("Посмотреть подходящие предложения");}
+      else await click("Сохранить план");
+      expect(save).toHaveBeenCalledOnce();
+      const payload=save.mock.calls[0][0],plan=mode==="guided"?payload["product_details.overdraft"]:payload.product_details.overdraft;
+      expect(plan.transactions.map((row:{transaction_id:string})=>row.transaction_id)).toEqual(["supplier","customer"]);
+      expect(plan.existing_debt_payments).toEqual([]);
+      expect(host.textContent).not.toContain("Платёж по кредиту должен быть");
+    }finally{await act(async()=>root.unmount());host.remove();localStorage.clear();}
+  });
   it("points to each missing operation amount, preserves the payment and accepts an optional receipt after correction",async()=>{
     localStorage.clear();HTMLElement.prototype.scrollIntoView=()=>{};
     const host=document.createElement("div");document.body.append(host);const root=createRoot(host),save=vi.fn();

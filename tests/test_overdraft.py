@@ -24,6 +24,46 @@ def scenario(end="2026-11-11", opening="100000.00", operations=None):
 
 
 class OverdraftTests(unittest.TestCase):
+    def test_credit_payments_cannot_be_funded_by_overdraft_even_with_later_revenue(self):
+        data = scenario(opening="0.00", operations=[
+            transaction("loan", "2026-11-01", "outflow", "100000.00"),
+            transaction("receipt", "2026-11-11", "inflow", "200000.00")])
+        data["existing_debt_payments"] = [{"loan_id":"existing", "transaction_id":"loan"}]
+        calculation = calculate_overdraft(data, "200000.00").calculation
+        self.assertEqual(calculation.required_limit, Decimal("0.00"))
+        self.assertEqual(calculation.total_drawn, Decimal("0.00"))
+        self.assertEqual(calculation.total_interest, Decimal("0.00"))
+        self.assertEqual(calculation.daily[0].closing_cash, Decimal("-100000.00"))
+        self.assertFalse(calculation.feasible)
+        self.assertIn("credit_payment_shortfall", [issue.code for issue in calculation.violations])
+
+    def test_own_funds_pay_existing_loan_and_overdraft_covers_business_expense(self):
+        data = scenario(opening="100000.00", operations=[
+            transaction("purchase", "2026-11-01", "outflow", "170000.00"),
+            transaction("loan", "2026-11-01", "outflow", "30000.00"),
+            transaction("receipt", "2026-11-11", "inflow", "200000.00")])
+        data["existing_debt_payments"] = [{"loan_id":"existing", "transaction_id":"loan"}]
+        before=deepcopy(data)
+        policy=OverdraftPolicy(annual_rate_percent="0.00")
+        calculation = calculate_overdraft(data, "200000.00",policy=policy).calculation
+        self.assertEqual(calculation.required_limit, Decimal("100000.00"))
+        self.assertTrue(calculation.feasible)
+        self.assertEqual(data,before)
+        data["transactions"].reverse()
+        self.assertEqual(calculate_overdraft(data,"200000.00",policy=policy).calculation,calculation)
+
+    def test_later_credit_shortfall_does_not_increase_the_overdraft_drawing(self):
+        data = scenario(opening="0.00", operations=[
+            transaction("purchase", "2026-11-01", "outflow", "100000.00"),
+            transaction("loan", "2026-11-02", "outflow", "50000.00"),
+            transaction("receipt", "2026-11-11", "inflow", "200000.00")])
+        data["existing_debt_payments"] = [{"loan_id":"existing", "transaction_id":"loan"}]
+        calculation = calculate_overdraft(data,"200000.00",policy=OverdraftPolicy(annual_rate_percent="0.00")).calculation
+        self.assertEqual(calculation.total_drawn,Decimal("100000.00"))
+        self.assertEqual(calculation.daily[1].drawn,Decimal("0.00"))
+        self.assertEqual(calculation.closing_cash,Decimal("50000.00"))
+        self.assertFalse(calculation.feasible)
+
     def test_ten_day_gap_has_daily_interest_and_full_repayment(self):
         result = calculate_overdraft(scenario(), "200000.00")
         self.assertEqual(result.status, "calculated")

@@ -132,7 +132,7 @@ export function NeedForm({
           if (!revolving) validateAmountChoice(draft);
         }
         if (nextIsPlan) {
-          const expenses = cashFlow.draft.rows.filter(row => row.direction === "outflow");
+          const expenses = cashFlow.draft.rows.filter(row => row.direction === "outflow" && !row.id.startsWith("bank-payment:"));
           if (!expenses.length) throw new Error("Добавьте платёж: укажите, сколько и когда нужно заплатить.");
           expenses.forEach(row => validateCashFlowRow(row, planPeriod(cashFlow.draft)));
         }

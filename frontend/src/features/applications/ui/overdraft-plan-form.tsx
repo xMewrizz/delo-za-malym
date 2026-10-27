@@ -27,6 +27,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction, err
 }) {
   const allLoans = view.application.financials.existing_loans || [];
   const loans = allLoans.filter(loan => !loan.schedule);
+  const editableRows = draft.rows.filter(row => !row.id.startsWith("bank-payment:"));
   const period = planPeriod(draft);
   const fieldError = (id: string) => error?.fieldId === id ? error.message : undefined;
   function add(direction: "inflow" | "outflow") {
@@ -55,7 +56,7 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction, err
     }));
   }
   return <div className="space-y-5">
-              {allLoans.some(loan => loan.schedule) && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground">Платежи по действующим кредитам добавим автоматически по графикам банка. Их можно посмотреть в платёжном календаре.</p>}
+              {allLoans.some(loan => loan.schedule) && <p className="rounded-xl bg-secondary p-3 text-xs text-muted-foreground">Банковские графики учтём автоматически. В прогнозе оставим собственные деньги на платежи по кредитам.</p>}
               <p className="self-center text-sm text-muted-foreground">
                 Остаток из данных банка:{" "}
                 <strong className="text-foreground">
@@ -86,12 +87,12 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction, err
                   </Button>}
                 </div>
               </div>
-              {draft.rows.filter(row => !direction || row.direction === direction).length === 0 && (
+              {editableRows.filter(row => !direction || row.direction === direction).length === 0 && (
                 <p className="rounded-xl border border-dashed border-border p-4 text-xs text-muted-foreground">
                   {direction === "inflow" ? "Если поступления пока неизвестны, оставьте этот раздел пустым. В расчёте покажем, останется ли непогашенный долг." : direction === "outflow" ? "Добавьте платёж, на который нужны деньги." : "Добавьте известные расходы и поступления. Неизвестную выручку указывать не нужно."}
                 </p>
               )}
-              {draft.rows.filter(row => !direction || row.direction === direction).map((row, index) => (
+              {editableRows.filter(row => !direction || row.direction === direction).map((row, index) => (
                 <div
                   key={row.id}
                   className="rounded-2xl border border-border bg-background p-4"
@@ -152,14 +153,16 @@ export function CashFlowFields({ view, draft, setDraft, bankCash, direction, err
                     {row.direction === "outflow" && loans.length > 0 && (
                       <ChoiceField
                         id={`operation-loan-${row.id}`}
-                        label="Связать с платежом по кредиту"
+                        label="Тип расхода"
+                        emptyLabel="Расход бизнеса"
+                        error={fieldError(`operation-loan-${row.id}`)}
                         value={row.loanId}
                         onValueChange={(value) =>
                           rowChange(row.id, { loanId: value })
                         }
                         options={loans.map((loan, loanIndex) => ({
                           value: loan.loan_id,
-                          label: `Кредит ${loanIndex + 1}`,
+                          label: `Платёж по кредиту ${loanIndex + 1}`,
                         }))}
                       />
                     )}

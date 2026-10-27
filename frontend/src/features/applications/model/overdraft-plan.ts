@@ -71,6 +71,9 @@ export function draftFromPlan(
 ): PlanDraft {
   const plan = planSchema.safeParse(details?.overdraft);
   const value = plan.success ? plan.data : null;
+  const lastOperation = value?.transactions
+    .filter(row => !row.transaction_id.startsWith("bank-payment:"))
+    .map(row => row.date).sort().at(-1);
   const today = new Date().toLocaleDateString("en-CA", {
     timeZone: "Europe/Moscow",
   });
@@ -91,11 +94,16 @@ export function draftFromPlan(
     })),
     debtConfirmed:
       value?.debt_payments_confirmed ?? Boolean(value?.existing_debt_payments),
-    automaticPeriod: !value,
+    // A saved plan ending on its last operation still follows operation dates.
+    // Preserve a deliberately extended forecast period when reopening it.
+    automaticPeriod: !value || value.end_date === lastOperation,
   };
 }
 
 export function buildOverdraftPlan(draft: PlanDraft, loanIds: string[]) {
+  // Bank schedule rows are recalculated by the server. Sending a cached copy
+  // makes automatic debt payments look like manually entered business costs.
+  draft = { ...draft, rows: draft.rows.filter(row => !row.id.startsWith("bank-payment:")) };
   draft = { ...draft, ...planPeriod(draft) };
   if (!isDate(draft.start)) throw new PlanValidationError("plan-start", "Укажите корректную дату начала прогноза.");
   if (!isDate(draft.end) || draft.start > draft.end) throw new PlanValidationError("plan-end", "Конец прогноза должен быть не раньше его начала.");
@@ -119,8 +127,8 @@ export function buildOverdraftPlan(draft: PlanDraft, loanIds: string[]) {
       row.loanId &&
       (row.direction !== "outflow" || !loanIds.includes(row.loanId))
     )
-      throw new Error(
-        "Платёж по кредиту должен быть расходом по действующему кредиту.",
+      throw new PlanValidationError(`operation-loan-${row.id}`,
+        "Связанный кредит уже недоступен. Выберите действующий кредит или уберите привязку.",
       );
     const amount = normalizeMoneyInput(row.amount);
     return {

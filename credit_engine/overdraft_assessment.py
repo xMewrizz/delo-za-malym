@@ -78,6 +78,7 @@ def validate_debt_payments(scenario: Mapping, loans: list, start: date, end: dat
     transactions = {item["transaction_id"]: item for item in scenario["transactions"]}
     seen = set()
     planned: dict[tuple[str, str], Decimal] = {}
+    planned_by_date: dict[tuple[str, str], Decimal] = {}
     for index, reference in enumerate(references):
         if not isinstance(reference, Mapping):
             return (CalculationIssue(f"{field}[{index}]", "invalid_debt_payment_plan", "Нужны loan_id и transaction_id."),)
@@ -90,8 +91,22 @@ def validate_debt_payments(scenario: Mapping, loans: list, start: date, end: dat
         seen.add(transaction_id)
         key = loan_id, operation["date"][:7]
         planned[key] = planned.get(key, Decimal("0.00")) + Decimal(operation["amount"])
+        day_key = loan_id, operation["date"]
+        planned_by_date[day_key] = planned_by_date.get(day_key, Decimal("0.00")) + Decimal(operation["amount"])
     # За полностью включённый календарный месяц нельзя подтвердить отсутствие регулярного платежа.
     for loan_id, loan in active.items():
+        # Capacity reserves are not payments: a line may owe only interest,
+        # and an investment loan may still have principal grace months.
+        if isinstance(loan.get("schedule"), list):
+            due_by_date: dict[str, Decimal] = {}
+            for payment in loan["schedule"]:
+                if start.isoformat() <= payment["date"] <= end.isoformat():
+                    day = payment["date"]
+                    due_by_date[day] = due_by_date.get(day, Decimal("0.00")) + Decimal(payment["total_payment"])
+            for day, amount in due_by_date.items():
+                if planned_by_date.get((loan_id, day), Decimal("0.00")) < amount:
+                    return (CalculationIssue(field, "incomplete_debt_payment_plan", f"В плане не учтён платёж по действующему кредиту на {day}. Обновите банковские данные."),)
+            continue
         current = start.replace(day=1)
         while current <= end:
             month_end = current.replace(day=monthrange(current.year, current.month)[1])
@@ -319,6 +334,10 @@ def _assess(application, checks, calculated_at, stage, assessment_id, policy, fi
             return result("invalid_data", issues=debt_issues)
         return finish("needs_information", "incomplete_debt_payment_plan", "Уточните расходы по действующим кредитам.", fields=debt_issues)
     calculation = simulation.calculation
+    debt_shortfalls = tuple(issue for issue in calculation.violations if issue.code == "credit_payment_shortfall")
+    if debt_shortfalls:
+        return finish("needs_information", "credit_payment_shortfall",
+                      "Для платежей по действующим кредитам нужны собственные средства. Овердрафт покрывает только расходы бизнеса.", fields=debt_shortfalls)
     if not calculation.within_limit:
         if calculation.required_limit <= maximum:
             return finish("needs_information", "requested_limit_below_plan", "Запрошенный лимит меньше потребности из плана.", fields=(

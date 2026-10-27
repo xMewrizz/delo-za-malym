@@ -5,6 +5,8 @@ from pathlib import Path
 import unittest
 
 from credit_engine import OverdraftCreditPolicy, assess_overdraft
+from credit_engine.overdraft_assessment import validate_debt_payments
+from datetime import date
 from scripts.run_credit_scenarios import load_scenarios, run_scenario
 
 
@@ -12,6 +14,13 @@ NOW = "2026-10-20T12:01:00+03:00"
 
 
 class OverdraftAssessmentTests(unittest.TestCase):
+    def test_bank_schedule_uses_actual_interest_and_grace_payments_not_capacity_reserve(self):
+        loans = [{"loan_id":"line","outstanding_principal":"75000.00","monthly_payment":"16800.00","maturity_date":"2027-09-11","schedule":[{"date":"2026-11-11","total_payment":"1180.07"}]}]
+        plan = {"transactions":[{"transaction_id":"payment","direction":"outflow","date":"2026-11-11","amount":"1180.07"}],"existing_debt_payments":[{"loan_id":"line","transaction_id":"payment"}]}
+        self.assertEqual(validate_debt_payments(plan,loans,date(2026,10,27),date(2026,11,30)),())
+        plan["transactions"][0]["date"] = "2026-11-12"
+        self.assertEqual(validate_debt_payments(plan,loans,date(2026,10,27),date(2026,11,30))[0].code,"incomplete_debt_payment_plan")
+
     def setUp(self):
         root = Path(__file__).resolve().parents[1]
         examples = json.loads((root / "contracts/examples.json").read_text(encoding="utf-8"))
@@ -177,6 +186,13 @@ class OverdraftAssessmentTests(unittest.TestCase):
         result = self.assess()
         self.assertEqual(result.assessment["outcome"], "approved")
         self.assertEqual(sum(day.outflow for day in result.overdraft_calculation.daily), Decimal("285000.00"))
+        self.assertEqual(result.overdraft_calculation.required_limit, Decimal("185000.00"))
+        self.assertEqual(next(day for day in result.overdraft_calculation.daily if day.date == "2026-11-05").drawn, Decimal("0.00"))
+        self.assertEqual(result.overdraft_calculation.daily[0].closing_cash, Decimal("35000.00"))
+        # An earlier receipt removes the need to set aside initial cash for debt.
+        plan["transactions"].append({"transaction_id":"early-revenue", "date":"2026-11-04", "direction":"inflow", "amount":"200000.00"})
+        self.assertEqual(self.assess().assessment["outcome"], "approved")
+        self.assertEqual(self.assess().overdraft_calculation.required_limit, Decimal("150000.00"))
         plan["existing_debt_payments"].append(deepcopy(plan["existing_debt_payments"][0]))
         self.assertEqual(self.assess().status, "invalid_data")
 
@@ -186,6 +202,17 @@ class OverdraftAssessmentTests(unittest.TestCase):
         assessment = self.assess().assessment
         self.assertEqual(assessment["outcome"], "needs_information")
         self.assertEqual(assessment["required_information"][0]["code"], "incomplete_debt_payment_plan")
+
+    def test_no_offer_when_existing_loan_needs_own_money_not_overdraft(self):
+        plan=self.application["product_details"]["overdraft"]
+        plan["opening_cash_balance"]="0.00"
+        plan["transactions"].append({"transaction_id":"old-loan", "date":"2026-11-05", "direction":"outflow", "amount":"35000.00"})
+        plan["existing_debt_payments"]=[{"loan_id":"existing-001", "transaction_id":"old-loan"}]
+        result=self.assess()
+        self.assertEqual(result.assessment["outcome"], "needs_information")
+        self.assertEqual(result.assessment["reasons"][0]["code"], "credit_payment_shortfall")
+        self.assertEqual(result.assessment["offers"], [])
+        self.assertEqual(result.overdraft_calculation.required_limit,Decimal("250000.00"))
 
     def test_repayment_and_time_limits_are_verified(self):
         plan = self.application["product_details"]["overdraft"]

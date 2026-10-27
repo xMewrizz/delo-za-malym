@@ -149,6 +149,16 @@ def calculate_overdraft(
     elif not isinstance(transactions, list):
         invalid.append(CalculationIssue("scenario.transactions", "invalid_transactions", "Операции должны быть списком."))
 
+    references = scenario.get("existing_debt_payments") or []
+    debt_ids = set()
+    if not isinstance(references, list):
+        invalid.append(CalculationIssue("scenario.existing_debt_payments", "invalid_debt_payment_plan", "Связи кредитных платежей должны быть списком."))
+    else:
+        for index, reference in enumerate(references):
+            if not isinstance(reference, Mapping) or not isinstance(reference.get("transaction_id"), str):
+                invalid.append(CalculationIssue(f"scenario.existing_debt_payments[{index}]", "invalid_debt_payment_reference", "Укажите операцию платежа по кредиту."))
+            else:
+                debt_ids.add(reference["transaction_id"])
     parsed_transactions = []
     transaction_ids = set()
     for index, transaction in enumerate(transactions if isinstance(transactions, list) else []):
@@ -175,12 +185,15 @@ def calculate_overdraft(
             invalid.append(CalculationIssue(f"{field}.direction", "invalid_direction", "Допустимы inflow и outflow."))
         amount = money(transaction.get("amount"), f"{field}.amount", positive=True)
         if operation_date is not None and amount is not None and direction in ("inflow", "outflow"):
-            parsed_transactions.append((operation_date, direction, amount))
+            parsed_transactions.append((operation_date, direction, amount, isinstance(identifier, str) and identifier in debt_ids))
+    for identifier in debt_ids:
+        if not any(isinstance(item, Mapping) and item.get("transaction_id") == identifier and item.get("direction") == "outflow" for item in (transactions if isinstance(transactions, list) else [])):
+            invalid.append(CalculationIssue("scenario.existing_debt_payments", "invalid_debt_payment_reference", "Платёж по кредиту должен ссылаться на отдельный расход."))
     if invalid or missing:
         return OverdraftCalculationResult("invalid_data" if invalid else "needs_information", issues=tuple(invalid + missing))
 
     amounts = [parsed_limit, opening_cash, reserve, Decimal(policy.annual_rate_percent)]
-    amounts.extend(amount for _, _, amount in parsed_transactions)
+    amounts.extend(amount for _, _, amount, _ in parsed_transactions)
     with localcontext() as context:
         context.prec = max(64, 2 * max(len(value.as_tuple().digits) for value in amounts) + 32)
         context.rounding = ROUND_HALF_UP
@@ -189,9 +202,11 @@ def calculate_overdraft(
 
 def _calculate(start, end, opening_cash, reserve, transactions, limit, policy):
     operations: dict[date, dict[str, Decimal]] = {}
-    for operation_date, direction, amount in transactions:
-        day_operations = operations.setdefault(operation_date, {"inflow": ZERO, "outflow": ZERO})
+    for operation_date, direction, amount, debt_payment in transactions:
+        day_operations = operations.setdefault(operation_date, {"inflow": ZERO, "outflow": ZERO, "debt": ZERO})
         day_operations[direction] += amount
+        if debt_payment:
+            day_operations["debt"] += amount
 
     annual_rate = Decimal(policy.annual_rate_percent)
     cash = opening_cash
@@ -204,16 +219,30 @@ def _calculate(start, end, opening_cash, reserve, transactions, limit, policy):
     violations = []
     within_limit = within_repayment_period = True
 
+    # Keep own funds for known loan payments due before the next receipt.
+    # This is a forecast allocation, not a block on the actual bank account.
+    protected_debt = {}
+    pending_debt = ZERO
+    for day_number in reversed(range((end - start).days + 1)):
+        day = start + timedelta(days=day_number)
+        values = operations.get(day, {})
+        pending_debt += values.get("debt", ZERO)
+        protected_debt[day] = pending_debt
+        if values.get("inflow", ZERO) > ZERO:
+            pending_debt = ZERO
+
     for day_number in range((end - start).days + 1):
         day = start + timedelta(days=day_number)
         inflow = operations.get(day, {}).get("inflow", ZERO)
         outflow = operations.get(day, {}).get("outflow", ZERO)
+        debt_payment = operations.get(day, {}).get("debt", ZERO)
         day_opening_cash, day_opening_principal = cash, principal
         cash += inflow
-        interest_paid = min(unpaid_interest, max(ZERO, cash - reserve))
+        repayment_reserve = reserve + protected_debt[day]
+        interest_paid = min(unpaid_interest, max(ZERO, cash - repayment_reserve))
         unpaid_interest -= interest_paid
         cash -= interest_paid
-        principal_repaid = min(principal, max(ZERO, cash - reserve))
+        principal_repaid = min(principal, max(ZERO, cash - repayment_reserve))
         principal -= principal_repaid
         cash -= principal_repaid
         remaining_repayment = principal_repaid
@@ -224,9 +253,18 @@ def _calculate(start, end, opening_cash, reserve, transactions, limit, policy):
             if drawings[0][1] == ZERO:
                 drawings.pop(0)
 
-        own_payment = min(outflow, max(ZERO, cash - reserve))
+        # Existing loans are serviced from own funds, never by drawing another
+        # credit. A shortage remains visible in cash and cannot become an offer.
+        if debt_payment > max(ZERO, cash - reserve):
+            shortfall = debt_payment - max(ZERO, cash - reserve)
+            violations.append(CalculationIssue(f"daily.{day.isoformat()}", "credit_payment_shortfall",
+                f"На {day.isoformat()} для платежей по кредитам не хватает {shortfall:.2f} ₽ собственных средств. Овердрафт оплачивает расходы бизнеса, а не погашение кредитов."))
+        cash -= debt_payment
+        business_outflow = outflow - debt_payment
+        business_reserve = repayment_reserve - debt_payment
+        own_payment = min(business_outflow, max(ZERO, cash - business_reserve))
         cash -= own_payment
-        drawn = outflow - own_payment
+        drawn = business_outflow - own_payment
         if drawn > ZERO:
             principal += drawn
             drawings.append([day, drawn])
@@ -259,7 +297,7 @@ def _calculate(start, end, opening_cash, reserve, transactions, limit, policy):
         peak, total_drawn, total_principal_repaid, total_interest, total_interest_paid,
         unpaid_interest, ZERO, total_drawn + total_interest, principal, cash,
         within_limit, within_repayment_period, fully_repaid,
-        within_limit and within_repayment_period and fully_repaid,
+        within_limit and within_repayment_period and fully_repaid and not any(issue.code == "credit_payment_shortfall" for issue in violations),
         tuple(violations), tuple(daily),
     )
     return OverdraftCalculationResult("calculated", calculation)
